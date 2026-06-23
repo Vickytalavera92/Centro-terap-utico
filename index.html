@@ -5,206 +5,140 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CREA — Sistema de Gestión</title>
 <style>
-  :root {
-    --primary: #0F6E56;
-    --primary-light: #E1F5EE;
-    --primary-dark: #085041;
-    --accent: #0F6E56;
-    --teal: #0F6E56;
-    --teal-light: #E1F5EE;
-    --coral: #993C1D;
-    --coral-light: #FAECE7;
-    --amber: #633806;
-    --amber-light: #FAEEDA;
-    --green: #27500A;
-    --green-light: #EAF3DE;
-    --red-light: #FCEBEB;
-    --red: #791F1F;
-    --bg: #F7F6FB;
-    --surface: #FFFFFF;
-    --border: #E5E3F0;
-    --text: #1A1730;
-    --text-secondary: #6B6580;
-    --text-tertiary: #9E9AB5;
-    --radius: 10px;
-    --radius-sm: 6px;
-    --radius-lg: 14px;
-    --shadow: 0 1px 3px rgba(74,64,128,0.08), 0 1px 2px rgba(74,64,128,0.04);
-    --shadow-md: 0 4px 12px rgba(74,64,128,0.12);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
-
-  /* LOGIN */
-  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #F0EEF9 0%, #E8F4F0 100%); }
-  .login-card { background: var(--surface); border-radius: var(--radius-lg); padding: 40px; width: 380px; box-shadow: var(--shadow-md); }
-  .login-logo { text-align: center; margin-bottom: 28px; }
-  .login-logo .logo-icon { width: 56px; height: 56px; background: var(--primary); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 24px; color: white; }
-  .login-logo h1 { font-size: 18px; font-weight: 600; color: var(--primary); }
-  .login-logo p { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
-  .form-group { margin-bottom: 16px; }
-  .form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
-  .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--bg); color: var(--text); transition: border-color .15s; }
-  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); background: white; }
-  .form-group textarea { resize: vertical; min-height: 80px; }
-  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all .15s; }
-  .btn-primary { background: var(--primary); color: white; width: 100%; justify-content: center; }
-  .btn-primary:hover { background: var(--primary-dark); }
-  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-  .btn-secondary:hover { background: var(--border); }
-  .btn-danger { background: var(--red-light); color: var(--red); }
-  .btn-sm { padding: 6px 12px; font-size: 12px; }
-  .btn-ghost { background: transparent; color: var(--primary); padding: 6px 10px; }
-  .btn-ghost:hover { background: var(--primary-light); }
-  .error-msg { background: var(--red-light); color: var(--red); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 14px; display: none; }
-
-  /* LAYOUT */
-  .app { display: flex; min-height: 100vh; }
-  .sidebar { width: 240px; min-width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-  .sidebar-header { padding: 20px 16px 16px; border-bottom: 1px solid var(--border); }
-  .sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-  .sidebar-logo .s-icon { width: 34px; height: 34px; background: var(--primary); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; flex-shrink: 0; }
-  .sidebar-logo span { font-size: 14px; font-weight: 600; color: var(--primary); line-height: 1.2; }
-  .user-pill { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg); border-radius: var(--radius-sm); margin-top: 12px; }
-  .user-pill .u-av { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .user-pill .u-name { font-size: 12px; font-weight: 500; }
-  .user-pill .u-rol { font-size: 10px; color: var(--text-secondary); }
-  .sidebar-nav { flex: 1; padding: 12px 8px; }
-  .nav-section { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .06em; padding: 8px 8px 4px; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary); font-size: 13px; font-weight: 500; transition: all .15s; margin-bottom: 2px; }
-  .nav-item:hover { background: var(--bg); color: var(--text); }
-  .nav-item.active { background: var(--primary-light); color: var(--primary); }
-  .nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
-  .sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); }
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .topbar { padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: space-between; }
-  .topbar h2 { font-size: 16px; font-weight: 600; }
-  .page { flex: 1; padding: 24px; overflow-y: auto; display: none; }
-  .page.active { display: block; }
-
-  /* CARDS & GRIDS */
-  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; box-shadow: var(--shadow); }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; box-shadow: var(--shadow); }
-  .stat-num { font-size: 28px; font-weight: 600; color: var(--primary); }
-  .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-  .section-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px; }
-
-  /* BADGES */
-  .badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
-  .b-purple { background: var(--primary-light); color: var(--primary); }
-  .b-green { background: var(--green-light); color: var(--green); }
-  .b-amber { background: var(--amber-light); color: var(--amber); }
-  .b-teal { background: var(--teal-light); color: var(--teal); }
-  .b-red { background: var(--red-light); color: var(--red); }
-  .b-coral { background: var(--coral-light); color: var(--coral); }
-
-  /* PROFESIONALES */
-  .prof-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow); cursor: pointer; transition: all .15s; }
-  .prof-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-1px); }
-  .prof-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; margin-bottom: 12px; }
-  .av-purple { background: var(--primary-light); color: var(--primary); }
-  .av-teal { background: var(--teal-light); color: var(--teal); }
-  .av-coral { background: var(--coral-light); color: var(--coral); }
-  .av-amber { background: var(--amber-light); color: var(--amber); }
-  .prof-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
-  .prof-esp { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
-  .prof-stats { display: flex; gap: 12px; }
-  .ps-item { text-align: center; }
-  .ps-num { font-size: 18px; font-weight: 600; color: var(--primary); }
-  .ps-lbl { font-size: 10px; color: var(--text-tertiary); }
-
-  /* TABS */
-  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
-  .tab { padding: 8px 14px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-secondary); margin-bottom: -1px; font-weight: 500; transition: all .15s; }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-  .tab-content { display: none; }
-  .tab-content.active { display: block; }
-
-  /* LEGAJO */
-  .obs-card { background: var(--bg); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; border-left: 3px solid var(--accent); }
-  .obs-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-  .obs-date { font-size: 11px; color: var(--text-tertiary); }
-  .obs-autor { font-size: 11px; color: var(--primary); font-weight: 500; }
-  .obs-text { font-size: 13px; line-height: 1.7; color: var(--text); }
-  .obj-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--surface); }
-  .obj-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-  .informe-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--surface); }
-  .ses-table { width: 100%; border-collapse: collapse; }
-  .ses-table th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
-  .ses-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); }
-  .ses-table tr:last-child td { border-bottom: none; }
-
-  /* AGENDA */
-  .agenda-slot { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 6px; border: 1px solid var(--border); background: var(--surface); }
-  .slot-time { font-size: 13px; font-weight: 600; color: var(--text-secondary); width: 54px; flex-shrink: 0; }
-  .slot-name { flex: 1; font-size: 13px; font-weight: 500; }
-  .slot-libre { color: var(--text-tertiary); font-style: italic; }
-
-  /* PACIENTES */
-  .pac-table { width: 100%; border-collapse: collapse; }
-  .pac-table th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); background: var(--bg); }
-  .pac-table td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--border); }
-  .pac-table tr:hover td { background: var(--bg); }
-  .pac-table tr:last-child td { border-bottom: none; }
-  .pac-avatar-sm { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; flex-shrink: 0; background: var(--primary-light); color: var(--primary); }
-
-  /* MODAL */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 1000; display: none; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); border-radius: var(--radius-lg); padding: 24px; width: 480px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-md); }
-  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-  .modal-header h3 { font-size: 16px; font-weight: 600; }
-  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
-
-  /* MISC */
-  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
-  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
-  .empty-state .empty-icon { font-size: 36px; margin-bottom: 10px; }
-  .loading { text-align: center; padding: 40px; color: var(--text-tertiary); font-size: 13px; }
-  .dir-banner { display: flex; align-items: center; gap: 8px; background: var(--primary-light); color: var(--primary); padding: 9px 14px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; margin-bottom: 16px; }
-  .back-btn { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--primary); cursor: pointer; background: none; border: none; padding: 0; margin-bottom: 16px; font-weight: 500; }
-  .back-btn:hover { text-decoration: underline; }
-  .flex { display: flex; }
-  .items-center { align-items: center; }
-  .justify-between { justify-content: space-between; }
-  .gap-8 { gap: 8px; }
-  .gap-12 { gap: 12px; }
-  .mb-8 { margin-bottom: 8px; }
-  .mb-12 { margin-bottom: 12px; }
-  .mb-16 { margin-bottom: 16px; }
-  .mb-20 { margin-bottom: 20px; }
-  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--primary); color: white; padding: 12px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; z-index: 9999; box-shadow: var(--shadow-md); opacity: 0; transform: translateY(10px); transition: all .25s; }
-  .toast.show { opacity: 1; transform: translateY(0); }
+:root {
+  --primary: #C0392B; --primary-light: #FDECEA; --primary-dark: #922B21;
+  --teal: #1B8A7A; --teal-light: #E8F6F4;
+  --gold: #F0A500; --gold-light: #FEF6E0;
+  --orange: #E8683A; --orange-light: #FDEEE8;
+  --bg: #FAF9F8; --surface: #FFFFFF; --border: #EDE9E5;
+  --text: #1A1512; --text-secondary: #6B5E58; --text-tertiary: #A89D98;
+  --red: #791F1F; --red-light: #FCEBEB; --amber: #633806; --amber-light: #FAEEDA;
+  --radius: 10px; --radius-sm: 6px; --radius-lg: 14px;
+  --shadow: 0 1px 3px rgba(15,110,86,0.08);
+  --shadow-md: 0 4px 12px rgba(15,110,86,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #E8F6F4 0%, #FDECEA 100%); }
+.login-card { background: var(--surface); border-radius: var(--radius-lg); padding: 40px; width: 380px; box-shadow: var(--shadow-md); }
+.login-logo { text-align: center; margin-bottom: 28px; }
+.logo-box { width: 60px; height: 60px; background: linear-gradient(135deg, #1B8A7A, #C0392B); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 14px; font-weight: 800; color: white; letter-spacing: -1px; }
+.login-logo h1 { font-size: 20px; font-weight: 700; color: #1B8A7A; }
+.login-logo p { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; background: var(--bg); color: var(--text); }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); background: white; }
+.form-group textarea { resize: vertical; min-height: 80px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: none; }
+.btn-primary { background: var(--teal); color: white; }
+.btn-primary:hover { background: #0F6E56; }
+.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn-full { width: 100%; justify-content: center; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-ghost { background: transparent; color: var(--primary); padding: 6px 10px; }
+.error-msg { background: var(--red-light); color: var(--red); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 14px; display: none; }
+.app { display: flex; min-height: 100vh; }
+.sidebar { width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+.sidebar-header { padding: 18px 16px; border-bottom: 1px solid var(--border); }
+.sidebar-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.s-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #1B8A7A, #C0392B); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 800; letter-spacing: -0.5px; flex-shrink: 0; }
+.s-name { font-size: 13px; font-weight: 700; color: #1B8A7A; line-height: 1.2; }
+.s-sub { font-size: 10px; color: var(--text-secondary); }
+.user-pill { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg); border-radius: var(--radius-sm); }
+.u-av { width: 28px; height: 28px; border-radius: 50%; background: var(--teal-light); color: var(--teal); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.u-name { font-size: 12px; font-weight: 500; }
+.u-rol { font-size: 10px; color: var(--text-secondary); }
+.sidebar-nav { flex: 1; padding: 10px 8px; }
+.nav-section { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .06em; padding: 8px 8px 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary); font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active { background: var(--teal-light); color: var(--teal); }
+.sidebar-footer { padding: 10px 8px; border-top: 1px solid var(--border); }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar { padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: space-between; }
+.topbar h2 { font-size: 16px; font-weight: 600; }
+.page { flex: 1; padding: 24px; overflow-y: auto; display: none; }
+.page.active { display: block; }
+.card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; box-shadow: var(--shadow); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
+.stat-num { font-size: 28px; font-weight: 600; color: var(--teal); }
+.stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.section-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px; }
+.badge { display: inline-flex; align-items: center; font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
+.b-green { background: var(--teal-light); color: var(--teal); }
+.b-amber { background: var(--amber-light); color: var(--amber); }
+.b-red { background: var(--red-light); color: var(--red); }
+.b-gray { background: #F0F0F0; color: #555; }
+.prof-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; cursor: pointer; transition: all .15s; }
+.prof-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
+.av { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; margin-bottom: 10px; background: var(--teal-light); color: var(--teal); }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.tab { padding: 8px 14px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-secondary); margin-bottom: -1px; font-weight: 500; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+.tab-sec { display: none; }
+.tab-sec.active { display: block; }
+.obs-card { background: var(--bg); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; border-left: 3px solid var(--teal); }
+.obs-date { font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px; }
+.obs-text { font-size: 13px; line-height: 1.7; }
+.obs-autor { font-size: 11px; color: var(--primary); font-weight: 500; margin-top: 4px; }
+.agenda-slot { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 6px; border: 1px solid var(--border); background: var(--surface); }
+.slot-time { font-size: 13px; font-weight: 600; color: var(--text-secondary); width: 50px; flex-shrink: 0; }
+.pac-table { width: 100%; border-collapse: collapse; }
+.pac-table th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); background: var(--bg); }
+.pac-table td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid var(--border); }
+.pac-table tr:hover td { background: var(--bg); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 1000; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: var(--radius-lg); padding: 24px; width: 480px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-md); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.modal-header h3 { font-size: 16px; font-weight: 600; }
+.modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.dir-banner { display: flex; align-items: center; gap: 8px; background: var(--teal-light); color: var(--teal); padding: 9px 14px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; margin-bottom: 16px; }
+.back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--teal); cursor: pointer; background: none; border: none; padding: 0; margin-bottom: 16px; font-weight: 500; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+.loading { text-align: center; padding: 40px; color: var(--text-tertiary); font-size: 13px; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--teal); color: white; padding: 12px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; z-index: 9999; box-shadow: var(--shadow-md); opacity: 0; transform: translateY(10px); transition: all .25s; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-20 { margin-bottom: 20px; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
 </style>
 </head>
 <body>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <!-- LOGIN -->
 <div class="login-wrap" id="login-page">
   <div class="login-card">
     <div class="login-logo">
-      <div class="logo-icon" style="background:white;padding:4px;font-size:13px;font-weight:800;color:#0F6E56;letter-spacing:-1px;">CREA</div>
-      <h1>CREA</h1>
+      <div class="logo-box" style="background:white;gap:1px;flex-direction:row;padding:8px;">
+  <span style="color:#1B8A7A;font-size:18px;font-weight:900;">C</span>
+  <span style="color:#C0392B;font-size:18px;font-weight:900;">R</span>
+  <span style="color:#F0A500;font-size:18px;font-weight:900;">E</span>
+  <span style="color:#E8683A;font-size:18px;font-weight:900;">A</span>
+</div>
+      <h1><span style="color:#1B8A7A;">C</span><span style="color:#C0392B;">R</span><span style="color:#F0A500;">E</span><span style="color:#E8683A;">A</span></h1>
       <p>Espacio para la Familia</p>
     </div>
     <div class="error-msg" id="login-error">Email o contraseña incorrectos</div>
     <div class="form-group">
       <label>Email</label>
-      <input type="email" id="login-email" placeholder="tu@email.com" >
+      <input type="email" id="login-email" placeholder="tu@email.com">
     </div>
     <div class="form-group">
       <label>Contraseña</label>
-      <input type="password" id="login-pass" placeholder="••••••••" >
+      <input type="password" id="login-pass" placeholder="••••••••">
     </div>
-    <button class="btn btn-primary" onclick="login()">Ingresar →</button>
-    <p style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:14px;">Ingresá con tu email y contraseña</p>
+    <button class="btn btn-primary btn-full" onclick="login()">Ingresar</button>
   </div>
 </div>
 
@@ -212,73 +146,67 @@
 <div class="app" id="app" style="display:none;">
   <div class="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-logo">
-        <div class="s-icon" style="background:white;font-size:11px;font-weight:800;color:#0F6E56;letter-spacing:-0.5px;">CREA</div>
-        <span>CREA</span>
+      <div class="sidebar-brand">
+        <div class="s-icon" style="background:white;flex-direction:row;gap:0px;padding:4px;">
+  <span style="color:#1B8A7A;font-size:10px;font-weight:900;">C</span>
+  <span style="color:#C0392B;font-size:10px;font-weight:900;">R</span>
+  <span style="color:#F0A500;font-size:10px;font-weight:900;">E</span>
+  <span style="color:#E8683A;font-size:10px;font-weight:900;">A</span>
+</div>
+        <div><div class="s-name">CREA</div><div class="s-sub">Espacio para la Familia</div></div>
       </div>
       <div class="user-pill">
-        <div class="u-av" id="sidebar-av">DA</div>
-        <div>
-          <div class="u-name" id="sidebar-name">Directora</div>
-          <div class="u-rol" id="sidebar-rol">Directora</div>
-        </div>
+        <div class="u-av" id="sav">?</div>
+        <div><div class="u-name" id="sname">—</div><div class="u-rol" id="srol">—</div></div>
       </div>
     </div>
     <div class="sidebar-nav">
-      <div class="nav-section">Principal</div>
-      <div class="nav-item active" onclick="navTo('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
-      <div class="nav-item" onclick="navTo('profesionales')"><span class="nav-icon">👩‍⚕️</span> Profesionales</div>
-      <div class="nav-item" onclick="navTo('pacientes')"><span class="nav-icon">📁</span> Pacientes</div>
-      <div class="nav-item" onclick="navTo('agenda')"><span class="nav-icon">📅</span> Agenda</div>
+      <div class="nav-section">Menu</div>
+      <div class="nav-item active" id="nav-dashboard" onclick="goTo('dashboard')">📊 Dashboard</div>
+      <div class="nav-item" id="nav-profesionales" onclick="goTo('profesionales')">👩‍⚕️ Profesionales</div>
+      <div class="nav-item" id="nav-pacientes" onclick="goTo('pacientes')">📁 Pacientes</div>
+      <div class="nav-item" id="nav-agenda" onclick="goTo('agenda')">📅 Agenda</div>
     </div>
     <div class="sidebar-footer">
-      <div class="nav-item" onclick="logout()" style="color:var(--red)"><span class="nav-icon">🚪</span> Cerrar sesión</div>
+      <div class="nav-item" onclick="logout()" style="color:var(--red)">🚪 Cerrar sesión</div>
     </div>
   </div>
 
   <div class="main">
     <div class="topbar">
       <h2 id="page-title">Dashboard</h2>
-      <div id="topbar-actions"></div>
+      <div id="topbar-btn"></div>
     </div>
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <div class="grid-4 mb-20">
-        <div class="stat-card"><div class="stat-num" id="d-profs">—</div><div class="stat-label">Profesionales activas</div></div>
-        <div class="stat-card"><div class="stat-num" id="d-pacientes">—</div><div class="stat-label">Pacientes activos</div></div>
-        <div class="stat-card"><div class="stat-num" id="d-sesiones">—</div><div class="stat-label">Sesiones este mes</div></div>
+        <div class="stat-card"><div class="stat-num" id="d-profs">—</div><div class="stat-label">Profesionales</div></div>
+        <div class="stat-card"><div class="stat-num" id="d-pacs">—</div><div class="stat-label">Pacientes activos</div></div>
+        <div class="stat-card"><div class="stat-num" id="d-ses">—</div><div class="stat-label">Sesiones este mes</div></div>
         <div class="stat-card"><div class="stat-num" id="d-hoy">—</div><div class="stat-label">Turnos hoy</div></div>
       </div>
       <div class="grid-2">
-        <div class="card">
-          <div class="section-title">Profesionales del centro</div>
-          <div id="d-prof-list"><div class="loading">Cargando...</div></div>
-        </div>
-        <div class="card">
-          <div class="section-title">Agenda de hoy</div>
-          <div id="d-agenda-hoy"><div class="loading">Cargando...</div></div>
-        </div>
+        <div class="card"><div class="section-title">Equipo</div><div id="d-team"></div></div>
+        <div class="card"><div class="section-title">Agenda de hoy</div><div id="d-agenda"></div></div>
       </div>
     </div>
 
     <!-- PROFESIONALES -->
     <div class="page" id="page-profesionales">
-      <div id="prof-list-view">
-        <div class="grid-3" id="prof-cards"><div class="loading">Cargando profesionales...</div></div>
-      </div>
-      <div id="prof-detail-view" style="display:none;"></div>
-      <div id="legajo-view" style="display:none;"></div>
+      <div id="view-profs"><div class="grid-3" id="prof-cards"></div></div>
+      <div id="view-prof-detail" style="display:none;"></div>
+      <div id="view-legajo" style="display:none;"></div>
     </div>
 
     <!-- PACIENTES -->
     <div class="page" id="page-pacientes">
       <div class="card">
         <div class="flex items-center justify-between mb-16">
-          <div class="section-title" style="margin-bottom:0;">Todos los pacientes</div>
-          <button class="btn btn-primary btn-sm" onclick="abrirModalPaciente()">+ Nuevo paciente</button>
+          <div class="section-title" style="margin-bottom:0;">Pacientes</div>
+          <button class="btn btn-primary btn-sm" onclick="openModalPac()">+ Nuevo paciente</button>
         </div>
-        <div id="pacientes-table"><div class="loading">Cargando...</div></div>
+        <div id="pac-table-wrap"></div>
       </div>
     </div>
 
@@ -287,26 +215,22 @@
       <div class="card">
         <div class="flex items-center justify-between mb-16">
           <div>
-            <div class="section-title" style="margin-bottom:4px;">Agenda del centro</div>
+            <div class="section-title" style="margin-bottom:4px;">Agenda</div>
             <div id="agenda-fecha" style="font-size:13px;color:var(--text-secondary);"></div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="abrirModalTurno()">+ Nuevo turno</button>
+          <button class="btn btn-primary btn-sm" onclick="openModalTurno()">+ Nuevo turno</button>
         </div>
-        <div id="agenda-content"><div class="loading">Cargando...</div></div>
+        <div id="agenda-wrap"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- MODAL NUEVA OBSERVACION -->
+<!-- MODAL OBSERVACION -->
 <div class="modal-overlay" id="modal-obs">
   <div class="modal">
-    <div class="modal-header">
-      <h3>Nueva observación</h3>
-      <button class="btn btn-ghost btn-sm" onclick="cerrarModal('modal-obs')">✕</button>
-    </div>
-    <div class="form-group">
-      <label>Tipo</label>
+    <div class="modal-header"><h3>Nueva entrada</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-obs')">✕</button></div>
+    <div class="form-group"><label>Tipo</label>
       <select id="obs-tipo">
         <option value="observacion">Observación clínica</option>
         <option value="objetivo">Objetivo terapéutico</option>
@@ -314,73 +238,50 @@
         <option value="informe">Nota de sesión</option>
       </select>
     </div>
-    <div class="form-group">
-      <label>Contenido</label>
-      <textarea id="obs-contenido" rows="5" placeholder="Escribir aquí..."></textarea>
-    </div>
+    <div class="form-group"><label>Contenido</label><textarea id="obs-content" rows="5" placeholder="Escribir aquí..."></textarea></div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-obs')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarObs()">Guardar</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-obs')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveObs()">Guardar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL NUEVO PACIENTE -->
-<div class="modal-overlay" id="modal-paciente">
+<!-- MODAL PACIENTE -->
+<div class="modal-overlay" id="modal-pac">
   <div class="modal">
-    <div class="modal-header">
-      <h3>Nuevo paciente</h3>
-      <button class="btn btn-ghost btn-sm" onclick="cerrarModal('modal-paciente')">✕</button>
-    </div>
+    <div class="modal-header"><h3>Nuevo paciente</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-pac')">✕</button></div>
     <div class="grid-2">
       <div class="form-group"><label>Nombre</label><input id="pac-nombre" placeholder="Nombre"></div>
       <div class="form-group"><label>Apellido</label><input id="pac-apellido" placeholder="Apellido"></div>
     </div>
     <div class="grid-2">
-      <div class="form-group"><label>DNI/CI</label><input id="pac-dni" placeholder="Número de documento"></div>
-      <div class="form-group"><label>Fecha de nacimiento</label><input type="date" id="pac-fnac"></div>
+      <div class="form-group"><label>CI/DNI</label><input id="pac-dni" placeholder="Documento"></div>
+      <div class="form-group"><label>Fecha nacimiento</label><input type="date" id="pac-fnac"></div>
     </div>
     <div class="grid-2">
       <div class="form-group"><label>Teléfono</label><input id="pac-tel" placeholder="+595..."></div>
-      <div class="form-group"><label>Cobertura</label><input id="pac-cobertura" placeholder="IIPS, particular..."></div>
+      <div class="form-group"><label>Cobertura</label><input id="pac-cob" placeholder="IIPS, particular..."></div>
     </div>
     <div class="form-group"><label>Diagnóstico</label><input id="pac-diag" placeholder="Diagnóstico principal"></div>
-    <div class="form-group">
-      <label>Profesional asignada</label>
-      <select id="pac-prof">
-        <option value="">Sin asignar</option>
-      </select>
-    </div>
+    <div class="form-group"><label>Profesional asignada</label><select id="pac-prof"><option value="">Sin asignar</option></select></div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-paciente')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarPaciente()">Guardar paciente</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-pac')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePac()">Guardar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL NUEVO TURNO -->
+<!-- MODAL TURNO -->
 <div class="modal-overlay" id="modal-turno">
   <div class="modal">
-    <div class="modal-header">
-      <h3>Nuevo turno</h3>
-      <button class="btn btn-ghost btn-sm" onclick="cerrarModal('modal-turno')">✕</button>
-    </div>
-    <div class="form-group">
-      <label>Profesional</label>
-      <select id="turno-prof"></select>
-    </div>
-    <div class="form-group">
-      <label>Paciente (opcional)</label>
-      <select id="turno-pac">
-        <option value="">Turno libre</option>
-      </select>
-    </div>
+    <div class="modal-header"><h3>Nuevo turno</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-turno')">✕</button></div>
+    <div class="form-group"><label>Profesional</label><select id="turno-prof"></select></div>
+    <div class="form-group"><label>Paciente</label><select id="turno-pac"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha</label><input type="date" id="turno-fecha"></div>
       <div class="form-group"><label>Hora</label><input type="time" id="turno-hora"></div>
     </div>
-    <div class="form-group">
-      <label>Tipo</label>
+    <div class="form-group"><label>Tipo</label>
       <select id="turno-tipo">
         <option value="sesion">Sesión</option>
         <option value="evaluacion">Evaluación</option>
@@ -388,67 +289,64 @@
       </select>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-turno')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarTurno()">Guardar turno</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-turno')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTurno()">Guardar</button>
     </div>
   </div>
 </div>
 
 <script>
-const SUPA_URL = 'https://umkcxapqznlndcdwdgoi.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVta2N4YXBxem5sbmRjZHdkZ29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzYzMDcsImV4cCI6MjA5NzgxMjMwN30.HepmR58e0ZQnFkVz1JFpQ-oWwxCWAjw6Q3kYlVsd3h0';
+var SUPA_URL = 'https://umkcxapqznlndcdwdgoi.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVta2N4YXBxem5sbmRjZHdkZ29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzYzMDcsImV4cCI6MjA5NzgxMjMwN30.HepmR58e0ZQnFkVz1JFpQ-oWwxCWAjw6Q3kYlVsd3h0';
+var HDR = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Prefer': 'return=representation' };
+var CU = null; // currentUser
+var curProfId = null;
+var curPacId = null;
 
-const HEADERS = {
-  'Content-Type': 'application/json',
-  'apikey': SUPA_KEY,
-  'Authorization': `Bearer ${SUPA_KEY}`,
-  'Prefer': 'return=representation'
-};
-
-let currentUser = null;
-let currentProfId = null;
-let currentPacId = null;
-const AVCOLORS = ['av-purple','av-teal','av-coral','av-amber'];
-
-async function db(method, table, body=null, params='') {
-  const url = `${SUPA_URL}/rest/v1/${table}${params}`;
-  const opts = { method, headers: HEADERS };
+async function api(method, table, body, params) {
+  var url = SUPA_URL + '/rest/v1/' + table + (params || '');
+  var opts = { method: method, headers: HDR };
   if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(url, opts);
-  if (!r.ok) { const e = await r.json(); throw new Error(e.message||r.statusText); }
-  return method === 'DELETE' ? null : r.json();
+  var r = await fetch(url, opts);
+  if (!r.ok) { var e = await r.json(); throw new Error(e.message || r.statusText); }
+  if (method === 'DELETE') return null;
+  return r.json();
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
+function toast(msg) {
+  var t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  setTimeout(function() { t.classList.remove('show'); }, 2800);
 }
 
-// LOGIN SIMPLE (demo con usuarios hardcodeados + Supabase)
+function today() { return new Date().toISOString().slice(0,10); }
+function firstDay() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01'; }
+function lastDay() { var d = new Date(); return new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10); }
+function fmt(s) { if (!s) return '—'; return new Date(s + 'T12:00:00').toLocaleDateString('es-PY', {day:'numeric', month:'short', year:'numeric'}); }
+function ini(n, a) { return ((n||'').charAt(0) + (a||'').charAt(0)).toUpperCase(); }
+function calcAge(dob) { var d = new Date(dob); var n = new Date(); var a = n.getFullYear() - d.getFullYear(); if (n < new Date(n.getFullYear(), d.getMonth(), d.getDate())) a--; return a; }
+
 async function login() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-pass').value;
+  var email = document.getElementById('login-email').value.trim();
+  var pass = document.getElementById('login-pass').value;
   document.getElementById('login-error').style.display = 'none';
   try {
-    // Autenticación real con Supabase Auth
-    const authRes = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+    var authRes = await fetch(SUPA_URL + '/auth/v1/token?grant_type=password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
-      body: JSON.stringify({ email, password: pass })
+      body: JSON.stringify({ email: email, password: pass })
     });
-    const authData = await authRes.json();
+    var authData = await authRes.json();
     if (!authRes.ok) throw new Error(authData.error_description || 'Error');
-    // Buscar perfil en tabla usuarios
-    const users = await db('GET', 'usuarios', null, `?email=eq.${encodeURIComponent(email)}&limit=1`);
+    var users = await api('GET', 'usuarios', null, '?email=eq.' + encodeURIComponent(email) + '&limit=1');
     if (!users || users.length === 0) throw new Error('Sin perfil');
-    currentUser = users[0];
+    CU = users[0];
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    document.getElementById('sidebar-av').textContent = currentUser.avatar_iniciales || '??';
-    document.getElementById('sidebar-name').textContent = currentUser.nombre.split(' ').slice(-2).join(' ');
-    document.getElementById('sidebar-rol').textContent = currentUser.rol === 'directora' ? '👑 Directora' : '🩺 Profesional';
+    document.getElementById('sav').textContent = CU.avatar_iniciales || '??';
+    document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
+    document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : 'Profesional';
     loadDashboard();
   } catch(e) {
     document.getElementById('login-error').style.display = 'block';
@@ -456,403 +354,374 @@ async function login() {
 }
 
 function logout() {
-  currentUser = null;
+  CU = null;
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-page').style.display = 'flex';
 }
 
-function navTo(page) {
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  event.currentTarget.classList.add('active');
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
-  const titles = {dashboard:'Dashboard', profesionales:'Profesionales', pacientes:'Pacientes', agenda:'Agenda'};
+function goTo(page) {
+  document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
+  document.getElementById('nav-' + page).classList.add('active');
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('page-' + page).classList.add('active');
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda' };
   document.getElementById('page-title').textContent = titles[page];
-  document.getElementById('topbar-actions').innerHTML = '';
-  if (page==='profesionales') loadProfesionales();
-  if (page==='pacientes') loadPacientes();
-  if (page==='agenda') loadAgenda();
+  document.getElementById('topbar-btn').innerHTML = '';
+  if (page === 'profesionales') loadProfs();
+  if (page === 'pacientes') loadPacs();
+  if (page === 'agenda') loadAgenda();
 }
+
+function switchTab(el, id) {
+  var parent = el.closest('.tabs').parentElement;
+  parent.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  parent.querySelectorAll('.tab-sec').forEach(function(t) { t.classList.remove('active'); });
+  el.classList.add('active');
+  parent.querySelector('#' + id).classList.add('active');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // DASHBOARD
 async function loadDashboard() {
   try {
-    const isDir = currentUser.rol === 'directora';
-    const [profs, pacs, sesiones, agenda] = await Promise.all([
-      db('GET','usuarios',null,'?rol=eq.profesional&activo=eq.true'),
-      db('GET','pacientes',null, isDir ? '?estado=eq.activo' : `?profesional_id=eq.${currentUser.id}&estado=eq.activo`),
-      db('GET','sesiones',null, isDir ? `?fecha=gte.${firstDay()}&fecha=lte.${lastDay()}` : `?profesional_id=eq.${currentUser.id}&fecha=gte.${firstDay()}&fecha=lte.${lastDay()}`),
-      db('GET','agenda',null, isDir ? `?fecha=eq.${today()}&order=hora.asc` : `?fecha=eq.${today()}&profesional_id=eq.${currentUser.id}&order=hora.asc`)
+    var isDir = CU.rol === 'directora';
+    var pacQ = isDir ? '?estado=eq.activo' : '?profesional_id=eq.' + CU.id + '&estado=eq.activo';
+    var sesQ = isDir ? '?fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay() : '?profesional_id=eq.' + CU.id + '&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay();
+    var agQ = isDir ? '?fecha=eq.' + today() + '&order=hora.asc' : '?fecha=eq.' + today() + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
+    var results = await Promise.all([
+      api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true'),
+      api('GET', 'pacientes', null, pacQ),
+      api('GET', 'sesiones', null, sesQ),
+      api('GET', 'agenda', null, agQ)
     ]);
+    var profs = results[0], pacs = results[1], ses = results[2], ag = results[3];
     document.getElementById('d-profs').textContent = profs.length;
-    document.getElementById('d-pacientes').textContent = pacs.length;
-    document.getElementById('d-sesiones').textContent = sesiones.length;
-    document.getElementById('d-hoy').textContent = agenda.length;
-
-    // Prof list
-    const profEl = document.getElementById('d-prof-list');
-    if (!profs.length) { profEl.innerHTML = '<div class="empty-state">No hay profesionales</div>'; }
-    else profEl.innerHTML = profs.map((p,i) => `
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div class="prof-avatar ${AVCOLORS[i%4]}" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">${p.avatar_iniciales||'??'}</div>
-        <div style="flex:1;"><div style="font-size:13px;font-weight:500;">${p.nombre}</div><div style="font-size:11px;color:var(--text-secondary);">${p.especialidad||''}</div></div>
-        <span class="badge b-green">Activa</span>
-      </div>`).join('');
-
-    // Agenda hoy
-    const agEl = document.getElementById('d-agenda-hoy');
-    if (!agenda.length) { agEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div>Sin turnos hoy</div>'; }
-    else agEl.innerHTML = agenda.map(a => `
-      <div class="agenda-slot">
-        <span class="slot-time">${a.hora?.slice(0,5)||''}</span>
-        <span class="slot-name ${a.tipo==='libre'?'slot-libre':''}">${a.paciente_nombre||'Turno libre'}</span>
-        <span class="badge ${a.tipo==='sesion'?'b-purple':a.tipo==='evaluacion'?'b-teal':'b-amber'}">${a.tipo}</span>
-      </div>`).join('');
+    document.getElementById('d-pacs').textContent = pacs.length;
+    document.getElementById('d-ses').textContent = ses.length;
+    document.getElementById('d-hoy').textContent = ag.length;
+    var teamEl = document.getElementById('d-team');
+    teamEl.innerHTML = profs.map(function(p) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">' +
+        '<div class="av" style="width:32px;height:32px;font-size:11px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
+        '<div style="flex:1;"><div style="font-size:13px;font-weight:500;">' + p.nombre + '</div><div style="font-size:11px;color:var(--text-secondary);">' + (p.especialidad||'') + '</div></div>' +
+        '<span class="badge b-green">Activa</span></div>';
+    }).join('');
+    var agEl = document.getElementById('d-agenda');
+    if (!ag.length) { agEl.innerHTML = '<div class="empty-state">Sin turnos hoy</div>'; }
+    else agEl.innerHTML = ag.map(function(a) {
+      return '<div class="agenda-slot"><span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
+        '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre || 'Turno libre') + '</span>' +
+        '<span class="badge b-green">' + a.tipo + '</span></div>';
+    }).join('');
   } catch(e) { console.error(e); }
 }
 
 // PROFESIONALES
-async function loadProfesionales() {
+async function loadProfs() {
   try {
-    // Profesionales solo ven su propio perfil; directoras ven todas
-    const query = currentUser.rol === 'directora' 
-      ? '?rol=eq.profesional&activo=eq.true&order=nombre.asc'
-      : `?rol=eq.profesional&activo=eq.true&id=eq.${currentUser.id}`;
-    const profs = await db('GET','usuarios',null,query);
-    const el = document.getElementById('prof-cards');
-    if (!profs.length) { el.innerHTML = '<div class="empty-state">No hay profesionales registradas</div>'; return; }
-    el.innerHTML = profs.map((p,i) => `
-      <div class="prof-card" onclick="verProfesional('${p.id}')">
-        <div class="prof-avatar ${AVCOLORS[i%4]}">${p.avatar_iniciales||'??'}</div>
-        <div class="prof-name">${p.nombre}</div>
-        <div class="prof-esp">${p.especialidad||'Sin especialidad'}</div>
-        <div class="prof-stats">
-          <div class="ps-item"><div class="ps-num">—</div><div class="ps-lbl">Pacientes</div></div>
-          <div class="ps-item"><div class="ps-num">—</div><div class="ps-lbl">Sesiones</div></div>
-        </div>
-        <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
-          <span class="badge b-green">Activa</span>
-          ${p.horario?`<span class="badge b-purple" style="font-size:10px;">${p.horario}</span>`:''}
-        </div>
-      </div>`).join('');
-    // Add new prof button only for directors
-    if (currentUser.rol === 'directora') {
-      document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalProfesional()">+ Nueva profesional</button>`;
-    }
-    document.getElementById('prof-list-view').style.display = 'block';
-    document.getElementById('prof-detail-view').style.display = 'none';
-    document.getElementById('legajo-view').style.display = 'none';
+    var q = CU.rol === 'directora' ? '?rol=eq.profesional&activo=eq.true&order=nombre.asc' : '?rol=eq.profesional&activo=eq.true&id=eq.' + CU.id;
+    var profs = await api('GET', 'usuarios', null, q);
+    var el = document.getElementById('prof-cards');
+    if (!profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
+    el.innerHTML = profs.map(function(p, i) {
+      return '<div class="prof-card" onclick="verProf(\'' + p.id + '\')">' +
+        '<div class="av">' + (p.avatar_iniciales||'??') + '</div>' +
+        '<div style="font-size:14px;font-weight:600;margin-bottom:3px;">' + p.nombre + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">' + (p.especialidad||'') + '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="badge b-green">Activa</span>' +
+        (p.horario ? '<span class="badge b-gray" style="font-size:10px;">' + p.horario + '</span>' : '') + '</div></div>';
+    }).join('');
+    document.getElementById('view-profs').style.display = 'block';
+    document.getElementById('view-prof-detail').style.display = 'none';
+    document.getElementById('view-legajo').style.display = 'none';
+    if (CU.rol === 'directora') document.getElementById('topbar-btn').innerHTML = '<button class="btn btn-primary btn-sm" onclick="alert(\'Agregar profesional: agregala desde Supabase → Table Editor → usuarios\')">+ Nueva profesional</button>';
   } catch(e) { console.error(e); }
 }
 
-async function verProfesional(profId) {
-  currentProfId = profId;
-  document.getElementById('prof-list-view').style.display = 'none';
-  document.getElementById('prof-detail-view').style.display = 'block';
-  document.getElementById('legajo-view').style.display = 'none';
-  const dv = document.getElementById('prof-detail-view');
+async function verProf(profId) {
+  curProfId = profId;
+  document.getElementById('view-profs').style.display = 'none';
+  document.getElementById('view-prof-detail').style.display = 'block';
+  document.getElementById('view-legajo').style.display = 'none';
+  var dv = document.getElementById('view-prof-detail');
   dv.innerHTML = '<div class="loading">Cargando...</div>';
   try {
-    const [prof, pacientes, sesiones, agenda] = await Promise.all([
-      db('GET','usuarios',null,`?id=eq.${profId}&limit=1`),
-      db('GET','pacientes',null,`?profesional_id=eq.${profId}&estado=eq.activo`),
-      db('GET','sesiones',null,`?profesional_id=eq.${profId}&fecha=gte.${firstDay()}`),
-      db('GET','agenda',null,`?profesional_id=eq.${profId}&fecha=eq.${today()}&order=hora.asc`)
+    var results = await Promise.all([
+      api('GET', 'usuarios', null, '?id=eq.' + profId + '&limit=1'),
+      api('GET', 'pacientes', null, '?profesional_id=eq.' + profId + '&estado=eq.activo'),
+      api('GET', 'sesiones', null, '?profesional_id=eq.' + profId + '&fecha=gte.' + firstDay()),
+      api('GET', 'agenda', null, '?profesional_id=eq.' + profId + '&fecha=eq.' + today() + '&order=hora.asc')
     ]);
-    const p = prof[0];
-    const av = AVCOLORS[0];
-    dv.innerHTML = `
-      <button class="back-btn" onclick="loadProfesionales()">← Volver a profesionales</button>
-      <div class="dir-banner">👁 Vista directora — acceso completo al perfil</div>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-        <div class="prof-avatar ${av}" style="width:52px;height:52px;font-size:17px;margin-bottom:0;">${p.avatar_iniciales||'??'}</div>
-        <div>
-          <div style="font-size:18px;font-weight:600;">${p.nombre}</div>
-          <div style="font-size:13px;color:var(--text-secondary);">${p.especialidad||''}</div>
-          <div style="margin-top:6px;display:flex;gap:6px;"><span class="badge b-green">Activa</span>${p.matricula?`<span class="badge b-purple">${p.matricula}</span>`:''}</div>
-        </div>
-      </div>
-      <div class="grid-3 mb-20">
-        <div class="stat-card"><div class="stat-num">${pacientes.length}</div><div class="stat-label">Pacientes activos</div></div>
-        <div class="stat-card"><div class="stat-num">${sesiones.length}</div><div class="stat-label">Sesiones este mes</div></div>
-        <div class="stat-card"><div class="stat-num">${agenda.length}</div><div class="stat-label">Turnos hoy</div></div>
-      </div>
-      <div class="tabs">
-        <div class="tab active" onclick="switchTab(this,'tp-datos')">Datos</div>
-        <div class="tab" onclick="switchTab(this,'tp-agenda')">Agenda hoy</div>
-        <div class="tab" onclick="switchTab(this,'tp-legajos')">📁 Legajos (${pacientes.length})</div>
-      </div>
-      <div id="tp-datos" class="tab-content active">
-        <div class="grid-2">
-          <div class="form-group"><label>Email</label><div style="font-size:13px;padding:8px 0;">${p.email}</div></div>
-          <div class="form-group"><label>Teléfono</label><div style="font-size:13px;padding:8px 0;">${p.telefono||'—'}</div></div>
-          <div class="form-group"><label>Matrícula</label><div style="font-size:13px;padding:8px 0;">${p.matricula||'—'}</div></div>
-          <div class="form-group"><label>Horario</label><div style="font-size:13px;padding:8px 0;">${p.horario||'—'}</div></div>
-        </div>
-      </div>
-      <div id="tp-agenda" class="tab-content">
-        ${agenda.length ? agenda.map(a=>`
-          <div class="agenda-slot">
-            <span class="slot-time">${a.hora?.slice(0,5)||''}</span>
-            <span class="slot-name ${a.tipo==='libre'?'slot-libre':''}">${a.paciente_nombre||'Turno libre'}</span>
-            <span class="badge ${a.tipo==='sesion'?'b-purple':a.tipo==='evaluacion'?'b-teal':'b-amber'}">${a.tipo}</span>
-          </div>`).join('') : '<div class="empty-state"><div class="empty-icon">📅</div>Sin turnos hoy</div>'}
-      </div>
-      <div id="tp-legajos" class="tab-content">
-        <div class="flex justify-between items-center mb-12">
-          <span style="font-size:12px;color:var(--text-secondary);">${pacientes.length} legajos</span>
-          <button class="btn btn-primary btn-sm" onclick="abrirModalPaciente('${profId}')">+ Nuevo legajo</button>
-        </div>
-        <div class="grid-2">
-          ${pacientes.length ? pacientes.map(pac=>`
-            <div class="prof-card" onclick="verLegajo('${pac.id}','${profId}')">
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-                <div class="pac-avatar-sm" style="width:38px;height:38px;font-size:12px;">${initials(pac.nombre,pac.apellido)}</div>
-                <div>
-                  <div style="font-size:13px;font-weight:600;">${pac.nombre} ${pac.apellido}</div>
-                  <div style="font-size:11px;color:var(--text-secondary);">${pac.diagnostico||'Sin diagnóstico'}</div>
-                </div>
-              </div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <span class="badge b-green">Activo</span>
-                ${pac.cobertura?`<span class="badge b-teal">${pac.cobertura}</span>`:''}
-                <span style="font-size:11px;color:var(--text-tertiary);margin-left:auto;">Desde ${fmtDate(pac.fecha_ingreso)}</span>
-              </div>
-            </div>`).join('') : '<div class="empty-state" style="grid-column:span 2">Sin pacientes asignados</div>'}
-        </div>
-      </div>`;
-  } catch(e) { console.error(e); dv.innerHTML = `<div class="empty-state">Error cargando datos</div>`; }
+    var p = results[0][0], pacs = results[1], ses = results[2], ag = results[3];
+    var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
+    if (CU.rol === 'directora') html += '<div class="dir-banner">👁 Vista directora — acceso completo</div>';
+    html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
+      '<div class="av" style="width:50px;height:50px;font-size:16px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
+      '<div><div style="font-size:17px;font-weight:600;">' + p.nombre + '</div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);">' + (p.especialidad||'') + '</div>' +
+      '<div style="margin-top:6px;display:flex;gap:6px;"><span class="badge b-green">Activa</span>' +
+      (p.matricula ? '<span class="badge b-gray">' + p.matricula + '</span>' : '') + '</div></div></div>';
+    html += '<div class="grid-3 mb-20">' +
+      '<div class="stat-card"><div class="stat-num">' + pacs.length + '</div><div class="stat-label">Pacientes</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + ses.length + '</div><div class="stat-label">Sesiones este mes</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + ag.length + '</div><div class="stat-label">Turnos hoy</div></div></div>';
+    html += '<div class="tabs">' +
+      '<div class="tab active" onclick="switchTab(this,\'tp-datos\')">Datos</div>' +
+      '<div class="tab" onclick="switchTab(this,\'tp-agenda\')">Agenda hoy</div>' +
+      '<div class="tab" onclick="switchTab(this,\'tp-legajos\')">Legajos (' + pacs.length + ')</div></div>';
+    html += '<div id="tp-datos" class="tab-sec active">' +
+      '<div class="grid-2">' +
+      '<div class="form-group"><label>Email</label><div style="padding:8px 0;font-size:13px;">' + p.email + '</div></div>' +
+      '<div class="form-group"><label>Teléfono</label><div style="padding:8px 0;font-size:13px;">' + (p.telefono||'—') + '</div></div>' +
+      '<div class="form-group"><label>Matrícula</label><div style="padding:8px 0;font-size:13px;">' + (p.matricula||'—') + '</div></div>' +
+      '<div class="form-group"><label>Horario</label><div style="padding:8px 0;font-size:13px;">' + (p.horario||'—') + '</div></div></div></div>';
+    html += '<div id="tp-agenda" class="tab-sec">' +
+      (ag.length ? ag.map(function(a) {
+        return '<div class="agenda-slot"><span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
+          '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre||'Turno libre') + '</span>' +
+          '<span class="badge b-green">' + a.tipo + '</span></div>';
+      }).join('') : '<div class="empty-state">Sin turnos hoy</div>') + '</div>';
+    html += '<div id="tp-legajos" class="tab-sec">' +
+      '<div class="flex justify-between items-center mb-12">' +
+      '<span style="font-size:12px;color:var(--text-secondary);">' + pacs.length + ' legajos</span>' +
+      '<button class="btn btn-primary btn-sm" onclick="openModalPac(\'' + profId + '\')">+ Nuevo legajo</button></div>' +
+      '<div class="grid-2">' +
+      (pacs.length ? pacs.map(function(pac) {
+        return '<div class="prof-card" onclick="verLegajo(\'' + pac.id + '\',\'' + profId + '\')">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+          '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
+          '<div><div style="font-size:13px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + '</div>' +
+          '<div style="font-size:11px;color:var(--text-secondary);">' + (pac.diagnostico||'Sin diagnóstico') + '</div></div></div>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+          '<span class="badge b-green">Activo</span>' +
+          (pac.cobertura ? '<span class="badge b-gray">' + pac.cobertura + '</span>' : '') + '</div></div>';
+      }).join('') : '<div class="empty-state" style="grid-column:span 2">Sin pacientes</div>') +
+      '</div></div>';
+    dv.innerHTML = html;
+  } catch(e) { console.error(e); dv.innerHTML = '<div class="empty-state">Error cargando datos</div>'; }
 }
 
 async function verLegajo(pacId, profId) {
-  currentPacId = pacId;
-  const canEdit = currentUser.rol === 'directora' || currentUser.id === profId;
-  document.getElementById('prof-detail-view').style.display = 'none';
-  document.getElementById('legajo-view').style.display = 'block';
-  const lv = document.getElementById('legajo-view');
+  curPacId = pacId;
+  curProfId = profId;
+  var canEdit = CU.rol === 'directora' || CU.id === profId;
+  document.getElementById('view-prof-detail').style.display = 'none';
+  document.getElementById('view-legajo').style.display = 'block';
+  var lv = document.getElementById('view-legajo');
   lv.innerHTML = '<div class="loading">Cargando legajo...</div>';
   try {
-    const [pacArr, legajos, sesiones] = await Promise.all([
-      db('GET','pacientes',null,`?id=eq.${pacId}&limit=1`),
-      db('GET','legajos',null,`?paciente_id=eq.${pacId}&order=created_at.desc`),
-      db('GET','sesiones',null,`?paciente_id=eq.${pacId}&order=fecha.desc&limit=20`)
+    var results = await Promise.all([
+      api('GET', 'pacientes', null, '?id=eq.' + pacId + '&limit=1'),
+      api('GET', 'legajos', null, '?paciente_id=eq.' + pacId + '&order=created_at.desc'),
+      api('GET', 'sesiones', null, '?paciente_id=eq.' + pacId + '&order=fecha.desc&limit=20')
     ]);
-    const pac = pacArr[0];
-    const obs = legajos.filter(l=>l.tipo==='observacion');
-    const objs = legajos.filter(l=>l.tipo==='objetivo');
-    const estr = legajos.filter(l=>l.tipo==='estrategia');
-    const informes = legajos.filter(l=>l.tipo==='informe');
-    lv.innerHTML = `
-      <button class="back-btn" onclick="verProfesional('${profId}')">← Volver al perfil</button>
-      <div class="dir-banner">📁 Legajo clínico — vista directora</div>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-        <div class="pac-avatar-sm" style="width:48px;height:48px;font-size:15px;">${initials(pac.nombre,pac.apellido)}</div>
-        <div>
-          <div style="font-size:17px;font-weight:600;">${pac.nombre} ${pac.apellido}</div>
-          <div style="font-size:13px;color:var(--text-secondary);">${pac.diagnostico||'Sin diagnóstico registrado'}</div>
-          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-            <span class="badge b-green">Activo</span>
-            ${pac.cobertura?`<span class="badge b-teal">${pac.cobertura}</span>`:''}
-            ${pac.fecha_ingreso?`<span style="font-size:11px;color:var(--text-tertiary);">Ingreso: ${fmtDate(pac.fecha_ingreso)}</span>`:''}
-          </div>
-        </div>
-      </div>
-      <div class="grid-2 mb-16" style="grid-template-columns:repeat(4,1fr);">
-        ${pac.dni?`<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">CI/DNI</div><div style="font-size:13px;font-weight:600;">${pac.dni}</div></div>`:''}
-        ${pac.fecha_nacimiento?`<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">Edad</div><div style="font-size:13px;font-weight:600;">${calcAge(pac.fecha_nacimiento)} años</div></div>`:''}
-        <div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">Sesiones</div><div style="font-size:13px;font-weight:600;">${sesiones.length}</div></div>
-        <div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);margin-bottom:2px;">Objetivos</div><div style="font-size:13px;font-weight:600;">${objs.filter(o=>o.cumplido).length}/${objs.length}</div></div>
-      </div>
-      <div class="tabs">
-        <div class="tab active" onclick="switchTab(this,'lt-obs')">Observaciones (${obs.length})</div>
-        <div class="tab" onclick="switchTab(this,'lt-obj')">Objetivos (${objs.length})</div>
-        <div class="tab" onclick="switchTab(this,'lt-ses')">Sesiones (${sesiones.length})</div>
-        <div class="tab" onclick="switchTab(this,'lt-inf')">Notas (${informes.length})</div>
-      </div>
-      <div id="lt-obs" class="tab-content active">
-        \${canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="abrirObs(\'observacion\')">+ Nueva observación</button>' : ''}
-        ${obs.length ? obs.map(o=>`
-          <div class="obs-card">
-            <div class="obs-meta"><span class="obs-date">📅 ${fmtDate(o.fecha)}</span><span class="obs-autor">${o.profesional_id?'Profesional':''}</span></div>
-            <div class="obs-text">${o.contenido}</div>
-          </div>`).join('') : '<div class="empty-state">Sin observaciones registradas</div>'}
-      </div>
-      <div id="lt-obj" class="tab-content">
-        \${canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="abrirObs(\'objetivo\')">+ Nuevo objetivo</button>' : ''}
-        ${objs.length ? objs.map(o=>`
-          <div class="obj-item">
-            <span class="obj-icon">${o.cumplido?'✅':'⭕'}</span>
-            <span style="flex:1;font-size:13px;">${o.contenido}</span>
-            <span class="badge ${o.cumplido?'b-green':'b-amber'}">${o.cumplido?'Logrado':'En proceso'}</span>
-          </div>`).join('') : '<div class="empty-state">Sin objetivos registrados</div>'}
-        ${estr.length?`<hr class="divider"><div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">ESTRATEGIAS</div>${estr.map(e=>`<div class="obs-card" style="border-left-color:var(--teal);">${e.contenido}</div>`).join('')}`:''}
-      </div>
-      <div id="lt-ses" class="tab-content">
-        \${canEdit ? `<button class="btn btn-primary btn-sm mb-12" onclick="registrarSesion('${pacId}','${profId}')">+ Registrar sesión</button>` : ''}
-        ${sesiones.length ? `<table class="ses-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Nota</th></tr></thead><tbody>${sesiones.map(s=>`<tr><td>${fmtDate(s.fecha)}</td><td><span class="badge b-purple">${s.tipo}</span></td><td>${s.nota||'—'}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">Sin sesiones registradas</div>'}
-      </div>
-      <div id="lt-inf" class="tab-content">
-        \${canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="abrirObs(\'informe\')">+ Nueva nota</button>' : ''}
-        ${informes.length ? informes.map(i=>`
-          <div class="informe-row">
-            <span style="font-size:20px;">📄</span>
-            <span style="flex:1;font-size:13px;">${i.contenido.slice(0,80)}${i.contenido.length>80?'...':''}</span>
-            <span style="font-size:11px;color:var(--text-secondary);">${fmtDate(i.fecha)}</span>
-          </div>`).join('') : '<div class="empty-state">Sin notas registradas</div>'}
-      </div>`;
+    var pac = results[0][0];
+    var legajos = results[1];
+    var sesiones = results[2];
+    var obs = legajos.filter(function(l) { return l.tipo === 'observacion'; });
+    var objs = legajos.filter(function(l) { return l.tipo === 'objetivo'; });
+    var estr = legajos.filter(function(l) { return l.tipo === 'estrategia'; });
+    var notas = legajos.filter(function(l) { return l.tipo === 'informe'; });
+
+    var addBtn = function(tipo, label) {
+      if (!canEdit) return '';
+      return '<button class="btn btn-primary btn-sm mb-12" onclick="openObs(\'' + tipo + '\')">+ ' + label + '</button>';
+    };
+
+    var html = '<button class="back-btn" onclick="verProf(\'' + profId + '\')">← Volver al perfil</button>';
+    html += '<div class="dir-banner">📁 Legajo clínico' + (CU.rol === 'directora' ? ' — vista directora' : '') + '</div>';
+    html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
+      '<div class="av" style="width:46px;height:46px;font-size:14px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
+      '<div><div style="font-size:17px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + '</div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);">' + (pac.diagnostico||'Sin diagnóstico') + '</div>' +
+      '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">' +
+      '<span class="badge b-green">Activo</span>' +
+      (pac.cobertura ? '<span class="badge b-gray">' + pac.cobertura + '</span>' : '') +
+      (pac.fecha_nacimiento ? '<span style="font-size:11px;color:var(--text-tertiary);">' + calcAge(pac.fecha_nacimiento) + ' años</span>' : '') +
+      '</div></div></div>';
+    html += '<div class="grid-4 mb-16">' +
+      (pac.dni ? '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">CI/DNI</div><div style="font-size:13px;font-weight:600;">' + pac.dni + '</div></div>' : '') +
+      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Sesiones</div><div style="font-size:13px;font-weight:600;">' + sesiones.length + '</div></div>' +
+      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Objetivos</div><div style="font-size:13px;font-weight:600;">' + objs.filter(function(o) { return o.cumplido; }).length + '/' + objs.length + '</div></div>' +
+      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Ingreso</div><div style="font-size:13px;font-weight:600;">' + fmt(pac.fecha_ingreso) + '</div></div>' +
+      '</div>';
+    html += '<div class="tabs">' +
+      '<div class="tab active" onclick="switchTab(this,\'lt-obs\')">Observaciones (' + obs.length + ')</div>' +
+      '<div class="tab" onclick="switchTab(this,\'lt-obj\')">Objetivos (' + objs.length + ')</div>' +
+      '<div class="tab" onclick="switchTab(this,\'lt-ses\')">Sesiones (' + sesiones.length + ')</div>' +
+      '<div class="tab" onclick="switchTab(this,\'lt-notas\')">Notas (' + notas.length + ')</div></div>';
+
+    html += '<div id="lt-obs" class="tab-sec active">' + addBtn('observacion', 'Nueva observación') +
+      (obs.length ? obs.map(function(o) {
+        return '<div class="obs-card"><div class="obs-date">' + fmt(o.fecha) + '</div><div class="obs-text">' + o.contenido + '</div></div>';
+      }).join('') : '<div class="empty-state">Sin observaciones</div>') + '</div>';
+
+    html += '<div id="lt-obj" class="tab-sec">' + addBtn('objetivo', 'Nuevo objetivo') +
+      (objs.length ? objs.map(function(o) {
+        return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">' +
+          '<span style="font-size:18px;">' + (o.cumplido ? '✅' : '⭕') + '</span>' +
+          '<span style="flex:1;font-size:13px;">' + o.contenido + '</span>' +
+          '<span class="badge ' + (o.cumplido ? 'b-green' : 'b-amber') + '">' + (o.cumplido ? 'Logrado' : 'En proceso') + '</span></div>';
+      }).join('') : '<div class="empty-state">Sin objetivos</div>') +
+      (estr.length ? '<div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;">ESTRATEGIAS</div>' +
+        estr.map(function(e) { return '<div class="obs-card" style="border-left-color:#0F6E56;">' + e.contenido + '</div>'; }).join('') : '') + '</div>';
+
+    html += '<div id="lt-ses" class="tab-sec">' +
+      (canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="regSesion()">+ Registrar sesión</button>' : '') +
+      (sesiones.length ? '<table class="pac-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Nota</th></tr></thead><tbody>' +
+        sesiones.map(function(s) {
+          return '<tr><td>' + fmt(s.fecha) + '</td><td><span class="badge b-green">' + s.tipo + '</span></td><td>' + (s.nota||'—') + '</td></tr>';
+        }).join('') + '</tbody></table>' : '<div class="empty-state">Sin sesiones</div>') + '</div>';
+
+    html += '<div id="lt-notas" class="tab-sec">' + addBtn('informe', 'Nueva nota') +
+      (notas.length ? notas.map(function(n) {
+        return '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">' +
+          '<span style="font-size:20px;">📄</span>' +
+          '<span style="flex:1;font-size:13px;">' + n.contenido.slice(0,80) + (n.contenido.length > 80 ? '...' : '') + '</span>' +
+          '<span style="font-size:11px;color:var(--text-secondary);">' + fmt(n.fecha) + '</span></div>';
+      }).join('') : '<div class="empty-state">Sin notas</div>') + '</div>';
+
+    lv.innerHTML = html;
+  } catch(e) { console.error(e); lv.innerHTML = '<div class="empty-state">Error cargando legajo</div>'; }
+}
+
+function openObs(tipo) {
+  document.getElementById('obs-tipo').value = tipo;
+  document.getElementById('obs-content').value = '';
+  openModal('modal-obs');
+}
+
+async function saveObs() {
+  var content = document.getElementById('obs-content').value.trim();
+  if (!content) return;
+  try {
+    await api('POST', 'legajos', { paciente_id: curPacId, profesional_id: CU.id, tipo: document.getElementById('obs-tipo').value, contenido: content, fecha: today() });
+    closeModal('modal-obs');
+    toast('Guardado correctamente');
+    verLegajo(curPacId, curProfId);
   } catch(e) { console.error(e); }
 }
 
-// PACIENTES
-async function loadPacientes() {
+async function regSesion() {
+  var nota = prompt('Nota de la sesión (opcional):');
   try {
-    // Profesionales solo ven sus propios pacientes
-    const pacQuery = currentUser.rol === 'directora'
-      ? '?order=created_at.desc'
-      : `?profesional_id=eq.${currentUser.id}&order=created_at.desc`;
-    const pacs = await db('GET','pacientes',null,pacQuery);
-    const profs = await db('GET','usuarios',null,'?rol=eq.profesional');
-    const profMap = Object.fromEntries(profs.map(p=>[p.id,p.nombre]));
-    const el = document.getElementById('pacientes-table');
-    if (!pacs.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📁</div>Sin pacientes registrados</div>'; return; }
-    el.innerHTML = `<table class="pac-table"><thead><tr><th>Paciente</th><th>Diagnóstico</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th></tr></thead><tbody>${pacs.map(p=>`
-      <tr style="cursor:pointer;" onclick="">
-        <td><div style="display:flex;align-items:center;gap:8px;"><div class="pac-avatar-sm">${initials(p.nombre,p.apellido)}</div><span style="font-weight:500;">${p.nombre} ${p.apellido}</span></div></td>
-        <td style="color:var(--text-secondary);max-width:180px;">${p.diagnostico||'—'}</td>
-        <td>${p.profesional_id&&profMap[p.profesional_id]?profMap[p.profesional_id].replace('Dra. ','').replace('Lic. ',''):'—'}</td>
-        <td>${p.cobertura?`<span class="badge b-teal">${p.cobertura}</span>`:'—'}</td>
-        <td><span class="badge ${p.estado==='activo'?'b-green':p.estado==='inactivo'?'b-amber':'b-purple'}">${p.estado}</span></td>
-        <td style="color:var(--text-secondary);">${fmtDate(p.fecha_ingreso)}</td>
-      </tr>`).join('')}</tbody></table>`;
-    // populate prof select in modal
-    const sel = document.getElementById('pac-prof');
-    sel.innerHTML = '<option value="">Sin asignar</option>' + profs.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+    await api('POST', 'sesiones', { paciente_id: curPacId, profesional_id: CU.id, fecha: today(), tipo: 'sesion', nota: nota || null });
+    toast('Sesión registrada');
+    verLegajo(curPacId, curProfId);
   } catch(e) { console.error(e); }
 }
 
-// AGENDA
-async function loadAgenda() {
-  const hoy = today();
-  document.getElementById('agenda-fecha').textContent = new Date().toLocaleDateString('es-PY',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+async function loadPacs() {
   try {
-    const agendaQuery = currentUser.rol === 'directora'
-      ? `?fecha=eq.${hoy}&order=hora.asc`
-      : `?fecha=eq.${hoy}&profesional_id=eq.${currentUser.id}&order=hora.asc`;
-    const [agenda, profs] = await Promise.all([
-      db('GET','agenda',null,agendaQuery),
-      db('GET','usuarios',null,'?rol=eq.profesional')
-    ]);
-    const profMap = Object.fromEntries(profs.map(p=>[p.id,p.nombre]));
-    const el = document.getElementById('agenda-content');
-    if (!agenda.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div>Sin turnos para hoy</div>'; }
-    else el.innerHTML = agenda.map(a=>`
-      <div class="agenda-slot">
-        <span class="slot-time">${a.hora?.slice(0,5)||''}</span>
-        <span class="slot-name ${a.tipo==='libre'?'slot-libre':''}">${a.paciente_nombre||'Turno libre'}</span>
-        <span style="flex:1;font-size:12px;color:var(--text-secondary);">${a.profesional_id&&profMap[a.profesional_id]?profMap[a.profesional_id].replace('Dra. ','').replace('Lic. ',''):''}</span>
-        <span class="badge ${a.tipo==='sesion'?'b-purple':a.tipo==='evaluacion'?'b-teal':'b-amber'}">${a.tipo}</span>
-      </div>`).join('');
-    // populate prof select in turno modal
-    const tsel = document.getElementById('turno-prof');
-    tsel.innerHTML = profs.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
-    const pacs = await db('GET','pacientes',null,'?estado=eq.activo&order=nombre.asc');
-    const psel = document.getElementById('turno-pac');
-    psel.innerHTML = '<option value="">Turno libre</option>' + pacs.map(p=>`<option value="${p.id}">${p.nombre} ${p.apellido}</option>`).join('');
+    var q = CU.rol === 'directora' ? '?order=created_at.desc' : '?profesional_id=eq.' + CU.id + '&order=created_at.desc';
+    var pacs = await api('GET', 'pacientes', null, q);
+    var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional');
+    var profMap = {};
+    profs.forEach(function(p) { profMap[p.id] = p.nombre; });
+    var el = document.getElementById('pac-table-wrap');
+    if (!pacs.length) { el.innerHTML = '<div class="empty-state">Sin pacientes</div>'; return; }
+    el.innerHTML = '<table class="pac-table"><thead><tr><th>Paciente</th><th>Diagnóstico</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th></tr></thead><tbody>' +
+      pacs.map(function(p) {
+        return '<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;">' + ini(p.nombre, p.apellido) + '</div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span></div></td>' +
+          '<td style="color:var(--text-secondary);">' + (p.diagnostico||'—') + '</td>' +
+          '<td>' + (p.profesional_id && profMap[p.profesional_id] ? profMap[p.profesional_id].replace('Dra. ','').replace('Lic. ','') : '—') + '</td>' +
+          '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
+          '<td><span class="badge b-green">' + p.estado + '</span></td>' +
+          '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    var sel = document.getElementById('pac-prof');
+    sel.innerHTML = '<option value="">Sin asignar</option>' + profs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + '</option>'; }).join('');
   } catch(e) { console.error(e); }
 }
 
-// MODALES
-let obsType = 'observacion';
-function abrirObs(tipo) { obsType=tipo; document.getElementById('obs-tipo').value=tipo; document.getElementById('obs-contenido').value=''; document.getElementById('modal-obs').classList.add('open'); }
-async function guardarObs() {
-  const contenido = document.getElementById('obs-contenido').value.trim();
-  if (!contenido) return;
-  try {
-    await db('POST','legajos',{paciente_id:currentPacId, profesional_id:currentUser.id, tipo:document.getElementById('obs-tipo').value, contenido, fecha:today()});
-    cerrarModal('modal-obs');
-    showToast('✅ Guardado correctamente');
-    verLegajo(currentPacId, currentProfId);
-  } catch(e) { console.error(e); }
+function openModalPac(profId) {
+  document.getElementById('pac-nombre').value = '';
+  document.getElementById('pac-apellido').value = '';
+  document.getElementById('pac-dni').value = '';
+  document.getElementById('pac-tel').value = '';
+  document.getElementById('pac-cob').value = '';
+  document.getElementById('pac-diag').value = '';
+  if (profId) document.getElementById('pac-prof').value = profId;
+  openModal('modal-pac');
 }
 
-function abrirModalPaciente(profId='') {
-  document.getElementById('pac-nombre').value='';
-  document.getElementById('pac-apellido').value='';
-  document.getElementById('pac-dni').value='';
-  document.getElementById('pac-tel').value='';
-  document.getElementById('pac-cobertura').value='';
-  document.getElementById('pac-diag').value='';
-  if(profId) document.getElementById('pac-prof').value=profId;
-  document.getElementById('modal-paciente').classList.add('open');
-}
-async function guardarPaciente() {
-  const nombre = document.getElementById('pac-nombre').value.trim();
-  const apellido = document.getElementById('pac-apellido').value.trim();
-  if (!nombre||!apellido) return;
+async function savePac() {
+  var nombre = document.getElementById('pac-nombre').value.trim();
+  var apellido = document.getElementById('pac-apellido').value.trim();
+  if (!nombre || !apellido) return;
   try {
-    await db('POST','pacientes',{
-      nombre, apellido,
-      dni: document.getElementById('pac-dni').value||null,
-      fecha_nacimiento: document.getElementById('pac-fnac').value||null,
-      telefono: document.getElementById('pac-tel').value||null,
-      cobertura: document.getElementById('pac-cobertura').value||null,
-      diagnostico: document.getElementById('pac-diag').value||null,
-      profesional_id: document.getElementById('pac-prof').value||null,
+    await api('POST', 'pacientes', {
+      nombre: nombre, apellido: apellido,
+      dni: document.getElementById('pac-dni').value || null,
+      fecha_nacimiento: document.getElementById('pac-fnac').value || null,
+      telefono: document.getElementById('pac-tel').value || null,
+      cobertura: document.getElementById('pac-cob').value || null,
+      diagnostico: document.getElementById('pac-diag').value || null,
+      profesional_id: document.getElementById('pac-prof').value || null,
       fecha_ingreso: today()
     });
-    cerrarModal('modal-paciente');
-    showToast('✅ Paciente registrado');
-    loadPacientes();
+    closeModal('modal-pac');
+    toast('Paciente registrado');
+    loadPacs();
   } catch(e) { console.error(e); }
 }
 
-function abrirModalTurno() { document.getElementById('turno-fecha').value=today(); document.getElementById('modal-turno').classList.add('open'); }
-async function guardarTurno() {
-  const profId = document.getElementById('turno-prof').value;
-  const fecha = document.getElementById('turno-fecha').value;
-  const hora = document.getElementById('turno-hora').value;
-  const pacId = document.getElementById('turno-pac').value;
-  const tipo = document.getElementById('turno-tipo').value;
-  if (!profId||!fecha||!hora) return;
-  let pacNombre = '';
-  if (pacId) { const pacs = await db('GET','pacientes',null,`?id=eq.${pacId}&limit=1`); if(pacs[0]) pacNombre=pacs[0].nombre+' '+pacs[0].apellido; }
+async function loadAgenda() {
+  var hoy = today();
+  document.getElementById('agenda-fecha').textContent = new Date().toLocaleDateString('es-PY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   try {
-    await db('POST','agenda',{profesional_id:profId, paciente_id:pacId||null, paciente_nombre:pacNombre||null, fecha, hora, tipo});
-    cerrarModal('modal-turno');
-    showToast('✅ Turno agregado');
+    var agQ = CU.rol === 'directora' ? '?fecha=eq.' + hoy + '&order=hora.asc' : '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
+    var results = await Promise.all([
+      api('GET', 'agenda', null, agQ),
+      api('GET', 'usuarios', null, '?rol=eq.profesional')
+    ]);
+    var ag = results[0], profs = results[1];
+    var profMap = {};
+    profs.forEach(function(p) { profMap[p.id] = p.nombre; });
+    var el = document.getElementById('agenda-wrap');
+    if (!ag.length) { el.innerHTML = '<div class="empty-state">Sin turnos para hoy</div>'; }
+    else el.innerHTML = ag.map(function(a) {
+      return '<div class="agenda-slot"><span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
+        '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre || 'Turno libre') + '</span>' +
+        '<span style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + (a.profesional_id && profMap[a.profesional_id] ? profMap[a.profesional_id].replace('Dra. ','').replace('Lic. ','') : '') + '</span>' +
+        '<span class="badge b-green">' + a.tipo + '</span></div>';
+    }).join('');
+    var tsel = document.getElementById('turno-prof');
+    tsel.innerHTML = profs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + '</option>'; }).join('');
+    var pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
+    var psel = document.getElementById('turno-pac');
+    psel.innerHTML = '<option value="">Turno libre</option>' + pacs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + '</option>'; }).join('');
+  } catch(e) { console.error(e); }
+}
+
+function openModalTurno() {
+  document.getElementById('turno-fecha').value = today();
+  openModal('modal-turno');
+}
+
+async function saveTurno() {
+  var profId = document.getElementById('turno-prof').value;
+  var fecha = document.getElementById('turno-fecha').value;
+  var hora = document.getElementById('turno-hora').value;
+  var pacId = document.getElementById('turno-pac').value;
+  var tipo = document.getElementById('turno-tipo').value;
+  if (!profId || !fecha || !hora) return;
+  var pacNombre = '';
+  if (pacId) {
+    var pacs = await api('GET', 'pacientes', null, '?id=eq.' + pacId + '&limit=1');
+    if (pacs[0]) pacNombre = pacs[0].nombre + ' ' + pacs[0].apellido;
+  }
+  try {
+    await api('POST', 'agenda', { profesional_id: profId, paciente_id: pacId || null, paciente_nombre: pacNombre || null, fecha: fecha, hora: hora, tipo: tipo });
+    closeModal('modal-turno');
+    toast('Turno agregado');
     loadAgenda();
   } catch(e) { console.error(e); }
 }
 
-async function registrarSesion(pacId, profId) {
-  const nota = prompt('Nota de sesión (opcional):');
-  try {
-    await db('POST','sesiones',{paciente_id:pacId, profesional_id:profId, fecha:today(), tipo:'sesion', nota:nota||null});
-    showToast('✅ Sesión registrada');
-    verLegajo(pacId, profId);
-  } catch(e) { console.error(e); }
-}
-
-function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
-
-function switchTab(el, id) {
-  const parent = el.closest('.tabs').parentElement;
-  parent.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  parent.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  parent.querySelector('#'+id).classList.add('active');
-}
-
-// HELPERS
-function today() { return new Date().toISOString().slice(0,10); }
-function firstDay() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; }
-function lastDay() { const d=new Date(); return new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10); }
-function fmtDate(s) { if(!s)return'—'; return new Date(s+'T12:00:00').toLocaleDateString('es-PY',{day:'numeric',month:'short',year:'numeric'}); }
-function calcAge(dob) { const d=new Date(dob); const n=new Date(); let a=n.getFullYear()-d.getFullYear(); if(n<new Date(n.getFullYear(),d.getMonth(),d.getDate()))a--; return a; }
-function initials(n,a) { return ((n||'').charAt(0)+(a||'').charAt(0)).toUpperCase(); }
-
-// Enter key on login
-document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
 </script>
 </body>
 </html>
