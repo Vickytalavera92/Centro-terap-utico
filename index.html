@@ -264,6 +264,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
     <div class="form-group"><label>Diagnóstico</label><input id="pac-diag" placeholder="Diagnóstico principal"></div>
     <div class="form-group"><label>Profesional asignada</label><select id="pac-prof"><option value="">Sin asignar</option></select></div>
+    <div class="form-group"><label>🔗 Link de carpeta en Google Drive (opcional)</label><input id="pac-drive" placeholder="https://drive.google.com/..."></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-pac')">Cancelar</button>
       <button class="btn btn-primary" onclick="savePac()">Guardar</button>
@@ -547,6 +548,13 @@ async function verLegajo(pacId, profId) {
       '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Objetivos</div><div style="font-size:13px;font-weight:600;">' + objs.filter(function(o) { return o.cumplido; }).length + '/' + objs.length + '</div></div>' +
       '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Ingreso</div><div style="font-size:13px;font-weight:600;">' + fmt(pac.fecha_ingreso) + '</div></div>' +
       '</div>';
+    if (pac.drive_link) {
+      html += '<a href="' + pac.drive_link + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:#E8F0FE;color:#1A73E8;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;margin-bottom:16px;">📁 Abrir carpeta en Google Drive</a>';
+    } else if (canEdit) {
+      html += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;">' +
+        '<input id="drive-input" placeholder="Pegar link de Google Drive..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;">' +
+        '<button class="btn btn-secondary btn-sm" onclick="saveDriveLink(\'' + pacId + '\')">Guardar link</button></div>';
+    }
     html += '<div class="tabs">' +
       '<div class="tab active" onclick="switchTab(this,\'lt-obs\')">Observaciones (' + obs.length + ')</div>' +
       '<div class="tab" onclick="switchTab(this,\'lt-obj\')">Objetivos (' + objs.length + ')</div>' +
@@ -643,6 +651,7 @@ function openModalPac(profId) {
   document.getElementById('pac-tel').value = '';
   document.getElementById('pac-cob').value = '';
   document.getElementById('pac-diag').value = '';
+  document.getElementById('pac-drive').value = '';
   if (profId) document.getElementById('pac-prof').value = profId;
   openModal('modal-pac');
 }
@@ -660,7 +669,8 @@ async function savePac() {
       cobertura: document.getElementById('pac-cob').value || null,
       diagnostico: document.getElementById('pac-diag').value || null,
       profesional_id: document.getElementById('pac-prof').value || null,
-      fecha_ingreso: today()
+      fecha_ingreso: today(),
+      drive_link: document.getElementById('pac-drive').value || null
     });
     closeModal('modal-pac');
     toast('Paciente registrado');
@@ -718,6 +728,16 @@ async function saveTurno() {
     closeModal('modal-turno');
     toast('Turno agregado');
     loadAgenda();
+  } catch(e) { console.error(e); }
+}
+
+async function saveDriveLink(pacId) {
+  var link = document.getElementById('drive-input').value.trim();
+  if (!link) return;
+  try {
+    await api('PATCH', 'pacientes', { drive_link: link }, '?id=eq.' + pacId);
+    toast('Link de Drive guardado');
+    verLegajo(pacId, curProfId);
   } catch(e) { console.error(e); }
 }
 
