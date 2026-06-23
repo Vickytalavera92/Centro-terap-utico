@@ -197,14 +197,14 @@
     <div class="error-msg" id="login-error">Email o contraseña incorrectos</div>
     <div class="form-group">
       <label>Email</label>
-      <input type="email" id="login-email" placeholder="tu@email.com" value="directora@centro.com">
+      <input type="email" id="login-email" placeholder="tu@email.com" >
     </div>
     <div class="form-group">
       <label>Contraseña</label>
-      <input type="password" id="login-pass" placeholder="••••••••" value="123456">
+      <input type="password" id="login-pass" placeholder="••••••••" >
     </div>
     <button class="btn btn-primary" onclick="login()">Ingresar →</button>
-    <p style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:14px;">Demo: directora@centro.com / 123456</p>
+    <p style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:14px;">Ingresá con tu email y contraseña</p>
   </div>
 </div>
 
@@ -431,10 +431,18 @@ async function login() {
   const email = document.getElementById('login-email').value.trim();
   const pass = document.getElementById('login-pass').value;
   document.getElementById('login-error').style.display = 'none';
-  // Demo: aceptar cualquier contraseña, buscar usuario por email
   try {
+    // Autenticación real con Supabase Auth
+    const authRes = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const authData = await authRes.json();
+    if (!authRes.ok) throw new Error(authData.error_description || 'Error');
+    // Buscar perfil en tabla usuarios
     const users = await db('GET', 'usuarios', null, `?email=eq.${encodeURIComponent(email)}&limit=1`);
-    if (!users || users.length === 0) throw new Error('No encontrado');
+    if (!users || users.length === 0) throw new Error('Sin perfil');
     currentUser = users[0];
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
@@ -833,4 +841,3 @@ document.getElementById('login-pass').addEventListener('keydown', e => { if(e.ke
 </script>
 </body>
 </html>
-
