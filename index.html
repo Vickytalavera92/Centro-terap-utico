@@ -644,7 +644,7 @@ async function loadPacs() {
   } catch(e) { console.error(e); }
 }
 
-function openModalPac(profId) {
+async function openModalPac(profId) {
   document.getElementById('pac-nombre').value = '';
   document.getElementById('pac-apellido').value = '';
   document.getElementById('pac-dni').value = '';
@@ -652,7 +652,15 @@ function openModalPac(profId) {
   document.getElementById('pac-cob').value = '';
   document.getElementById('pac-diag').value = '';
   document.getElementById('pac-drive').value = '';
-  if (profId) document.getElementById('pac-prof').value = profId;
+  // Always reload professionals fresh when opening modal
+  try {
+    var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc');
+    var sel = document.getElementById('pac-prof');
+    sel.innerHTML = '<option value="">Sin asignar</option>' + profs.map(function(p) {
+      return '<option value="' + p.id + '">' + p.nombre + '</option>';
+    }).join('');
+    if (profId) sel.value = profId;
+  } catch(e) { console.error(e); }
   openModal('modal-pac');
 }
 
