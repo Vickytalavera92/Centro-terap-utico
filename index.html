@@ -477,11 +477,12 @@ function navTo(page) {
 // DASHBOARD
 async function loadDashboard() {
   try {
+    const isDir = currentUser.rol === 'directora';
     const [profs, pacs, sesiones, agenda] = await Promise.all([
       db('GET','usuarios',null,'?rol=eq.profesional&activo=eq.true'),
-      db('GET','pacientes',null,'?estado=eq.activo'),
-      db('GET','sesiones',null,`?fecha=gte.${firstDay()}&fecha=lte.${lastDay()}`),
-      db('GET','agenda',null,`?fecha=eq.${today()}&order=hora.asc`)
+      db('GET','pacientes',null, isDir ? '?estado=eq.activo' : `?profesional_id=eq.${currentUser.id}&estado=eq.activo`),
+      db('GET','sesiones',null, isDir ? `?fecha=gte.${firstDay()}&fecha=lte.${lastDay()}` : `?profesional_id=eq.${currentUser.id}&fecha=gte.${firstDay()}&fecha=lte.${lastDay()}`),
+      db('GET','agenda',null, isDir ? `?fecha=eq.${today()}&order=hora.asc` : `?fecha=eq.${today()}&profesional_id=eq.${currentUser.id}&order=hora.asc`)
     ]);
     document.getElementById('d-profs').textContent = profs.length;
     document.getElementById('d-pacientes').textContent = pacs.length;
@@ -513,7 +514,11 @@ async function loadDashboard() {
 // PROFESIONALES
 async function loadProfesionales() {
   try {
-    const profs = await db('GET','usuarios',null,'?rol=eq.profesional&activo=eq.true&order=nombre.asc');
+    // Profesionales solo ven su propio perfil; directoras ven todas
+    const query = currentUser.rol === 'directora' 
+      ? '?rol=eq.profesional&activo=eq.true&order=nombre.asc'
+      : `?rol=eq.profesional&activo=eq.true&id=eq.${currentUser.id}`;
+    const profs = await db('GET','usuarios',null,query);
     const el = document.getElementById('prof-cards');
     if (!profs.length) { el.innerHTML = '<div class="empty-state">No hay profesionales registradas</div>'; return; }
     el.innerHTML = profs.map((p,i) => `
@@ -530,8 +535,10 @@ async function loadProfesionales() {
           ${p.horario?`<span class="badge b-purple" style="font-size:10px;">${p.horario}</span>`:''}
         </div>
       </div>`).join('');
-    // Add new prof button
-    document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalProfesional()">+ Nueva profesional</button>`;
+    // Add new prof button only for directors
+    if (currentUser.rol === 'directora') {
+      document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalProfesional()">+ Nueva profesional</button>`;
+    }
     document.getElementById('prof-list-view').style.display = 'block';
     document.getElementById('prof-detail-view').style.display = 'none';
     document.getElementById('legajo-view').style.display = 'none';
@@ -619,6 +626,7 @@ async function verProfesional(profId) {
 
 async function verLegajo(pacId, profId) {
   currentPacId = pacId;
+  const canEdit = currentUser.rol === 'directora' || currentUser.id === profId;
   document.getElementById('prof-detail-view').style.display = 'none';
   document.getElementById('legajo-view').style.display = 'block';
   const lv = document.getElementById('legajo-view');
@@ -662,7 +670,7 @@ async function verLegajo(pacId, profId) {
         <div class="tab" onclick="switchTab(this,'lt-inf')">Notas (${informes.length})</div>
       </div>
       <div id="lt-obs" class="tab-content active">
-        <button class="btn btn-primary btn-sm mb-12" onclick="abrirObs('observacion')">+ Nueva observación</button>
+        \${canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="abrirObs(\'observacion\')">+ Nueva observación</button>' : ''}
         ${obs.length ? obs.map(o=>`
           <div class="obs-card">
             <div class="obs-meta"><span class="obs-date">📅 ${fmtDate(o.fecha)}</span><span class="obs-autor">${o.profesional_id?'Profesional':''}</span></div>
@@ -670,7 +678,7 @@ async function verLegajo(pacId, profId) {
           </div>`).join('') : '<div class="empty-state">Sin observaciones registradas</div>'}
       </div>
       <div id="lt-obj" class="tab-content">
-        <button class="btn btn-primary btn-sm mb-12" onclick="abrirObs('objetivo')">+ Nuevo objetivo</button>
+        \${canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="abrirObs(\'objetivo\')">+ Nuevo objetivo</button>' : ''}
         ${objs.length ? objs.map(o=>`
           <div class="obj-item">
             <span class="obj-icon">${o.cumplido?'✅':'⭕'}</span>
@@ -680,11 +688,11 @@ async function verLegajo(pacId, profId) {
         ${estr.length?`<hr class="divider"><div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">ESTRATEGIAS</div>${estr.map(e=>`<div class="obs-card" style="border-left-color:var(--teal);">${e.contenido}</div>`).join('')}`:''}
       </div>
       <div id="lt-ses" class="tab-content">
-        <button class="btn btn-primary btn-sm mb-12" onclick="registrarSesion('${pacId}','${profId}')">+ Registrar sesión</button>
+        \${canEdit ? `<button class="btn btn-primary btn-sm mb-12" onclick="registrarSesion('${pacId}','${profId}')">+ Registrar sesión</button>` : ''}
         ${sesiones.length ? `<table class="ses-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Nota</th></tr></thead><tbody>${sesiones.map(s=>`<tr><td>${fmtDate(s.fecha)}</td><td><span class="badge b-purple">${s.tipo}</span></td><td>${s.nota||'—'}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-state">Sin sesiones registradas</div>'}
       </div>
       <div id="lt-inf" class="tab-content">
-        <button class="btn btn-primary btn-sm mb-12" onclick="abrirObs('informe')">+ Nueva nota</button>
+        \${canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="abrirObs(\'informe\')">+ Nueva nota</button>' : ''}
         ${informes.length ? informes.map(i=>`
           <div class="informe-row">
             <span style="font-size:20px;">📄</span>
@@ -698,7 +706,11 @@ async function verLegajo(pacId, profId) {
 // PACIENTES
 async function loadPacientes() {
   try {
-    const pacs = await db('GET','pacientes',null,'?order=created_at.desc');
+    // Profesionales solo ven sus propios pacientes
+    const pacQuery = currentUser.rol === 'directora'
+      ? '?order=created_at.desc'
+      : `?profesional_id=eq.${currentUser.id}&order=created_at.desc`;
+    const pacs = await db('GET','pacientes',null,pacQuery);
     const profs = await db('GET','usuarios',null,'?rol=eq.profesional');
     const profMap = Object.fromEntries(profs.map(p=>[p.id,p.nombre]));
     const el = document.getElementById('pacientes-table');
@@ -723,8 +735,11 @@ async function loadAgenda() {
   const hoy = today();
   document.getElementById('agenda-fecha').textContent = new Date().toLocaleDateString('es-PY',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   try {
+    const agendaQuery = currentUser.rol === 'directora'
+      ? `?fecha=eq.${hoy}&order=hora.asc`
+      : `?fecha=eq.${hoy}&profesional_id=eq.${currentUser.id}&order=hora.asc`;
     const [agenda, profs] = await Promise.all([
-      db('GET','agenda',null,`?fecha=eq.${hoy}&order=hora.asc`),
+      db('GET','agenda',null,agendaQuery),
       db('GET','usuarios',null,'?rol=eq.profesional')
     ]);
     const profMap = Object.fromEntries(profs.map(p=>[p.id,p.nombre]));
