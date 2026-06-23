@@ -264,6 +264,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
     <div class="form-group"><label>Diagnóstico</label><input id="pac-diag" placeholder="Diagnóstico principal"></div>
     <div class="form-group" id="pac-prof-wrap"><label>Profesional asignada</label><select id="pac-prof"><option value="">Sin asignar</option></select></div>
+    <div class="form-group"><label>Fecha de ingreso al centro</label><input type="date" id="pac-ingreso"></div>
     <div class="form-group"><label>🔗 Link de carpeta en Google Drive (opcional)</label><input id="pac-drive" placeholder="https://drive.google.com/..."></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-pac')">Cancelar</button>
@@ -652,6 +653,7 @@ async function openModalPac(profId) {
   document.getElementById('pac-cob').value = '';
   document.getElementById('pac-diag').value = '';
   document.getElementById('pac-drive').value = '';
+  document.getElementById('pac-ingreso').value = today();
   var sel = document.getElementById('pac-prof');
   var selWrap = document.getElementById('pac-prof-wrap');
   if (CU.rol === 'directora') {
@@ -686,7 +688,7 @@ async function savePac() {
       cobertura: document.getElementById('pac-cob').value || null,
       diagnostico: document.getElementById('pac-diag').value || null,
       profesional_id: document.getElementById('pac-prof').value || null,
-      fecha_ingreso: today(),
+      fecha_ingreso: document.getElementById('pac-ingreso').value || today(),
       drive_link: document.getElementById('pac-drive').value || null
     });
     closeModal('modal-pac');
