@@ -478,6 +478,7 @@ async function login() {
     document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
     document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : 'Profesional';
     loadDashboard();
+    toast('ID: ' + CU.id.slice(0,8));
   } catch(e) {
     document.getElementById('login-error').style.display = 'block';
   }
