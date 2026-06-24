@@ -375,6 +375,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <option value="false">Inactiva</option>
       </select>
     </div>
+    <div class="form-group"><label>💰 Descuento fijo mensual (Gs.) — ej: estacionamiento</label><input type="number" id="edit-prof-descuento" placeholder="Ej: 300000 — dejar en 0 si no aplica"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-edit-prof')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveEditProf()">Guardar cambios</button>
@@ -1178,6 +1179,7 @@ async function openEditProf(profId) {
     document.getElementById('edit-prof-telefono').value = p.telefono || '';
     document.getElementById('edit-prof-horario').value = p.horario || '';
     document.getElementById('edit-prof-activo').value = p.activo ? 'true' : 'false';
+    document.getElementById('edit-prof-descuento').value = p.descuento_fijo || 0;
     openModal('modal-edit-prof');
   } catch(e) { console.error(e); }
 }
@@ -1192,7 +1194,8 @@ async function saveEditProf() {
       matricula: document.getElementById('edit-prof-matricula').value || null,
       telefono: document.getElementById('edit-prof-telefono').value || null,
       horario: document.getElementById('edit-prof-horario').value || null,
-      activo: document.getElementById('edit-prof-activo').value === 'true'
+      activo: document.getElementById('edit-prof-activo').value === 'true',
+      descuento_fijo: parseInt(document.getElementById('edit-prof-descuento').value) || 0
     }, '?id=eq.' + id);
     closeModal('modal-edit-prof');
     toast('✅ Datos guardados');
