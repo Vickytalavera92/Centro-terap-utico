@@ -573,11 +573,7 @@ async function loadProfs() {
         '<div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="badge b-green">Activa</span>' +
         (p.horario ? '<span class="badge b-gray" style="font-size:10px;">' + p.horario + '</span>' : '') + '</div></div>';
     }).join('');
-    el.querySelectorAll('.prof-card').forEach(function(card) {
-      card.addEventListener('click', function() {
-        verProf(parseInt(this.getAttribute('data-idx')));
-      });
-    });
+
     document.getElementById('view-profs').style.display = 'block';
     document.getElementById('view-prof-detail').style.display = 'none';
     document.getElementById('view-legajo').style.display = 'none';
@@ -1230,6 +1226,22 @@ async function updateEstado(turnoId, estado) {
     toast(estado === 'confirmado' ? '🟢 Asistió' : estado === 'cancelado' ? '🔴 Cancelado' : estado === 'cancelado_hora' ? '🟠 Canceló sobre la hora' : '🟡 Pendiente');
   } catch(e) { console.error(e); }
 }
+
+// Event delegation for profesionales page
+document.getElementById('page-profesionales').addEventListener('click', function(e) {
+  // Edit prof button
+  var editBtn = e.target.closest('[data-editprof]');
+  if (editBtn) { openEditProf(editBtn.getAttribute('data-editprof')); return; }
+  var card = e.target.closest('.prof-card');
+  if (!card) return;
+  if (card.getAttribute('data-pac')) {
+    // Legajo card
+    verLegajo(card.getAttribute('data-pac'), card.getAttribute('data-prof'));
+  } else if (card.getAttribute('data-idx') !== null) {
+    // Prof card
+    verProf(parseInt(card.getAttribute('data-idx')));
+  }
+});
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
 </script>
