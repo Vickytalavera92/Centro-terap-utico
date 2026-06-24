@@ -242,6 +242,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
             <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(-1)">← Anterior</button>
             <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(0)">Hoy</button>
             <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(1)">Siguiente →</button>
+            <button class="btn btn-primary btn-sm" onclick="copiarSemana()">📋 Copiar semana</button>
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
@@ -1448,6 +1449,68 @@ document.getElementById('page-profesionales').addEventListener('click', function
     verProf(parseInt(card.getAttribute('data-idx')));
   }
 });
+
+async function copiarSemana() {
+  if (!confirm('¿Copiar todos los turnos de esta semana a la semana siguiente? Los turnos ya existentes no se duplican.')) return;
+  
+  var lunes = getLunes(_semanaOffset);
+  var dias = [];
+  for (var i = 0; i < 6; i++) {
+    var d = new Date(lunes);
+    d.setDate(lunes.getDate() + i);
+    dias.push(d);
+  }
+  var fechaIni = dateStr(dias[0]);
+  var fechaFin = dateStr(dias[5]);
+
+  try {
+    var isDirectora = CU.rol === 'directora';
+    var agQ = isDirectora
+      ? '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&order=hora.asc'
+      : '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
+    
+    var turnos = await api('GET', 'agenda', null, agQ);
+    
+    if (!turnos.length) { toast('No hay turnos para copiar'); return; }
+    
+    var copiados = 0;
+    var saltados = 0;
+    
+    for (var i = 0; i < turnos.length; i++) {
+      var t = turnos[i];
+      if (t.tipo === 'libre') continue; // Don't copy free slots
+      
+      // Calculate new date (same day next week)
+      var fechaOrig = new Date(t.fecha + 'T12:00:00');
+      var fechaNueva = new Date(fechaOrig);
+      fechaNueva.setDate(fechaOrig.getDate() + 7);
+      var fechaNuevaStr = dateStr(fechaNueva);
+      
+      // Check if already exists
+      var existing = await api('GET', 'agenda', null, 
+        '?fecha=eq.' + fechaNuevaStr + '&hora=eq.' + t.hora + '&profesional_id=eq.' + t.profesional_id);
+      
+      if (existing.length) {
+        saltados++;
+        continue;
+      }
+      
+      await api('POST', 'agenda', {
+        profesional_id: t.profesional_id,
+        paciente_id: t.paciente_id || null,
+        paciente_nombre: t.paciente_nombre || null,
+        fecha: fechaNuevaStr,
+        hora: t.hora,
+        tipo: t.tipo,
+        estado: 'pendiente'
+      });
+      copiados++;
+    }
+    
+    toast('✅ ' + copiados + ' turnos copiados' + (saltados ? ' (' + saltados + ' ya existían)' : ''));
+    cambiarSemana(1); // Go to next week to see the result
+  } catch(e) { alert('Error: ' + e.message); }
+}
 
 // TIPO COLORS
 var TIPO_COLORS = {
