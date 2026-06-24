@@ -1409,8 +1409,11 @@ async function loadSemanal() {
       dias.forEach(function(d) {
         var dStr = dateStr(d);
         var horaCorta = hora.replace(':00','');
+        var horaCortaP = hora.split(':')[0].padStart(2,'0');
         var slot = turnos.filter(function(t) {
-          return t.fecha === dStr && t.hora && t.hora.startsWith(horaCorta + ':');
+          if (t.fecha !== dStr || !t.hora) return false;
+          var th = t.hora.slice(0,2);
+          return th === horaCortaP || th === horaCorta.padStart(2,'0') || t.hora.startsWith(horaCorta + ':');
         });
         var cell = '';
         if (slot.length) {
