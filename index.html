@@ -563,7 +563,7 @@ async function loadProfs() {
     var el = document.getElementById('prof-cards');
     if (!profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
     el.innerHTML = profs.map(function(p, i) {
-      return '<div class="prof-card" onclick="verProf(\'' + p.id + '\')">' +
+      return '<div class="prof-card" onclick="verProf(' + JSON.stringify(p.id) + ')">' +
         '<div class="av">' + (p.avatar_iniciales||'??') + '</div>' +
         '<div style="font-size:14px;font-weight:600;margin-bottom:3px;">' + p.nombre + '</div>' +
         '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">' + (p.especialidad||'') + '</div>' +
