@@ -948,7 +948,11 @@ async function loadAgenda() {
         '</select></div>';
     }).join('');
     var tsel = document.getElementById('turno-prof');
-    tsel.innerHTML = profs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + '</option>'; }).join('');
+    if (CU.rol === 'directora') {
+      tsel.innerHTML = profs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + '</option>'; }).join('');
+    } else {
+      tsel.innerHTML = '<option value="' + CU.id + '">' + CU.nombre + '</option>';
+    }
     var pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
     var psel = document.getElementById('turno-pac');
     psel.innerHTML = '<option value="">Turno libre</option>' + pacs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + '</option>'; }).join('');
