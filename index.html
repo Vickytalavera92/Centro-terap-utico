@@ -299,6 +299,36 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 </div>
 
+<!-- MODAL EDITAR PROFESIONAL -->
+<div class="modal-overlay" id="modal-edit-prof">
+  <div class="modal">
+    <div class="modal-header"><h3>Editar profesional</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-prof')">✕</button></div>
+    <input type="hidden" id="edit-prof-id">
+    <div class="grid-2">
+      <div class="form-group"><label>Nombre completo</label><input id="edit-prof-nombre" placeholder="Nombre"></div>
+      <div class="form-group"><label>Iniciales</label><input id="edit-prof-iniciales" placeholder="Ej: PA" maxlength="3"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Especialidad</label><input id="edit-prof-especialidad" placeholder="Psicología clínica..."></div>
+      <div class="form-group"><label>Matrícula</label><input id="edit-prof-matricula" placeholder="MP-12345"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Teléfono</label><input id="edit-prof-telefono" placeholder="+595 981..."></div>
+      <div class="form-group"><label>Horario</label><input id="edit-prof-horario" placeholder="Lun-Vie, 8:00-16:00"></div>
+    </div>
+    <div class="form-group"><label>Estado</label>
+      <select id="edit-prof-activo">
+        <option value="true">Activa</option>
+        <option value="false">Inactiva</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-prof')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditProf()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR PACIENTE -->
 <div class="modal-overlay" id="modal-edit-pac">
   <div class="modal">
@@ -556,7 +586,11 @@ async function verProf(profId) {
       pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')&estado=eq.activo');
     }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
-    if (CU.rol === 'directora') html += '<div class="dir-banner">👁 Vista directora — acceso completo</div>';
+    if (CU.rol === 'directora') {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+        '<div class="dir-banner" style="margin-bottom:0;">👁 Vista directora — acceso completo</div>' +
+        '<button class="btn btn-secondary btn-sm" onclick="openEditProf(\'' + p.id + '\')">✏️ Editar datos</button></div>';
+    }
     html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
       '<div class="av" style="width:50px;height:50px;font-size:16px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
       '<div><div style="font-size:17px;font-weight:600;">' + p.nombre + '</div>' +
@@ -886,6 +920,40 @@ async function saveTurno() {
     closeModal('modal-turno');
     toast('Turno agregado');
     loadAgenda();
+  } catch(e) { console.error(e); }
+}
+
+async function openEditProf(profId) {
+  try {
+    var profs = await api('GET', 'usuarios', null, '?id=eq.' + profId + '&limit=1');
+    var p = profs[0];
+    document.getElementById('edit-prof-id').value = p.id;
+    document.getElementById('edit-prof-nombre').value = p.nombre || '';
+    document.getElementById('edit-prof-iniciales').value = p.avatar_iniciales || '';
+    document.getElementById('edit-prof-especialidad').value = p.especialidad || '';
+    document.getElementById('edit-prof-matricula').value = p.matricula || '';
+    document.getElementById('edit-prof-telefono').value = p.telefono || '';
+    document.getElementById('edit-prof-horario').value = p.horario || '';
+    document.getElementById('edit-prof-activo').value = p.activo ? 'true' : 'false';
+    openModal('modal-edit-prof');
+  } catch(e) { console.error(e); }
+}
+
+async function saveEditProf() {
+  var id = document.getElementById('edit-prof-id').value;
+  try {
+    await api('PATCH', 'usuarios', {
+      nombre: document.getElementById('edit-prof-nombre').value,
+      avatar_iniciales: document.getElementById('edit-prof-iniciales').value.toUpperCase(),
+      especialidad: document.getElementById('edit-prof-especialidad').value || null,
+      matricula: document.getElementById('edit-prof-matricula').value || null,
+      telefono: document.getElementById('edit-prof-telefono').value || null,
+      horario: document.getElementById('edit-prof-horario').value || null,
+      activo: document.getElementById('edit-prof-activo').value === 'true'
+    }, '?id=eq.' + id);
+    closeModal('modal-edit-prof');
+    toast('✅ Profesional actualizada');
+    verProf(id);
   } catch(e) { console.error(e); }
 }
 
