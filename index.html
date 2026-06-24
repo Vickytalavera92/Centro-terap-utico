@@ -566,13 +566,18 @@ async function loadProfs() {
     var el = document.getElementById('prof-cards');
     if (!_profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
     el.innerHTML = _profs.map(function(p, i) {
-      return '<div class="prof-card" onclick="verProf(' + i + ')">' +
+      return '<div class="prof-card" data-idx="' + i + '" style="cursor:pointer;">' +
         '<div class="av">' + (p.avatar_iniciales||'??') + '</div>' +
         '<div style="font-size:14px;font-weight:600;margin-bottom:3px;">' + p.nombre + '</div>' +
         '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">' + (p.especialidad||'') + '</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="badge b-green">Activa</span>' +
         (p.horario ? '<span class="badge b-gray" style="font-size:10px;">' + p.horario + '</span>' : '') + '</div></div>';
     }).join('');
+    el.querySelectorAll('.prof-card').forEach(function(card) {
+      card.addEventListener('click', function() {
+        verProf(parseInt(this.getAttribute('data-idx')));
+      });
+    });
     document.getElementById('view-profs').style.display = 'block';
     document.getElementById('view-prof-detail').style.display = 'none';
     document.getElementById('view-legajo').style.display = 'none';
@@ -650,9 +655,7 @@ async function verProf(idxOrId) {
       '<button class="btn btn-primary btn-sm" onclick="openModalPac(\'' + profId + '\')">+ Nuevo legajo</button></div>' +
       '<div class="grid-2">' +
       (pacs.length ? pacs.map(function(pac) {
-        var _lkey = 'l_' + i;
-        _legajoMap[_lkey] = { pacId: pac.id, profId: profId };
-        return '<div class="prof-card" onclick="verLegajoByKey(\'' + _lkey + '\')">' +
+        return '<div class="prof-card" data-pac="' + pac.id + '" data-prof="' + profId + '" style="cursor:pointer;">' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
           '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
           '<div><div style="font-size:13px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + '</div>' +
