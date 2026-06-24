@@ -408,7 +408,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       </select>
     </div>
     <div id="edit-pac-prof-wrap" style="margin-bottom:16px;"></div>
-    <div class="form-group"><label>💰 Precio personalizado (Gs.) — opcional</label><input type="number" id="edit-pac-valor" placeholder="Ej: 150000 — dejar vacío para usar precio estándar"></div>
+    <div class="form-group"><label>💰 Precio total personalizado (Gs.) — opcional</label><input type="number" id="edit-pac-valor" placeholder="Ej: 150000 — dejar vacío para usar precio estándar"></div>
+    <div class="form-group"><label>💸 Pago profesional personalizado (Gs.) — opcional</label><input type="number" id="edit-pac-pago-prof" placeholder="Ej: 60000 — CREA gana la diferencia"></div>
     <div class="form-group"><label>🔗 Link Google Drive</label><input id="edit-pac-drive" placeholder="https://drive.google.com/..."></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-edit-pac')">Cancelar</button>
@@ -1231,6 +1232,7 @@ async function openEditPac(pacId) {
     document.getElementById('edit-pac-estado').value = p.estado || 'activo';
     document.getElementById('edit-pac-drive').value = p.drive_link || '';
     document.getElementById('edit-pac-valor').value = p.valor_sesion || '';
+    document.getElementById('edit-pac-pago-prof').value = p.pago_profesional_custom || '';
     // Show professionals checkboxes
     var profWrap = document.getElementById('edit-pac-prof-wrap');
     profWrap.innerHTML = '<label style="font-size:12px;font-weight:500;color:var(--text-secondary);display:block;margin-bottom:6px;">Profesionales asignadas</label>' +
@@ -1257,7 +1259,8 @@ async function saveEditPac() {
       fecha_ingreso: document.getElementById('edit-pac-ingreso').value || null,
       estado: document.getElementById('edit-pac-estado').value,
       drive_link: document.getElementById('edit-pac-drive').value || null,
-      valor_sesion: document.getElementById('edit-pac-valor').value ? parseInt(document.getElementById('edit-pac-valor').value) : null
+      valor_sesion: document.getElementById('edit-pac-valor').value ? parseInt(document.getElementById('edit-pac-valor').value) : null,
+      pago_profesional_custom: document.getElementById('edit-pac-pago-prof').value ? parseInt(document.getElementById('edit-pac-pago-prof').value) : null
     }, '?id=eq.' + id);
     // Update asignaciones - delete all and re-insert
     await api('DELETE', 'asignaciones', null, '?paciente_id=eq.' + id);
@@ -1624,7 +1627,7 @@ async function loadAdmin() {
       api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
       api('GET', 'tarifas', null, ''),
       api('GET', 'profesional_tarifas', null, ''),
-      api('GET', 'pacientes', null, '?valor_sesion=not.is.null')
+      api('GET', 'pacientes', null, '?or=(valor_sesion.not.is.null,pago_profesional_custom.not.is.null)')
     ]);
     
     var usuarios = results[0];
@@ -1682,13 +1685,16 @@ async function loadAdmin() {
       // Compartida - split between two
       if (tipo === 'compartida') pagoProf = 65000;
       
-      // Custom patient price overrides total
-      if (pacientesMap[t.paciente_id] && pacientesMap[t.paciente_id].valor_sesion) {
-        valorTotal = pacientesMap[t.paciente_id].valor_sesion;
-        // Recalculate prof pay proportionally
-        var stdTotal = tarifaMap[tipo] || 220000;
-        var ratio = stdTotal > 0 ? pagoProf / stdTotal : 0;
-        pagoProf = Math.round(valorTotal * ratio);
+      // Custom patient price overrides total and prof pay
+      if (pacientesMap[t.paciente_id]) {
+        var cp = pacientesMap[t.paciente_id];
+        if (cp.valor_sesion) valorTotal = cp.valor_sesion;
+        if (cp.pago_profesional_custom) pagoProf = cp.pago_profesional_custom;
+        else if (cp.valor_sesion) {
+          var stdTotal = tarifaMap[tipo] || 220000;
+          var ratio = stdTotal > 0 ? pagoProf / stdTotal : 0;
+          pagoProf = Math.round(cp.valor_sesion * ratio);
+        }
       }
       
       var ganCrea = valorTotal - pagoProf;
