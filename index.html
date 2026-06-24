@@ -564,16 +564,27 @@ async function login() {
       avEl.style.padding = '0';
     }
     document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
-    document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : 'Profesional';
-    loadDashboard();
-    // Show admin nav only for directors
-    if (CU.rol === 'directora') {
+    document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : CU.rol === 'administrador' ? 'Administrador' : 'Profesional';
+    // Show admin nav only for directors and administradores
+    if (CU.rol === 'directora' || CU.rol === 'administrador') {
       var adminNav = document.createElement('div');
       adminNav.className = 'nav-item';
       adminNav.id = 'nav-admin';
       adminNav.innerHTML = '💰 Administración';
       adminNav.onclick = function() { goTo('admin'); };
       document.querySelector('.sidebar-nav').appendChild(adminNav);
+    }
+    // If administrador, go directly to admin module and hide other nav items
+    if (CU.rol === 'administrador') {
+      document.getElementById('nav-dashboard').style.display = 'none';
+      document.getElementById('nav-profesionales').style.display = 'none';
+      document.getElementById('nav-pacientes').style.display = 'none';
+      document.getElementById('nav-agenda').style.display = 'none';
+      document.getElementById('nav-semanal').style.display = 'none';
+      document.getElementById('nav-perfil').style.display = 'none';
+      goTo('admin');
+    } else {
+      loadDashboard();
     }
   } catch(e) {
     document.getElementById('login-error').style.display = 'block';
