@@ -37,6 +37,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-full { width: 100%; justify-content: center; }
 .btn-sm { padding: 6px 12px; font-size: 12px; }
 .btn-ghost { background: transparent; color: var(--primary); padding: 6px 10px; }
+.btn-danger { background: var(--red-light); color: var(--red); }
 .error-msg { background: var(--red-light); color: var(--red); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 14px; display: none; }
 .app { display: flex; min-height: 100vh; }
 .sidebar { width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -269,6 +270,65 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-pac')">Cancelar</button>
       <button class="btn btn-primary" onclick="savePac()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR PACIENTE -->
+<div class="modal-overlay" id="modal-edit-pac">
+  <div class="modal">
+    <div class="modal-header"><h3>Editar paciente</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-pac')">✕</button></div>
+    <input type="hidden" id="edit-pac-id">
+    <div class="grid-2">
+      <div class="form-group"><label>Nombre</label><input id="edit-pac-nombre" placeholder="Nombre"></div>
+      <div class="form-group"><label>Apellido</label><input id="edit-pac-apellido" placeholder="Apellido"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>CI/DNI</label><input id="edit-pac-dni" placeholder="Documento"></div>
+      <div class="form-group"><label>Fecha nacimiento</label><input type="date" id="edit-pac-fnac"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Teléfono</label><input id="edit-pac-tel" placeholder="+595..."></div>
+      <div class="form-group"><label>Cobertura</label><input id="edit-pac-cob" placeholder="IIPS, particular..."></div>
+    </div>
+    <div class="form-group"><label>Diagnóstico</label><input id="edit-pac-diag" placeholder="Diagnóstico principal"></div>
+    <div class="form-group"><label>Fecha de ingreso al centro</label><input type="date" id="edit-pac-ingreso"></div>
+    <div class="form-group"><label>Estado</label>
+      <select id="edit-pac-estado">
+        <option value="activo">Activo</option>
+        <option value="inactivo">Inactivo</option>
+        <option value="alta">Alta</option>
+      </select>
+    </div>
+    <div class="form-group"><label>🔗 Link Google Drive</label><input id="edit-pac-drive" placeholder="https://drive.google.com/..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-pac')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditPac()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR OBSERVACION -->
+<div class="modal-overlay" id="modal-edit-obs">
+  <div class="modal">
+    <div class="modal-header"><h3>Editar entrada</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-obs')">✕</button></div>
+    <input type="hidden" id="edit-obs-id">
+    <div class="form-group"><label>Tipo</label>
+      <select id="edit-obs-tipo">
+        <option value="observacion">Observación clínica</option>
+        <option value="objetivo">Objetivo terapéutico</option>
+        <option value="estrategia">Estrategia</option>
+        <option value="informe">Nota de sesión</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Contenido</label><textarea id="edit-obs-content" rows="5"></textarea></div>
+    <div class="form-group" id="edit-obj-cumplido-wrap" style="display:none;">
+      <label><input type="checkbox" id="edit-obs-cumplido" style="width:auto;margin-right:6px;">Objetivo cumplido</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-obs')">Cancelar</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteObs()">Eliminar</button>
+      <button class="btn btn-primary" onclick="saveEditObs()">Guardar</button>
     </div>
   </div>
 </div>
@@ -533,6 +593,10 @@ async function verLegajo(pacId, profId) {
     };
 
     var html = '<button class="back-btn" onclick="verProf(\'' + profId + '\')">← Volver al perfil</button>';
+    html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;">' +
+      (canEdit ? '<button class="btn btn-secondary btn-sm" onclick="openEditPac(\'' + pacId + '\')">✏️ Editar datos</button>' : '') +
+      (canEdit && pac.estado === 'activo' ? '<button class="btn btn-sm" style="background:#FAEEDA;color:#633806;" onclick="darAlta(\'' + pacId + '\')">✅ Dar de alta</button>' : '') +
+      '</div>';
     html += '<div class="dir-banner">📁 Legajo clínico' + (CU.rol === 'directora' ? ' — vista directora' : '') + '</div>';
     html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
       '<div class="av" style="width:46px;height:46px;font-size:14px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
@@ -564,7 +628,9 @@ async function verLegajo(pacId, profId) {
 
     html += '<div id="lt-obs" class="tab-sec active">' + addBtn('observacion', 'Nueva observación') +
       (obs.length ? obs.map(function(o) {
-        return '<div class="obs-card"><div class="obs-date">' + fmt(o.fecha) + '</div><div class="obs-text">' + o.contenido + '</div></div>';
+        return '<div class="obs-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span class="obs-date">' + fmt(o.fecha) + '</span>' +
+          (canEdit ? '<button onclick="openEditObs(\'' + o.id + '\',\'' + o.tipo + '\',\'' + o.contenido.replace(/'/g,"&#39;") + '\',false)" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-tertiary);">✏️</button>' : '') +
+          '</div><div class="obs-text">' + o.contenido + '</div></div>';
       }).join('') : '<div class="empty-state">Sin observaciones</div>') + '</div>';
 
     html += '<div id="lt-obj" class="tab-sec">' + addBtn('objetivo', 'Nuevo objetivo') +
@@ -572,7 +638,9 @@ async function verLegajo(pacId, profId) {
         return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">' +
           '<span style="font-size:18px;">' + (o.cumplido ? '✅' : '⭕') + '</span>' +
           '<span style="flex:1;font-size:13px;">' + o.contenido + '</span>' +
-          '<span class="badge ' + (o.cumplido ? 'b-green' : 'b-amber') + '">' + (o.cumplido ? 'Logrado' : 'En proceso') + '</span></div>';
+          '<span class="badge ' + (o.cumplido ? 'b-green' : 'b-amber') + '">' + (o.cumplido ? 'Logrado' : 'En proceso') + '</span>' +
+          (canEdit ? '<button onclick="openEditObs(\'' + o.id + '\',\'' + o.tipo + '\',\'' + o.contenido.replace(/'/g,"&#39;") + '\''  + ',' + o.cumplido + ')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-tertiary);">✏️</button>' : '') +
+          '</div>';
       }).join('') : '<div class="empty-state">Sin objetivos</div>') +
       (estr.length ? '<div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;">ESTRATEGIAS</div>' +
         estr.map(function(e) { return '<div class="obs-card" style="border-left-color:#0F6E56;">' + e.contenido + '</div>'; }).join('') : '') + '</div>';
@@ -757,6 +825,95 @@ async function saveDriveLink(pacId) {
     await api('PATCH', 'pacientes', { drive_link: link }, '?id=eq.' + pacId);
     toast('Link de Drive guardado');
     verLegajo(pacId, curProfId);
+  } catch(e) { console.error(e); }
+}
+
+async function openEditPac(pacId) {
+  try {
+    var pacs = await api('GET', 'pacientes', null, '?id=eq.' + pacId + '&limit=1');
+    var p = pacs[0];
+    document.getElementById('edit-pac-id').value = p.id;
+    document.getElementById('edit-pac-nombre').value = p.nombre || '';
+    document.getElementById('edit-pac-apellido').value = p.apellido || '';
+    document.getElementById('edit-pac-dni').value = p.dni || '';
+    document.getElementById('edit-pac-fnac').value = p.fecha_nacimiento || '';
+    document.getElementById('edit-pac-tel').value = p.telefono || '';
+    document.getElementById('edit-pac-cob').value = p.cobertura || '';
+    document.getElementById('edit-pac-diag').value = p.diagnostico || '';
+    document.getElementById('edit-pac-ingreso').value = p.fecha_ingreso || '';
+    document.getElementById('edit-pac-estado').value = p.estado || 'activo';
+    document.getElementById('edit-pac-drive').value = p.drive_link || '';
+    openModal('modal-edit-pac');
+  } catch(e) { console.error(e); }
+}
+
+async function saveEditPac() {
+  var id = document.getElementById('edit-pac-id').value;
+  try {
+    await api('PATCH', 'pacientes', {
+      nombre: document.getElementById('edit-pac-nombre').value,
+      apellido: document.getElementById('edit-pac-apellido').value,
+      dni: document.getElementById('edit-pac-dni').value || null,
+      fecha_nacimiento: document.getElementById('edit-pac-fnac').value || null,
+      telefono: document.getElementById('edit-pac-tel').value || null,
+      cobertura: document.getElementById('edit-pac-cob').value || null,
+      diagnostico: document.getElementById('edit-pac-diag').value || null,
+      fecha_ingreso: document.getElementById('edit-pac-ingreso').value || null,
+      estado: document.getElementById('edit-pac-estado').value,
+      drive_link: document.getElementById('edit-pac-drive').value || null
+    }, '?id=eq.' + id);
+    closeModal('modal-edit-pac');
+    toast('Paciente actualizado');
+    verLegajo(id, curProfId);
+  } catch(e) { console.error(e); }
+}
+
+async function darAlta(pacId) {
+  if (!confirm('¿Dar de alta a este paciente?')) return;
+  try {
+    await api('PATCH', 'pacientes', { estado: 'alta' }, '?id=eq.' + pacId);
+    toast('Paciente dado de alta');
+    verLegajo(pacId, curProfId);
+  } catch(e) { console.error(e); }
+}
+
+function openEditObs(id, tipo, contenido, cumplido) {
+  document.getElementById('edit-obs-id').value = id;
+  document.getElementById('edit-obs-tipo').value = tipo;
+  document.getElementById('edit-obs-content').value = contenido.replace(/&#39;/g, "'");
+  var cumWrap = document.getElementById('edit-obj-cumplido-wrap');
+  if (tipo === 'objetivo') {
+    cumWrap.style.display = 'block';
+    document.getElementById('edit-obs-cumplido').checked = cumplido === true || cumplido === 'true';
+  } else {
+    cumWrap.style.display = 'none';
+  }
+  openModal('modal-edit-obs');
+}
+
+async function saveEditObs() {
+  var id = document.getElementById('edit-obs-id').value;
+  var tipo = document.getElementById('edit-obs-tipo').value;
+  try {
+    await api('PATCH', 'legajos', {
+      tipo: tipo,
+      contenido: document.getElementById('edit-obs-content').value,
+      cumplido: tipo === 'objetivo' ? document.getElementById('edit-obs-cumplido').checked : false
+    }, '?id=eq.' + id);
+    closeModal('modal-edit-obs');
+    toast('Actualizado');
+    verLegajo(curPacId, curProfId);
+  } catch(e) { console.error(e); }
+}
+
+async function deleteObs() {
+  if (!confirm('¿Eliminar esta entrada?')) return;
+  var id = document.getElementById('edit-obs-id').value;
+  try {
+    await api('DELETE', 'legajos', null, '?id=eq.' + id);
+    closeModal('modal-edit-obs');
+    toast('Eliminado');
+    verLegajo(curPacId, curProfId);
   } catch(e) { console.error(e); }
 }
 
