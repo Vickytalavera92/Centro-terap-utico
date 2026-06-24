@@ -936,7 +936,7 @@ async function loadAgenda() {
         '<span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
         '<span style="flex:1;font-size:13px;font-weight:500;">' + (a.paciente_nombre || 'Turno libre') + '</span>' +
         '<span style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + (a.profesional_id && profMap[a.profesional_id] ? profMap[a.profesional_id].replace('Dra. ','').replace('Lic. ','') : '') + '</span>' +
-        '<select id="sel_' + a.id.slice(0,8) + '" onchange="updateEstado(this.dataset.id,this.value)" data-id="' + a.id + '" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid ' + borderColor + ';background:white;color:' + borderColor + ';font-weight:600;cursor:pointer;">' +
+        '<select id="sel_' + a.id.slice(0,8) + '" onchange="updateEstado(this.dataset.id,this.value)" onfocus="this.selectedIndex=-1" data-id="' + a.id + '" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid ' + borderColor + ';background:white;color:' + borderColor + ';font-weight:600;cursor:pointer;">' +
         '<option value="pendiente" ' + (est==='pendiente'?'selected':'') + '>Pendiente</option>' +
         '<option value="confirmado" ' + (est==='confirmado'?'selected':'') + '>Asistio</option>' +
         '<option value="cancelado" ' + (est==='cancelado'?'selected':'') + '>Cancelado</option>' +
