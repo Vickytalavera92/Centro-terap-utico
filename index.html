@@ -261,9 +261,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="page" id="page-agenda">
       <div class="card">
         <div class="flex items-center justify-between mb-16">
-          <div>
-            <div class="section-title" style="margin-bottom:4px;">Agenda</div>
-            <div id="agenda-fecha" style="font-size:13px;color:var(--text-secondary);"></div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="btn btn-secondary btn-sm" onclick="cambiarDia(-1)">←</button>
+            <div>
+              <div class="section-title" style="margin-bottom:4px;">Agenda</div>
+              <div id="agenda-fecha" style="font-size:13px;color:var(--text-secondary);"></div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="cambiarDia(1)">→</button>
+            <button class="btn btn-secondary btn-sm" onclick="cambiarDia(0)">Hoy</button>
           </div>
           <button class="btn btn-primary btn-sm" onclick="openModalTurno()">+ Nuevo turno</button>
         </div>
@@ -960,8 +965,9 @@ async function savePac() {
 }
 
 async function loadAgenda() {
-  var hoy = today();
-  document.getElementById('agenda-fecha').textContent = new Date().toLocaleDateString('es-PY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  var hoy = getAgendaFecha();
+  var fechaDisplay = new Date(hoy + 'T12:00:00');
+  document.getElementById('agenda-fecha').textContent = fechaDisplay.toLocaleDateString('es-PY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   try {
     var agQ = CU.rol === 'directora' ? '?fecha=eq.' + hoy + '&order=hora.asc' : '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
     var results = await Promise.all([
@@ -1002,8 +1008,22 @@ async function loadAgenda() {
   } catch(e) { console.error(e); }
 }
 
+var _agendaOffset = 0;
+
+function cambiarDia(dir) {
+  if (dir === 0) _agendaOffset = 0;
+  else _agendaOffset += dir;
+  loadAgenda();
+}
+
+function getAgendaFecha() {
+  var d = new Date();
+  d.setDate(d.getDate() + _agendaOffset);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 function openModalTurno() {
-  document.getElementById('turno-fecha').value = today();
+  document.getElementById('turno-fecha').value = getAgendaFecha();
   openModal('modal-turno');
 }
 
