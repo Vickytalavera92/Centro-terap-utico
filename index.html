@@ -436,6 +436,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 </div>
 
+<!-- MODAL EDITAR TURNO -->
+<div class="modal-overlay" id="modal-edit-turno">
+  <div class="modal">
+    <div class="modal-header"><h3>Editar turno</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-turno')">✕</button></div>
+    <input type="hidden" id="edit-turno-id">
+    <div class="form-group"><label>Paciente</label><select id="edit-turno-pac"><option value="">Turno libre</option></select></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Fecha</label><input type="date" id="edit-turno-fecha"></div>
+      <div class="form-group"><label>Hora</label><input type="time" id="edit-turno-hora"></div>
+    </div>
+    <div class="form-group"><label>Tipo de atención</label>
+      <select id="edit-turno-tipo">
+        <option value="sesion">🟩 Sesión normal</option>
+        <option value="preferencial">🟨 Costo preferencial</option>
+        <option value="devolucion">🟣 Devolución</option>
+        <option value="captada">🔵 Entrevista captada</option>
+        <option value="premium">🟧 Normal premium</option>
+        <option value="nueva">⬜ Normal nueva</option>
+        <option value="colegio">🩵 Reunión de colegio</option>
+        <option value="compartida">🩷 Reunión compartida</option>
+        <option value="evaluacion">🟤 Evaluación</option>
+        <option value="libre">⬛ Libre</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="eliminarTurno()">🗑 Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-turno')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEditTurno()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL TURNO -->
 <div class="modal-overlay" id="modal-turno">
   <div class="modal">
@@ -994,7 +1026,9 @@ async function loadAgenda() {
         '<option value="confirmado" ' + (est==='confirmado'?'selected':'') + '>Asistio</option>' +
         '<option value="cancelado" ' + (est==='cancelado'?'selected':'') + '>Cancelado</option>' +
         '<option value="cancelado_hora" ' + (est==='cancelado_hora'?'selected':'') + '>Cancelo s/hora</option>' +
-        '</select></div>';
+        '</select>' +
+        '<button onclick="openEditTurno(\'' + a.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);margin-left:4px;">✏️</button>' +
+        '</div>';
     }).join('');
     var tsel = document.getElementById('turno-prof');
     if (CU.rol === 'directora') {
@@ -1009,6 +1043,60 @@ async function loadAgenda() {
 }
 
 var _agendaOffset = 0;
+var _editTurnoId = null;
+
+async function openEditTurno(turnoId) {
+  _editTurnoId = turnoId;
+  try {
+    var turnos = await api('GET', 'agenda', null, '?id=eq.' + turnoId + '&limit=1');
+    var t = turnos[0];
+    document.getElementById('edit-turno-id').value = t.id;
+    document.getElementById('edit-turno-fecha').value = t.fecha;
+    document.getElementById('edit-turno-hora').value = t.hora ? t.hora.slice(0,5) : '';
+    document.getElementById('edit-turno-tipo').value = t.tipo || 'sesion';
+    // Load pacientes
+    var pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
+    var psel = document.getElementById('edit-turno-pac');
+    psel.innerHTML = '<option value="">Turno libre</option>' + pacs.map(function(p) {
+      var sel = t.paciente_id === p.id ? ' selected' : '';
+      return '<option value="' + p.id + '"' + sel + '>' + p.nombre + ' ' + p.apellido + '</option>';
+    }).join('');
+    openModal('modal-edit-turno');
+  } catch(e) { console.error(e); }
+}
+
+async function saveEditTurno() {
+  var id = document.getElementById('edit-turno-id').value;
+  var pacId = document.getElementById('edit-turno-pac').value;
+  var pacNombre = '';
+  if (pacId) {
+    var opt = document.querySelector('#edit-turno-pac option:checked');
+    if (opt) pacNombre = opt.textContent;
+  }
+  try {
+    await api('PATCH', 'agenda', {
+      paciente_id: pacId || null,
+      paciente_nombre: pacNombre || null,
+      fecha: document.getElementById('edit-turno-fecha').value,
+      hora: document.getElementById('edit-turno-hora').value,
+      tipo: document.getElementById('edit-turno-tipo').value
+    }, '?id=eq.' + id);
+    closeModal('modal-edit-turno');
+    toast('✅ Turno actualizado');
+    loadAgenda();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarTurno() {
+  if (!confirm('¿Eliminar este turno?')) return;
+  var id = document.getElementById('edit-turno-id').value;
+  try {
+    await api('DELETE', 'agenda', null, '?id=eq.' + id);
+    closeModal('modal-edit-turno');
+    toast('Turno eliminado');
+    loadAgenda();
+  } catch(e) { alert('Error: ' + e.message); }
+}
 
 function cambiarDia(dir) {
   if (dir === 0) _agendaOffset = 0;
