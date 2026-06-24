@@ -674,7 +674,7 @@ async function verProf(idxOrId) {
         legajosHeader.appendChild(nb);
       }
     }
-  } catch(e) { console.error(e); dv.innerHTML = '<div class="empty-state">Error cargando datos</div>'; }
+  } catch(e) { console.error(e); dv.innerHTML = '<div class="empty-state">Error: ' + e.message + ' | profId: ' + profId + '</div>'; }
 }
 
 async function verLegajo(pacId, profId) {
