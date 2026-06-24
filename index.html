@@ -559,13 +559,7 @@ async function loadProfs() {
   try {
     var q = CU.rol === 'directora' ? '?rol=eq.profesional&activo=eq.true&order=nombre.asc' : '?rol=eq.profesional&activo=eq.true&id=eq.' + CU.id;
     var profs = await api('GET', 'usuarios', null, q);
-    // If directora, also add herself to the list so she can see her own patients
-    if (CU.rol === 'directora') {
-      var selfInList = profs.find(function(p) { return p.id === CU.id; });
-      if (!selfInList) {
-        profs = [{ id: CU.id, nombre: CU.nombre, especialidad: CU.especialidad, horario: CU.horario, avatar_iniciales: CU.avatar_iniciales, activo: true }].concat(profs);
-      }
-    }
+
     var el = document.getElementById('prof-cards');
     if (!profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
     el.innerHTML = profs.map(function(p, i) {
@@ -601,12 +595,7 @@ async function verProf(profId) {
     var pacs = [];
     if (asig.length) {
       var pacIds2 = asig.map(function(a) { return a.paciente_id; }).join(',');
-      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')&estado=eq.activo');
-    }
-    // If viewing own profile as directora, also load via direct profesional_id
-    if (pacs.length === 0 && CU.rol === 'directora' && profId === CU.id) {
-      var ownPacs = await api('GET', 'pacientes', null, '?profesional_id=eq.' + CU.id + '&estado=eq.activo');
-      pacs = ownPacs;
+      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')');
     }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
     if (CU.rol === 'directora') {
