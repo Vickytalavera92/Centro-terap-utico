@@ -1628,6 +1628,15 @@ async function loadSemanal() {
 
     // Resumen
     var resumen = {};
+    // Load adelantos and pagado status from pagos_mes
+    profs.forEach(function(p) {
+      if (pagosMesMap[p.id]) {
+        profBreakdown[p.id].adelanto = pagosMesMap[p.id].adelanto || 0;
+        profBreakdown[p.id].observacion = pagosMesMap[p.id].observacion || '';
+        profBreakdown[p.id].pagado = pagosMesMap[p.id].pagado || false;
+      }
+    });
+
     turnos.forEach(function(t) {
       if (t.estado === 'confirmado') {
         var tipo = t.tipo || 'sesion';
@@ -1685,12 +1694,14 @@ async function loadAdmin() {
   
   try {
     var rng = getFirstLastAdmin();
+    var mesKey = _adminAnio + '_' + String(_adminMes).padStart(2,'0');
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?activo=eq.true&order=nombre.asc'),
       api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
       api('GET', 'tarifas', null, ''),
       api('GET', 'profesional_tarifas', null, ''),
-      api('GET', 'pacientes', null, '?or=(valor_sesion.not.is.null,pago_profesional_custom.not.is.null)')
+      api('GET', 'pacientes', null, '?or=(valor_sesion.not.is.null,pago_profesional_custom.not.is.null)'),
+      api('GET', 'pagos_mes', null, '?mes=eq.' + mesKey).catch(function() { return []; })
     ]);
     
     var usuarios = results[0];
@@ -1698,10 +1709,15 @@ async function loadAdmin() {
     var tarifas = results[2];
     var profTarifas = results[3];
     var pacientesCustom = results[4];
+    var pagosMes = results[5] || [];
+    var pagosMesMap = {};
+    pagosMes.forEach(function(pm) { pagosMesMap[pm.profesional_id] = pm; });
     var pacientesMap = {};
     pacientesCustom.forEach(function(p) { pacientesMap[p.id] = p; });
     
     var profs = usuarios.filter(function(u) { return u.rol === 'profesional'; });
+    var profDescMap = {};
+    profs.forEach(function(p) { profDescMap[p.id] = p.descuento_fijo || 0; });
     
     // Build tarifa maps
     var tarifaMap = {};
@@ -1737,7 +1753,7 @@ async function loadAdmin() {
 
     // Per prof breakdown
     var profBreakdown = {};
-    profs.forEach(function(p) { profBreakdown[p.id] = { nombre: p.nombre, tipos: {}, totalGen: 0, totalProf: 0, totalCrea: 0 }; });
+    profs.forEach(function(p) { profBreakdown[p.id] = { nombre: p.nombre, especialidad: p.especialidad, iniciales: p.avatar_iniciales, tipos: {}, totalGen: 0, totalProf: 0, totalCrea: 0, descuento: profDescMap[p.id] || 0, adelanto: 0, observacion: '', pagado: false }; });
 
     turnos.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
@@ -1794,12 +1810,13 @@ async function loadAdmin() {
       html += '<div class="card mb-16">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
-        '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
+        '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + (pb.iniciales||'??') + '</div>' +
         '<div><div style="font-size:14px;font-weight:600;">' + p.nombre + '</div>' +
         '<div style="font-size:12px;color:var(--text-secondary);">' + (p.especialidad||'') + '</div></div></div>' +
-        '<div style="text-align:right;">' +
-        '<div style="font-size:15px;font-weight:600;color:#C0392B;">' + fmtGs(pb.totalProf) + '</div>' +
-        '<div style="font-size:11px;color:var(--text-secondary);">A cobrar</div></div></div>' +
+        '<div style="text-align:right;display:flex;align-items:center;gap:12px;">' +
+        (pb.pagado ? '<span style="background:#1B8A7A;color:white;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;">✅ Pagado</span>' : '<span style="background:#FAEEDA;color:#633806;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;">⏳ Pendiente</span>') +
+        '<div><div style="font-size:15px;font-weight:600;color:#C0392B;">' + fmtGs(pb.totalProf - pb.descuento - pb.adelanto) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);">Total a pagar</div></div></div></div>' +
         '<table style="width:100%;border-collapse:collapse;">' +
         '<thead><tr>' +
         '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Tipo</th>' +
@@ -1831,11 +1848,32 @@ async function loadAdmin() {
         '<td style="padding:8px 10px;text-align:right;font-weight:600;color:#C0392B;">' + fmtGs(pb.totalProf) + '</td>' +
         '<td style="padding:8px 10px;text-align:right;font-weight:600;color:#1B8A7A;">' + fmtGs(pb.totalCrea) + '</td>' +
         '</tr>';
+      if (pb.descuento > 0) {
+        html += '<tr><td colspan="3" style="padding:6px 10px;color:var(--text-secondary);font-size:12px;">Descuento estacionamiento</td>' +
+          '<td style="padding:6px 10px;text-align:right;color:#C0392B;font-size:12px;">- ' + fmtGs(pb.descuento) + '</td><td></td></tr>';
+      }
+      if (pb.adelanto > 0) {
+        html += '<tr><td colspan="3" style="padding:6px 10px;color:var(--text-secondary);font-size:12px;">Adelanto descontado</td>' +
+          '<td style="padding:6px 10px;text-align:right;color:#C0392B;font-size:12px;">- ' + fmtGs(pb.adelanto) + '</td><td></td></tr>';
+      }
+      var totalFinal = pb.totalProf - pb.descuento - pb.adelanto;
+      html += '<tr style="background:#FEF6E0;"><td colspan="3" style="padding:8px 10px;font-weight:700;">TOTAL A PAGAR</td>' +
+        '<td style="padding:8px 10px;text-align:right;font-weight:700;color:#C0392B;font-size:15px;">' + fmtGs(totalFinal) + '</td><td></td></tr>';
 
       html += '</tbody></table>' +
-        '<div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px;">' +
-        '<button class="btn btn-secondary btn-sm" data-pid="' + p.id + '" data-pnombre="' + p.nombre.replace(/'/g,'') + '" onclick="configProfTarifas(this)">⚙️ Tarifas personalizadas</button>' +
-        '</div></div>';
+        '<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+        '<div style="display:flex;gap:8px;">' +
+        '<input placeholder="Observación..." value="' + (pb.observacion||'') + '" id="obs_' + p.id + '" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:200px;">' +
+        '<input type="number" placeholder="Adelanto Gs." value="' + (pb.adelanto||'') + '" id="adel_' + p.id + '" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:130px;">' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;">' +
+        (pb.pagado ? 
+          '<button class="btn btn-secondary btn-sm" data-pid="' + p.id + '" onclick="togglePago(this,false)">↩ Marcar pendiente</button>' :
+          '<button class="btn btn-primary btn-sm" data-pid="' + p.id + '" onclick="togglePago(this,true)">✅ Marcar pagado</button>'
+        ) +
+        '<button class="btn btn-secondary btn-sm" data-pid="' + p.id + '" onclick="guardarPagoMes(this)">💾 Guardar</button>' +
+        '<button class="btn btn-secondary btn-sm" data-pid="' + p.id + '" data-pnombre="' + p.nombre.replace(/'/g,'') + '" onclick="configProfTarifas(this)">⚙️ Tarifas</button>' +
+        '</div></div></div>';
     });
 
     el.innerHTML = html;
@@ -1912,6 +1950,38 @@ async function saveProfTarifas() {
       if (val > 0) await api('POST', 'profesional_tarifas', { profesional_id: profId, tipo: tipo, pago_profesional: val });
     }
     toast('✅ Tarifas guardadas');
+    loadAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function guardarPagoMes(el) {
+  var profId = el.getAttribute('data-pid');
+  var mesKey = _adminAnio + '_' + String(_adminMes).padStart(2,'0');
+  var adelanto = parseInt(document.getElementById('adel_' + profId).value) || 0;
+  var observacion = document.getElementById('obs_' + profId).value || '';
+  try {
+    var existing = await api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+    if (existing.length) {
+      await api('PATCH', 'pagos_mes', { adelanto: adelanto, observacion: observacion }, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+    } else {
+      await api('POST', 'pagos_mes', { profesional_id: profId, mes: mesKey, adelanto: adelanto, observacion: observacion, pagado: false });
+    }
+    toast('✅ Guardado');
+    loadAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function togglePago(el, pagado) {
+  var profId = el.getAttribute('data-pid');
+  var mesKey = _adminAnio + '_' + String(_adminMes).padStart(2,'0');
+  try {
+    var existing = await api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+    if (existing.length) {
+      await api('PATCH', 'pagos_mes', { pagado: pagado }, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+    } else {
+      await api('POST', 'pagos_mes', { profesional_id: profId, mes: mesKey, adelanto: 0, observacion: '', pagado: pagado });
+    }
+    toast(pagado ? '✅ Marcado como pagado' : '↩ Marcado como pendiente');
     loadAdmin();
   } catch(e) { alert('Error: ' + e.message); }
 }
