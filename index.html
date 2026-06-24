@@ -189,7 +189,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="grid-4 mb-20">
         <div class="stat-card"><div class="stat-num" id="d-profs">—</div><div class="stat-label">Profesionales</div></div>
         <div class="stat-card"><div class="stat-num" id="d-pacs">—</div><div class="stat-label">Pacientes activos</div></div>
-        <div class="stat-card"><div class="stat-num" id="d-ses">—</div><div class="stat-label">Sesiones este mes</div></div>
+        <div class="stat-card"><div class="stat-num" id="d-ses">—</div><div class="stat-label">Atenciones este mes</div></div>
         <div class="stat-card"><div class="stat-num" id="d-hoy">—</div><div class="stat-label">Atendidos hoy</div></div>
       </div>
       <div class="grid-2">
@@ -623,7 +623,7 @@ async function verProf(idxOrId) {
       (p.matricula ? '<span class="badge b-gray">' + p.matricula + '</span>' : '') + '</div></div></div>';
     html += '<div class="grid-3 mb-20">' +
       '<div class="stat-card"><div class="stat-num">' + pacs.length + '</div><div class="stat-label">Pacientes</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + ses.length + '</div><div class="stat-label">Sesiones este mes</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + ses.length + '</div><div class="stat-label">Atenciones este mes</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + ag.length + '</div><div class="stat-label">Turnos hoy</div></div></div>';
     html += '<div class="tabs">' +
       '<div class="tab active" onclick="switchTab(this,\'tp-datos\')">Datos</div>' +
