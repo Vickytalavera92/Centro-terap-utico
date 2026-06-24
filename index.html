@@ -167,6 +167,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="nav-item" id="nav-profesionales" onclick="goTo('profesionales')">👩‍⚕️ Profesionales</div>
       <div class="nav-item" id="nav-pacientes" onclick="goTo('pacientes')">📁 Pacientes</div>
       <div class="nav-item" id="nav-agenda" onclick="goTo('agenda')">📅 Agenda</div>
+      <div class="nav-item" id="nav-semanal" onclick="goTo('semanal')">📆 Vista semanal</div>
       <div class="nav-item" id="nav-perfil" onclick="goTo('perfil')">👤 Mi perfil</div>
     </div>
     <div class="sidebar-footer">
@@ -221,6 +222,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="card" style="max-width:560px;">
         <div class="section-title">Mi perfil</div>
         <div id="perfil-content"></div>
+      </div>
+    </div>
+
+    <!-- SEMANAL -->
+    <div class="page" id="page-semanal">
+      <div class="card">
+        <div class="flex items-center justify-between mb-16">
+          <div>
+            <div class="section-title" style="margin-bottom:4px;">Vista semanal</div>
+            <div id="semana-label" style="font-size:13px;color:var(--text-secondary);"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(-1)">← Anterior</button>
+            <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(0)">Hoy</button>
+            <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(1)">Siguiente →</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+          <span style="font-size:11px;background:#4CAF50;color:white;padding:2px 8px;border-radius:4px;">Sesión</span>
+          <span style="font-size:11px;background:#FFC107;color:white;padding:2px 8px;border-radius:4px;">Preferencial</span>
+          <span style="font-size:11px;background:#9C27B0;color:white;padding:2px 8px;border-radius:4px;">Devolución</span>
+          <span style="font-size:11px;background:#2196F3;color:white;padding:2px 8px;border-radius:4px;">Captada</span>
+          <span style="font-size:11px;background:#FF9800;color:white;padding:2px 8px;border-radius:4px;">Premium</span>
+          <span style="font-size:11px;background:#00BCD4;color:white;padding:2px 8px;border-radius:4px;">Colegio</span>
+          <span style="font-size:11px;background:#E91E63;color:white;padding:2px 8px;border-radius:4px;">Compartida</span>
+          <span style="font-size:11px;background:#607D8B;color:white;padding:2px 8px;border-radius:4px;">Libre</span>
+        </div>
+        <div id="semanal-wrap" style="overflow-x:auto;"></div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+          <div class="section-title">Resumen de la semana</div>
+          <div id="semanal-resumen"></div>
+        </div>
       </div>
     </div>
 
@@ -408,11 +441,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="form-group"><label>Fecha</label><input type="date" id="turno-fecha"></div>
       <div class="form-group"><label>Hora</label><input type="time" id="turno-hora"></div>
     </div>
-    <div class="form-group"><label>Tipo</label>
+    <div class="form-group"><label>Tipo de atención</label>
       <select id="turno-tipo">
-        <option value="sesion">Sesión</option>
-        <option value="evaluacion">Evaluación</option>
-        <option value="libre">Libre</option>
+        <option value="sesion">🟩 Sesión normal</option>
+        <option value="preferencial">🟨 Costo preferencial</option>
+        <option value="devolucion">🟣 Devolución</option>
+        <option value="captada">🔵 Entrevista captada</option>
+        <option value="premium">🟧 Normal premium</option>
+        <option value="nueva">⬜ Normal nueva</option>
+        <option value="colegio">🩵 Reunión de colegio</option>
+        <option value="compartida">🩷 Reunión compartida</option>
+        <option value="libre">⬛ Libre</option>
       </select>
     </div>
     <div class="modal-footer">
@@ -497,13 +536,14 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
   if (page === 'pacientes') loadPacs();
   if (page === 'agenda') loadAgenda();
   if (page === 'perfil') loadPerfil();
+  if (page === 'semanal') { initSemanal(); loadSemanal(); }
 }
 
 function switchTab(el, id) {
@@ -1279,6 +1319,137 @@ document.getElementById('page-profesionales').addEventListener('click', function
     verProf(parseInt(card.getAttribute('data-idx')));
   }
 });
+
+// TIPO COLORS
+var TIPO_COLORS = {
+  sesion: '#4CAF50',
+  preferencial: '#FFC107',
+  devolucion: '#9C27B0',
+  captada: '#2196F3',
+  premium: '#FF9800',
+  nueva: '#78909C',
+  colegio: '#00BCD4',
+  compartida: '#E91E63',
+  libre: '#607D8B',
+  evaluacion: '#795548'
+};
+
+var TIPO_LABELS = {
+  sesion: 'Sesión', preferencial: 'Preferencial', devolucion: 'Devolución',
+  captada: 'Captada', premium: 'Premium', nueva: 'Normal nueva',
+  colegio: 'Colegio', compartida: 'Compartida', libre: 'Libre', evaluacion: 'Evaluación'
+};
+
+var _semanaOffset = 0;
+
+function initSemanal() { _semanaOffset = 0; }
+
+function cambiarSemana(dir) {
+  if (dir === 0) _semanaOffset = 0;
+  else _semanaOffset += dir;
+  loadSemanal();
+}
+
+function getLunes(offset) {
+  var d = new Date();
+  var day = d.getDay();
+  var diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff + (offset * 7));
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function fmtShort(d) {
+  return d.toLocaleDateString('es-PY', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function dateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+async function loadSemanal() {
+  var lunes = getLunes(_semanaOffset);
+  var dias = [];
+  for (var i = 0; i < 6; i++) {
+    var d = new Date(lunes);
+    d.setDate(lunes.getDate() + i);
+    dias.push(d);
+  }
+  var fechaIni = dateStr(dias[0]);
+  var fechaFin = dateStr(dias[5]);
+  document.getElementById('semana-label').textContent = fmtShort(dias[0]) + ' — ' + fmtShort(dias[5]);
+
+  var isDirectora = CU.rol === 'directora';
+  var agQ = isDirectora
+    ? '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&order=hora.asc'
+    : '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
+
+  try {
+    var turnos = await api('GET', 'agenda', null, agQ);
+    var profs = isDirectora ? await api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true') : [];
+    var profMap = {};
+    profs.forEach(function(p) { profMap[p.id] = p.nombre.split(' ').pop(); });
+
+    // Build weekly grid
+    var diasLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    var horas = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+
+    var table = '<table style="width:100%;border-collapse:collapse;min-width:700px;">';
+    table += '<thead><tr><th style="padding:8px;background:var(--bg);border:1px solid var(--border);font-size:11px;width:50px;">Hora</th>';
+    dias.forEach(function(d, i) {
+      var isToday = dateStr(d) === today();
+      table += '<th style="padding:8px;background:' + (isToday?'var(--teal-light)':'var(--bg)') + ';border:1px solid var(--border);font-size:11px;text-align:center;">' +
+        diasLabels[i] + ' ' + d.getDate() + '</th>';
+    });
+    table += '</tr></thead><tbody>';
+
+    horas.forEach(function(hora) {
+      table += '<tr>';
+      table += '<td style="padding:6px 8px;border:1px solid var(--border);font-size:11px;color:var(--text-secondary);white-space:nowrap;">' + hora + '</td>';
+      dias.forEach(function(d) {
+        var dStr = dateStr(d);
+        var horaCorta = hora.replace(':00','');
+        var slot = turnos.filter(function(t) {
+          return t.fecha === dStr && t.hora && t.hora.startsWith(horaCorta + ':');
+        });
+        var cell = '';
+        if (slot.length) {
+          slot.forEach(function(s) {
+            var color = TIPO_COLORS[s.tipo] || '#4CAF50';
+            var estadoOp = s.estado === 'cancelado' ? '0.4' : s.estado === 'cancelado_hora' ? '0.6' : '1';
+            var profName = isDirectora && profMap[s.profesional_id] ? '<br><span style="font-size:9px;opacity:0.8;">' + profMap[s.profesional_id] + '</span>' : '';
+            cell += '<div style="background:' + color + ';color:white;border-radius:4px;padding:3px 6px;font-size:11px;margin-bottom:2px;opacity:' + estadoOp + ';line-height:1.3;">' +
+              (s.paciente_nombre || 'Turno') + profName + '</div>';
+          });
+        }
+        table += '<td style="padding:3px;border:1px solid var(--border);vertical-align:top;min-width:100px;min-height:30px;">' + cell + '</td>';
+      });
+      table += '</tr>';
+    });
+    table += '</tbody></table>';
+    document.getElementById('semanal-wrap').innerHTML = table;
+
+    // Resumen
+    var resumen = {};
+    turnos.forEach(function(t) {
+      if (t.estado === 'confirmado') {
+        var tipo = t.tipo || 'sesion';
+        resumen[tipo] = (resumen[tipo] || 0) + 1;
+      }
+    });
+    var total = Object.values(resumen).reduce(function(a,b) { return a+b; }, 0);
+    var resHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
+    Object.keys(resumen).forEach(function(tipo) {
+      var color = TIPO_COLORS[tipo] || '#4CAF50';
+      resHtml += '<span style="background:' + color + ';color:white;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500;">' +
+        (TIPO_LABELS[tipo]||tipo) + ': ' + resumen[tipo] + '</span>';
+    });
+    resHtml += '<span style="font-size:13px;font-weight:600;color:var(--text-secondary);">Total: ' + total + '</span>';
+    resHtml += '</div>';
+    document.getElementById('semanal-resumen').innerHTML = resHtml || '<span style="color:var(--text-tertiary);font-size:13px;">Sin atenciones esta semana</span>';
+
+  } catch(e) { console.error(e); }
+}
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
 </script>
