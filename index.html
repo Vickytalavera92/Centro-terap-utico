@@ -777,7 +777,7 @@ async function saveObs() {
   try {
     await api('POST', 'legajos', { paciente_id: curPacId, profesional_id: CU.id, tipo: document.getElementById('obs-tipo').value, contenido: content, fecha: today() });
     closeModal('modal-obs');
-    toast('Guardado correctamente');
+    toast('✅ Guardado');
     verLegajo(curPacId, curProfId);
   } catch(e) { console.error(e); }
 }
@@ -819,7 +819,7 @@ async function loadPacs() {
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
           '<td><span class="badge ' + (p.estado==='activo'?'b-green':p.estado==='alta'?'b-gray':'b-amber') + '">' + p.estado + '</span></td>' +
           '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td>' +
-          '<td><button onclick="openEditPac(' + JSON.stringify(p.id) + ')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️ Editar</button></td>' +
+          '<td><button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️ Editar</button></td>' +
           '</tr>';
       }).join('') + '</tbody></table>';
     var sel = document.getElementById('pac-prof');
@@ -986,7 +986,7 @@ async function saveEditProf() {
       activo: document.getElementById('edit-prof-activo').value === 'true'
     }, '?id=eq.' + id);
     closeModal('modal-edit-prof');
-    toast('✅ Profesional actualizada');
+    toast('✅ Datos guardados');
     verProf(id);
   } catch(e) { console.error(e); }
 }
