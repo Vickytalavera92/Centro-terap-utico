@@ -600,7 +600,7 @@ async function verProf(idxOrId) {
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?id=eq.' + profId + '&limit=1'),
       api('GET', 'asignaciones', null, '?profesional_id=eq.' + profId),
-      api('GET', 'sesiones', null, '?profesional_id=eq.' + profId + '&fecha=gte.' + firstDay()),
+      api('GET', 'agenda', null, '?estado=eq.confirmado&profesional_id=eq.' + profId + '&fecha=gte=' + firstDay() + '&fecha=lte=' + lastDay()),
       api('GET', 'agenda', null, '?profesional_id=eq.' + profId + '&fecha=eq.' + today() + '&order=hora.asc')
     ]);
     var p = results[0][0], asig = results[1], ses = results[2], ag = results[3];
