@@ -557,8 +557,19 @@ async function loadDashboard() {
 // PROFESIONALES
 async function loadProfs() {
   try {
-    var q = CU.rol === 'directora' ? '?rol=eq.profesional&activo=eq.true&order=nombre.asc' : '?rol=eq.profesional&activo=eq.true&id=eq.' + CU.id;
-    var profs = await api('GET', 'usuarios', null, q);
+    var q = CU.rol === 'directora' ? '?activo=eq.true&order=nombre.asc' : '?rol=eq.profesional&activo=eq.true&id=eq.' + CU.id;
+    var allUsers = await api('GET', 'usuarios', null, q);
+    // Show profesionales + directoras who have patients (like Victoria)
+    var profs;
+    if (CU.rol === 'directora') {
+      var asigProfs = await api('GET', 'asignaciones', null, '');
+      var asigProfIds = asigProfs.map(function(a) { return a.profesional_id; });
+      profs = allUsers.filter(function(u) {
+        return u.rol === 'profesional' || asigProfIds.indexOf(u.id) > -1;
+      });
+    } else {
+      profs = allUsers;
+    }
 
     var el = document.getElementById('prof-cards');
     if (!profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
