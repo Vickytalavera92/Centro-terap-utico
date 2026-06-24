@@ -190,7 +190,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <div class="stat-card"><div class="stat-num" id="d-profs">—</div><div class="stat-label">Profesionales</div></div>
         <div class="stat-card"><div class="stat-num" id="d-pacs">—</div><div class="stat-label">Pacientes activos</div></div>
         <div class="stat-card"><div class="stat-num" id="d-ses">—</div><div class="stat-label">Sesiones este mes</div></div>
-        <div class="stat-card"><div class="stat-num" id="d-hoy">—</div><div class="stat-label">Turnos hoy</div></div>
+        <div class="stat-card"><div class="stat-num" id="d-hoy">—</div><div class="stat-label">Atendidos hoy</div></div>
       </div>
       <div class="grid-2">
         <div class="card"><div class="section-title">Equipo</div><div id="d-team"></div></div>
@@ -535,7 +535,10 @@ async function loadDashboard() {
     document.getElementById('d-profs').textContent = profs.length;
     document.getElementById('d-pacs').textContent = pacs.length;
     document.getElementById('d-ses').textContent = ses.length;
-    document.getElementById('d-hoy').textContent = ag.length;
+    var atendidos = ag.filter(function(a) { return a.estado === 'confirmado'; }).length;
+    var cancelados = ag.filter(function(a) { return a.estado === 'cancelado' || a.estado === 'cancelado_hora'; }).length;
+    document.getElementById('d-hoy').textContent = atendidos + '/' + ag.length;
+    document.getElementById('d-hoy').style.fontSize = '20px';
     var teamEl = document.getElementById('d-team');
     teamEl.innerHTML = profs.map(function(p) {
       return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">' +
