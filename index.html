@@ -522,12 +522,12 @@ async function loadDashboard() {
   try {
     var isDir = CU.rol === 'directora';
     var pacQ = isDir ? '?estado=eq.activo' : '?profesional_id=eq.' + CU.id + '&estado=eq.activo';
-    var sesQ = isDir ? '?fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay() : '?profesional_id=eq.' + CU.id + '&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay();
+    var sesQ = isDir ? '?estado=eq.confirmado&fecha=gte=' + firstDay() + '&fecha=lte=' + lastDay() : '?estado=eq.confirmado&profesional_id=eq.' + CU.id + '&fecha=gte=' + firstDay() + '&fecha=lte=' + lastDay();
     var agQ = isDir ? '?fecha=eq.' + today() + '&order=hora.asc' : '?fecha=eq.' + today() + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true'),
       api('GET', 'pacientes', null, pacQ),
-      api('GET', 'sesiones', null, sesQ),
+      api('GET', 'agenda', null, sesQ),
       api('GET', 'agenda', null, agQ)
     ]);
     var profs = results[0], pacsOrAsig = results[1], ses = results[2], ag = results[3];
