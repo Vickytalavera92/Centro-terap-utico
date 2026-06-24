@@ -361,6 +361,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <option value="alta">Alta</option>
       </select>
     </div>
+    <div id="edit-pac-prof-wrap" style="margin-bottom:16px;"></div>
     <div class="form-group"><label>🔗 Link Google Drive</label><input id="edit-pac-drive" placeholder="https://drive.google.com/..."></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-edit-pac')">Cancelar</button>
@@ -809,14 +810,17 @@ async function loadPacs() {
     profs.forEach(function(p) { profMap[p.id] = p.nombre; });
     var el = document.getElementById('pac-table-wrap');
     if (!pacs.length) { el.innerHTML = '<div class="empty-state">Sin pacientes</div>'; return; }
-    el.innerHTML = '<table class="pac-table"><thead><tr><th>Paciente</th><th>Diagnóstico</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th></tr></thead><tbody>' +
+    el.innerHTML = '<table class="pac-table"><thead><tr><th>Paciente</th><th>Diagnóstico</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th><th></th></tr></thead><tbody>' +
       pacs.map(function(p) {
-        return '<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;">' + ini(p.nombre, p.apellido) + '</div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span></div></td>' +
+        return '<tr>' +
+          '<td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;">' + ini(p.nombre, p.apellido) + '</div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span></div></td>' +
           '<td style="color:var(--text-secondary);">' + (p.diagnostico||'—') + '</td>' +
           '<td>' + (p.profesional_id && profMap[p.profesional_id] ? profMap[p.profesional_id].replace('Dra. ','').replace('Lic. ','') : '—') + '</td>' +
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
-          '<td><span class="badge b-green">' + p.estado + '</span></td>' +
-          '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td></tr>';
+          '<td><span class="badge ' + (p.estado==='activo'?'b-green':p.estado==='alta'?'b-gray':'b-amber') + '">' + p.estado + '</span></td>' +
+          '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td>' +
+          '<td><button onclick="openEditPac(' + JSON.stringify(p.id) + ')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️ Editar</button></td>' +
+          '</tr>';
       }).join('') + '</tbody></table>';
     var sel = document.getElementById('pac-prof');
     sel.innerHTML = '<option value="">Sin asignar</option>' + profs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + '</option>'; }).join('');
@@ -999,8 +1003,15 @@ async function saveDriveLink(pacId) {
 
 async function openEditPac(pacId) {
   try {
-    var pacs = await api('GET', 'pacientes', null, '?id=eq.' + pacId + '&limit=1');
-    var p = pacs[0];
+    var results = await Promise.all([
+      api('GET', 'pacientes', null, '?id=eq.' + pacId + '&limit=1'),
+      api('GET', 'asignaciones', null, '?paciente_id=eq.' + pacId),
+      api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc')
+    ]);
+    var p = results[0][0];
+    var asig = results[1];
+    var profs = results[2];
+    var asigIds = asig.map(function(a) { return a.profesional_id; });
     document.getElementById('edit-pac-id').value = p.id;
     document.getElementById('edit-pac-nombre').value = p.nombre || '';
     document.getElementById('edit-pac-apellido').value = p.apellido || '';
@@ -1012,6 +1023,14 @@ async function openEditPac(pacId) {
     document.getElementById('edit-pac-ingreso').value = p.fecha_ingreso || '';
     document.getElementById('edit-pac-estado').value = p.estado || 'activo';
     document.getElementById('edit-pac-drive').value = p.drive_link || '';
+    // Show professionals checkboxes
+    var profWrap = document.getElementById('edit-pac-prof-wrap');
+    profWrap.innerHTML = '<label style="font-size:12px;font-weight:500;color:var(--text-secondary);display:block;margin-bottom:6px;">Profesionales asignadas</label>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);max-height:160px;overflow-y:auto;">' +
+      profs.map(function(pr) {
+        var checked = asigIds.indexOf(pr.id) > -1 ? 'checked' : '';
+        return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" value="' + pr.id + '" ' + checked + ' style="width:auto;"> ' + pr.nombre + '</label>';
+      }).join('') + '</div>';
     openModal('modal-edit-pac');
   } catch(e) { console.error(e); }
 }
@@ -1031,9 +1050,19 @@ async function saveEditPac() {
       estado: document.getElementById('edit-pac-estado').value,
       drive_link: document.getElementById('edit-pac-drive').value || null
     }, '?id=eq.' + id);
+    // Update asignaciones - delete all and re-insert
+    await api('DELETE', 'asignaciones', null, '?paciente_id=eq.' + id);
+    var checks = document.querySelectorAll('#edit-pac-prof-wrap input[type=checkbox]:checked');
+    for (var i = 0; i < checks.length; i++) {
+      try { await api('POST', 'asignaciones', { paciente_id: id, profesional_id: checks[i].value }); } catch(e) {}
+    }
+    // Update profesional_id with first assigned
+    if (checks.length > 0) {
+      await api('PATCH', 'pacientes', { profesional_id: checks[0].value }, '?id=eq.' + id);
+    }
     closeModal('modal-edit-pac');
     toast('Paciente actualizado');
-    verLegajo(id, curProfId);
+    loadPacs();
   } catch(e) { console.error(e); }
 }
 
