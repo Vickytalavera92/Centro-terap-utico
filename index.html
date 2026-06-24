@@ -963,7 +963,20 @@ function openModalTurno() {
 async function saveTurno() {
   var profId = document.getElementById('turno-prof').value;
   var fecha = document.getElementById('turno-fecha').value;
-  var hora = document.getElementById('turno-hora').value;
+  var horaRaw = document.getElementById('turno-hora').value;
+  // Convert 12h format to 24h if needed (Safari may return "02:00 p.m.")
+  var hora = horaRaw;
+  if (horaRaw.indexOf('p.m.') > -1 || horaRaw.indexOf('PM') > -1 || horaRaw.indexOf('pm') > -1) {
+    var parts = horaRaw.replace('p.m.','').replace('PM','').replace('pm','').trim().split(':');
+    var h = parseInt(parts[0]);
+    if (h !== 12) h += 12;
+    hora = String(h).padStart(2,'0') + ':' + (parts[1]||'00').trim();
+  } else if (horaRaw.indexOf('a.m.') > -1 || horaRaw.indexOf('AM') > -1 || horaRaw.indexOf('am') > -1) {
+    var parts2 = horaRaw.replace('a.m.','').replace('AM','').replace('am','').trim().split(':');
+    var h2 = parseInt(parts2[0]);
+    if (h2 === 12) h2 = 0;
+    hora = String(h2).padStart(2,'0') + ':' + (parts2[1]||'00').trim();
+  }
   var pacId = document.getElementById('turno-pac').value;
   var tipo = document.getElementById('turno-tipo').value;
   if (!profId || !fecha || !hora) return;
