@@ -424,7 +424,6 @@ var SUPA_URL = 'https://umkcxapqznlndcdwdgoi.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVta2N4YXBxem5sbmRjZHdkZ29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzYzMDcsImV4cCI6MjA5NzgxMjMwN30.HepmR58e0ZQnFkVz1JFpQ-oWwxCWAjw6Q3kYlVsd3h0';
 var HDR = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Prefer': 'return=representation' };
 var CU = null; // currentUser
-function isDir() { return CU && (isDir() || CU.es_directora === true); }
 var curProfId = null;
 var curPacId = null;
 
@@ -477,7 +476,7 @@ async function login() {
       avEl.style.padding = '0';
     }
     document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
-    document.getElementById('srol').textContent = isDir() ? 'Directora' : 'Profesional';
+    document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : 'Profesional';
     loadDashboard();
   } catch(e) {
     document.getElementById('login-error').style.display = 'block';
@@ -518,7 +517,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // DASHBOARD
 async function loadDashboard() {
   try {
-    var isDir = isDir();
+    var isDir = CU.rol === 'directora';
     var pacQ = isDir ? '?estado=eq.activo' : '?profesional_id=eq.' + CU.id + '&estado=eq.activo';
     var sesQ = isDir ? '?fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay() : '?profesional_id=eq.' + CU.id + '&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay();
     var agQ = isDir ? '?fecha=eq.' + today() + '&order=hora.asc' : '?fecha=eq.' + today() + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
@@ -529,7 +528,7 @@ async function loadDashboard() {
       api('GET', 'agenda', null, agQ)
     ]);
     var profs = results[0], pacsOrAsig = results[1], ses = results[2], ag = results[3];
-    var pacs = isDir() ? pacsOrAsig : pacsOrAsig;
+    var pacs = CU.rol === 'directora' ? pacsOrAsig : pacsOrAsig;
     document.getElementById('d-profs').textContent = profs.length;
     document.getElementById('d-pacs').textContent = pacs.length;
     document.getElementById('d-ses').textContent = ses.length;
@@ -558,20 +557,8 @@ async function loadDashboard() {
 // PROFESIONALES
 async function loadProfs() {
   try {
-    var q = isDir() ? '?activo=eq.true&order=nombre.asc' : '?rol=eq.profesional&activo=eq.true&id=eq.' + CU.id;
-    var allUsers = await api('GET', 'usuarios', null, q);
-    // Show profesionales + directoras who have patients (like Victoria)
-    var profs;
-    if (isDir()) {
-      var asigProfs = await api('GET', 'asignaciones', null, '');
-      var asigProfIds = asigProfs.map(function(a) { return a.profesional_id; });
-      profs = allUsers.filter(function(u) {
-        return u.rol === 'profesional' || asigProfIds.indexOf(u.id) > -1;
-      });
-    } else {
-      profs = allUsers;
-    }
-
+    var q = CU.rol === 'directora' ? '?rol=eq.profesional&activo=eq.true&order=nombre.asc' : '?rol=eq.profesional&activo=eq.true&id=eq.' + CU.id;
+    var profs = await api('GET', 'usuarios', null, q);
     var el = document.getElementById('prof-cards');
     if (!profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
     el.innerHTML = profs.map(function(p, i) {
@@ -585,7 +572,7 @@ async function loadProfs() {
     document.getElementById('view-profs').style.display = 'block';
     document.getElementById('view-prof-detail').style.display = 'none';
     document.getElementById('view-legajo').style.display = 'none';
-    if (isDir()) document.getElementById('topbar-btn').innerHTML = '<button class="btn btn-primary btn-sm" onclick="alert(\'Agregar profesional: agregala desde Supabase → Table Editor → usuarios\')">+ Nueva profesional</button>';
+    if (CU.rol === 'directora') document.getElementById('topbar-btn').innerHTML = '<button class="btn btn-primary btn-sm" onclick="alert(\'Agregar profesional: agregala desde Supabase → Table Editor → usuarios\')">+ Nueva profesional</button>';
   } catch(e) { console.error(e); }
 }
 
@@ -607,10 +594,10 @@ async function verProf(profId) {
     var pacs = [];
     if (asig.length) {
       var pacIds2 = asig.map(function(a) { return a.paciente_id; }).join(',');
-      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')');
+      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')&estado=eq.activo');
     }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
-    if (isDir()) {
+    if (CU.rol === 'directora') {
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
         '<div class="dir-banner" style="margin-bottom:0;">👁 Vista directora — acceso completo</div>' +
         '<button class="btn btn-secondary btn-sm" onclick="openEditProf(\'' + p.id + '\')">✏️ Editar datos</button></div>';
@@ -674,7 +661,7 @@ async function verProf(profId) {
 async function verLegajo(pacId, profId) {
   curPacId = pacId;
   curProfId = profId;
-  var canEdit = isDir() || CU.id === profId;
+  var canEdit = CU.rol === 'directora' || CU.id === profId;
   document.getElementById('view-prof-detail').style.display = 'none';
   document.getElementById('view-legajo').style.display = 'block';
   var lv = document.getElementById('view-legajo');
@@ -708,7 +695,7 @@ async function verLegajo(pacId, profId) {
     var asigProfIds = asigPac.map(function(a) { return a.profesional_id; });
     var allProfs2 = asigProfIds.length ? await api('GET', 'usuarios', null, '?id=in.(' + asigProfIds.join(',') + ')') : [];
     var profNames = allProfs2.map(function(p) { return p.nombre; }).join(', ');
-    html += '<div class="dir-banner">📁 Legajo clínico' + (isDir() ? ' — vista directora' : '') + '</div>';
+    html += '<div class="dir-banner">📁 Legajo clínico' + (CU.rol === 'directora' ? ' — vista directora' : '') + '</div>';
     if (allProfs2.length > 1) {
       html += '<div style="background:#FEF6E0;color:#633806;padding:8px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:12px;">👥 Profesionales asignadas: ' + profNames + '</div>';
     }
@@ -807,7 +794,7 @@ async function regSesion() {
 async function loadPacs() {
   try {
     var pacs;
-    if (isDir()) {
+    if (CU.rol === 'directora') {
       pacs = await api('GET', 'pacientes', null, '?order=created_at.desc');
     } else {
       // Get asignaciones for this professional
@@ -851,7 +838,7 @@ async function openModalPac(profId) {
   document.getElementById('pac-ingreso').value = today();
   var sel = document.getElementById('pac-prof');
   var selWrap = document.getElementById('pac-prof-wrap');
-  if (isDir()) {
+  if (CU.rol === 'directora') {
     selWrap.style.display = 'block';
     try {
       var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc');
@@ -888,7 +875,7 @@ async function savePac() {
     var newPac = result[0];
     // Create asignaciones
     var profIds = [];
-    if (isDir()) {
+    if (CU.rol === 'directora') {
       var checks = document.querySelectorAll('#prof-checkboxes input:checked');
       checks.forEach(function(c) { profIds.push(c.value); });
     } else {
@@ -911,7 +898,7 @@ async function loadAgenda() {
   var hoy = today();
   document.getElementById('agenda-fecha').textContent = new Date().toLocaleDateString('es-PY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   try {
-    var agQ = isDir() ? '?fecha=eq.' + hoy + '&order=hora.asc' : '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
+    var agQ = CU.rol === 'directora' ? '?fecha=eq.' + hoy + '&order=hora.asc' : '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
     var results = await Promise.all([
       api('GET', 'agenda', null, agQ),
       api('GET', 'usuarios', null, '?rol=eq.profesional')
@@ -1144,7 +1131,7 @@ async function loadPerfil() {
       '<input type="file" id="foto-input" accept="image/*" style="display:none;" onchange="uploadFoto(this)"></div>' +
       '<div><div style="font-size:17px;font-weight:600;">' + u.nombre + '</div>' +
       '<div style="font-size:13px;color:var(--text-secondary);">' + (u.especialidad||'') + '</div>' +
-      '<span class="badge b-green" style="margin-top:6px;">' + (isDir() ? 'Directora' : 'Profesional') + '</span>' +
+      '<span class="badge b-green" style="margin-top:6px;">' + (u.rol === 'directora' ? 'Directora' : 'Profesional') + '</span>' +
       '<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;">Hacé clic en 📷 para cambiar tu foto</div></div></div>' +
       '<div class="grid-2">' +
       '<div class="form-group"><label>Nombre completo</label><input id="p-nombre" value="' + (u.nombre||'') + '"></div>' +
