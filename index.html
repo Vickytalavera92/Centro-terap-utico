@@ -424,6 +424,7 @@ var SUPA_URL = 'https://umkcxapqznlndcdwdgoi.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVta2N4YXBxem5sbmRjZHdkZ29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzYzMDcsImV4cCI6MjA5NzgxMjMwN30.HepmR58e0ZQnFkVz1JFpQ-oWwxCWAjw6Q3kYlVsd3h0';
 var HDR = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Prefer': 'return=representation' };
 var CU = null; // currentUser
+function isDir() { return CU && (CU.rol === 'directora' || CU.es_directora === true); }
 var curProfId = null;
 var curPacId = null;
 
