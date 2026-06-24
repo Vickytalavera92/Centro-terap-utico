@@ -711,7 +711,7 @@ async function verLegajo(pacId, profId) {
       '</div>';
     // Get all assigned professionals for this patient
     var asigPac = await api('GET', 'asignaciones', null, '?paciente_id=eq.' + pacId);
-    var asigProfIds = asigPac.map(function(a) { return a.profesional_id; });
+    var asigProfIds = asigPac.map(function(a) { return a.profesional_id; }).filter(function(id) { return id && id.length > 0; });
     var allProfs2 = asigProfIds.length ? await api('GET', 'usuarios', null, '?id=in.(' + asigProfIds.join(',') + ')') : [];
     var profNames = allProfs2.map(function(p) { return p.nombre; }).join(', ');
     html += '<div class="dir-banner">📁 Legajo clínico' + (CU.rol === 'directora' ? ' — vista directora' : '') + '</div>';
