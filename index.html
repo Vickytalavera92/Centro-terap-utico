@@ -556,6 +556,7 @@ async function loadDashboard() {
 
 // PROFESIONALES
 var _profs = [];
+var _legajoMap = {};
 async function loadProfs() {
   try {
     var isDirectora = CU.rol === 'directora';
@@ -649,7 +650,9 @@ async function verProf(idxOrId) {
       '<button class="btn btn-primary btn-sm" onclick="openModalPac(\'' + profId + '\')">+ Nuevo legajo</button></div>' +
       '<div class="grid-2">' +
       (pacs.length ? pacs.map(function(pac) {
-        return '<div class="prof-card" onclick="verLegajo(\'' + pac.id + '\',\'' + profId + '\')">' +
+        var _lkey = 'l_' + i;
+        _legajoMap[_lkey] = { pacId: pac.id, profId: profId };
+        return '<div class="prof-card" onclick="verLegajoByKey(\'' + _lkey + '\')">' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
           '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
           '<div><div style="font-size:13px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + '</div>' +
