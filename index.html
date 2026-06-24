@@ -582,11 +582,7 @@ async function loadProfs() {
 async function verProf(idxOrId) {
   var profId = (typeof idxOrId === 'number' && _profs[idxOrId]) ? _profs[idxOrId].id : idxOrId;
   curProfId = profId;
-  // DIAGNOSTIC
-  try {
-    var testAsig = await api('GET', 'asignaciones', null, '?profesional_id=eq.' + profId + '&limit=100');
-    alert('profId: ' + profId.slice(0,8) + '\nAsignaciones: ' + testAsig.length);
-  } catch(e) { alert('Error: ' + e.message); }
+
   document.getElementById('view-profs').style.display = 'none';
   document.getElementById('view-prof-detail').style.display = 'block';
   document.getElementById('view-legajo').style.display = 'none';
