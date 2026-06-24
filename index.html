@@ -593,9 +593,11 @@ async function verProf(profId) {
     ]);
     var p = results[0][0], asig = results[1], ses = results[2], ag = results[3];
     var pacs = [];
+    toast('Asig: ' + asig.length);
     if (asig.length) {
       var pacIds2 = asig.map(function(a) { return a.paciente_id; }).join(',');
-      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')&estado=eq.activo');
+      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')');
+      toast('Pacs: ' + pacs.length);
     }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
     if (CU.rol === 'directora') {
