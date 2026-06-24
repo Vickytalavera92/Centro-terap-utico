@@ -217,6 +217,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       </div>
     </div>
 
+    <!-- ADMINISTRACIÓN -->
+    <div class="page" id="page-admin">
+      <div id="admin-content"></div>
+    </div>
+
     <!-- MI PERFIL -->
     <div class="page" id="page-perfil">
       <div class="card" style="max-width:560px;">
@@ -557,6 +562,15 @@ async function login() {
     document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
     document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : 'Profesional';
     loadDashboard();
+    // Show admin nav only for directors
+    if (CU.rol === 'directora') {
+      var adminNav = document.createElement('div');
+      adminNav.className = 'nav-item';
+      adminNav.id = 'nav-admin';
+      adminNav.innerHTML = '💰 Administración';
+      adminNav.onclick = function() { goTo('admin'); };
+      document.querySelector('.sidebar-nav').appendChild(adminNav);
+    }
   } catch(e) {
     document.getElementById('login-error').style.display = 'block';
   }
@@ -573,7 +587,7 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
@@ -581,6 +595,7 @@ function goTo(page) {
   if (page === 'agenda') loadAgenda();
   if (page === 'perfil') loadPerfil();
   if (page === 'semanal') { initSemanal(); loadSemanal(); }
+  if (page === 'admin') loadAdmin();
 }
 
 function switchTab(el, id) {
@@ -1562,6 +1577,258 @@ async function loadSemanal() {
     document.getElementById('semanal-resumen').innerHTML = resHtml || '<span style="color:var(--text-tertiary);font-size:13px;">Sin atenciones esta semana</span>';
 
   } catch(e) { console.error(e); }
+}
+
+// ==================
+// MÓDULO ADMINISTRATIVO
+// ==================
+
+var _adminMes = new Date().getMonth() + 1;
+var _adminAnio = new Date().getFullYear();
+
+function getMesLabel() {
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return meses[_adminMes - 1] + ' ' + _adminAnio;
+}
+
+function cambiarMesAdmin(dir) {
+  _adminMes += dir;
+  if (_adminMes > 12) { _adminMes = 1; _adminAnio++; }
+  if (_adminMes < 1) { _adminMes = 12; _adminAnio--; }
+  loadAdmin();
+}
+
+function getFirstLastAdmin() {
+  var first = _adminAnio + '-' + String(_adminMes).padStart(2,'0') + '-01';
+  var last = new Date(_adminAnio, _adminMes, 0);
+  var lastStr = _adminAnio + '-' + String(_adminMes).padStart(2,'0') + '-' + String(last.getDate()).padStart(2,'0');
+  return { first: first, last: lastStr };
+}
+
+function fmtGs(n) {
+  if (!n) return 'Gs. 0';
+  return 'Gs. ' + Math.round(n).toLocaleString('es-PY');
+}
+
+async function loadAdmin() {
+  var el = document.getElementById('admin-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  
+  try {
+    var rng = getFirstLastAdmin();
+    var results = await Promise.all([
+      api('GET', 'usuarios', null, '?activo=eq.true&order=nombre.asc'),
+      api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
+      api('GET', 'tarifas', null, ''),
+      api('GET', 'profesional_tarifas', null, '')
+    ]);
+    
+    var usuarios = results[0];
+    var turnos = results[1];
+    var tarifas = results[2];
+    var profTarifas = results[3];
+    
+    var profs = usuarios.filter(function(u) { return u.rol === 'profesional'; });
+    
+    // Build tarifa maps
+    var tarifaMap = {};
+    tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    
+    var profTarifaMap = {};
+    profTarifas.forEach(function(pt) {
+      if (!profTarifaMap[pt.profesional_id]) profTarifaMap[pt.profesional_id] = {};
+      profTarifaMap[pt.profesional_id][pt.tipo] = pt.pago_profesional;
+    });
+    
+    // Default pago profesional per tipo
+    var DEFAULT_PAGO = {
+      sesion: 130000, preferencial: 110000, devolucion: 150000,
+      captada: 220000, premium: 145000, nueva: 110000,
+      colegio: 130000, compartida: 65000, evaluacion: 130000
+    };
+
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesAdmin(-1)">← Anterior</button>' +
+      '<span style="font-size:16px;font-weight:600;">' + getMesLabel() + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesAdmin(1)">Siguiente →</button>' +
+      '</div>' +
+      '<button class="btn btn-secondary btn-sm" onclick="loadAdminTarifas()">⚙️ Configurar tarifas</button>' +
+      '</div>';
+
+    // Summary cards
+    var totalTurnos = turnos.length;
+    var totalGenerado = 0;
+    var totalProfs = 0;
+    var totalCrea = 0;
+
+    // Per prof breakdown
+    var profBreakdown = {};
+    profs.forEach(function(p) { profBreakdown[p.id] = { nombre: p.nombre, tipos: {}, totalGen: 0, totalProf: 0, totalCrea: 0 }; });
+
+    turnos.forEach(function(t) {
+      var tipo = t.tipo || 'sesion';
+      var valorTotal = tarifaMap[tipo] || 220000;
+      var pagoProfDefault = DEFAULT_PAGO[tipo] || 130000;
+      var pagoProf = profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo] ? profTarifaMap[t.profesional_id][tipo] : pagoProfDefault;
+      
+      // Compartida - split between two
+      if (tipo === 'compartida') pagoProf = 65000;
+      
+      var ganCrea = valorTotal - pagoProf;
+      totalGenerado += valorTotal;
+      totalProfs += pagoProf;
+      totalCrea += ganCrea;
+
+      if (profBreakdown[t.profesional_id]) {
+        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, totalGen: 0, totalProf: 0 };
+        profBreakdown[t.profesional_id].tipos[tipo].cant++;
+        profBreakdown[t.profesional_id].tipos[tipo].totalGen += valorTotal;
+        profBreakdown[t.profesional_id].tipos[tipo].totalProf += pagoProf;
+        profBreakdown[t.profesional_id].totalGen += valorTotal;
+        profBreakdown[t.profesional_id].totalProf += pagoProf;
+        profBreakdown[t.profesional_id].totalCrea += ganCrea;
+      }
+    });
+
+    // Summary stats
+    html += '<div class="grid-4 mb-20">' +
+      '<div class="stat-card"><div class="stat-num">' + totalTurnos + '</div><div class="stat-label">Atenciones confirmadas</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalGenerado) + '</div><div class="stat-label">Total generado</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="font-size:18px;color:#C0392B;">' + fmtGs(totalProfs) + '</div><div class="stat-label">A pagar profesionales</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="font-size:18px;color:#1B8A7A;">' + fmtGs(totalCrea) + '</div><div class="stat-label">Ganancia CREA</div></div>' +
+      '</div>';
+
+    // Per prof breakdown
+    html += '<div class="section-title">Detalle por profesional</div>';
+
+    profs.forEach(function(p) {
+      var pb = profBreakdown[p.id];
+      if (!pb || pb.totalGen === 0) return;
+      
+      html += '<div class="card mb-16">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
+        '<div><div style="font-size:14px;font-weight:600;">' + p.nombre + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">' + (p.especialidad||'') + '</div></div></div>' +
+        '<div style="text-align:right;">' +
+        '<div style="font-size:15px;font-weight:600;color:#C0392B;">' + fmtGs(pb.totalProf) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);">A cobrar</div></div></div>' +
+        '<table style="width:100%;border-collapse:collapse;">' +
+        '<thead><tr>' +
+        '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Tipo</th>' +
+        '<th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Cant.</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Total pac.</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago prof.</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">CREA</th>' +
+        '</tr></thead><tbody>';
+
+      Object.keys(pb.tipos).forEach(function(tipo) {
+        var t = pb.tipos[tipo];
+        var color = TIPO_COLORS[tipo] || '#4CAF50';
+        var ganCrea = t.totalGen - t.totalProf;
+        html += '<tr>' +
+          '<td style="padding:8px 10px;border-bottom:1px solid var(--border);">' +
+          '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:6px;"></span>' +
+          (TIPO_LABELS[tipo]||tipo) + '</td>' +
+          '<td style="padding:8px 10px;text-align:center;font-weight:600;border-bottom:1px solid var(--border);">' + t.cant + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.totalGen) + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);">' + fmtGs(t.totalProf) + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#1B8A7A;border-bottom:1px solid var(--border);">' + fmtGs(ganCrea) + '</td>' +
+          '</tr>';
+      });
+
+      html += '<tr style="background:var(--bg);">' +
+        '<td style="padding:8px 10px;font-weight:600;">TOTAL</td>' +
+        '<td style="padding:8px 10px;text-align:center;font-weight:600;">' + Object.values(pb.tipos).reduce(function(a,b){return a+b.cant;},0) + '</td>' +
+        '<td style="padding:8px 10px;text-align:right;font-weight:600;">' + fmtGs(pb.totalGen) + '</td>' +
+        '<td style="padding:8px 10px;text-align:right;font-weight:600;color:#C0392B;">' + fmtGs(pb.totalProf) + '</td>' +
+        '<td style="padding:8px 10px;text-align:right;font-weight:600;color:#1B8A7A;">' + fmtGs(pb.totalCrea) + '</td>' +
+        '</tr>';
+
+      html += '</tbody></table>' +
+        '<div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px;">' +
+        '<button class="btn btn-secondary btn-sm" data-pid="' + p.id + '" data-pnombre="' + p.nombre.replace(/'/g,'') + '" onclick="configProfTarifas(this)">⚙️ Tarifas personalizadas</button>' +
+        '</div></div>';
+    });
+
+    el.innerHTML = html;
+  } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+async function loadAdminTarifas() {
+  try {
+    var tarifas = await api('GET', 'tarifas', null, '');
+    var html = '<div class="card"><div class="section-title">Tarifas base</div>' +
+      '<table style="width:100%;border-collapse:collapse;">' +
+      '<thead><tr>' +
+      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Tipo</th>' +
+      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Valor total</th>' +
+      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago prof. estándar</th>' +
+      '</tr></thead><tbody>';
+    
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    
+    tarifas.forEach(function(t) {
+      html += '<tr><td style="padding:8px;border-bottom:1px solid var(--border);">' + t.nombre + '</td>' +
+        '<td style="padding:8px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.valor_total) + '</td>' +
+        '<td style="padding:8px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(DEFAULT_PAGO[t.tipo]||0) + '</td></tr>';
+    });
+    
+    html += '</tbody></table><button class="btn btn-secondary btn-sm" style="margin-top:12px;" onclick="loadAdmin()">← Volver</button></div>';
+    document.getElementById('admin-content').innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+async function configProfTarifas(el) {
+  var profId = el.getAttribute('data-pid');
+  window._configProfId = profId;
+  var profNombre = el.getAttribute('data-pnombre');
+  try {
+    var tarifas = await api('GET', 'tarifas', null, '');
+    var profTarifas = await api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
+    var profMap = {};
+    profTarifas.forEach(function(pt) { profMap[pt.tipo] = pt.pago_profesional; });
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    
+    var html = '<div class="card"><div style="font-size:15px;font-weight:600;margin-bottom:16px;">Tarifas de ' + profNombre + '</div>' +
+      '<table style="width:100%;border-collapse:collapse;">' +
+      '<thead><tr>' +
+      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Tipo</th>' +
+      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago profesional (Gs.)</th>' +
+      '</tr></thead><tbody>';
+    
+    tarifas.forEach(function(t) {
+      var val = profMap[t.tipo] || DEFAULT_PAGO[t.tipo] || 0;
+      html += '<tr><td style="padding:8px;border-bottom:1px solid var(--border);">' + t.nombre + '</td>' +
+        '<td style="padding:8px;border-bottom:1px solid var(--border);text-align:right;">' +
+        '<input type="number" value="' + val + '" data-tipo="' + t.tipo + '" data-profid="' + profId + '" style="width:120px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;text-align:right;font-size:13px;">' +
+        '</td></tr>';
+    });
+    
+    html += '</tbody></table>' +
+      '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">' +
+      '<button class="btn btn-secondary" onclick="loadAdmin()">Cancelar</button>' +
+      '<button class="btn btn-primary" onclick="saveProfTarifas()">Guardar tarifas</button>' +
+      '</div></div>';
+    document.getElementById('admin-content').innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+async function saveProfTarifas() {
+  var profId = window._configProfId;
+  var inputs = document.querySelectorAll('[data-profid="' + profId + '"]');
+  try {
+    await api('DELETE', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
+    for (var i = 0; i < inputs.length; i++) {
+      var tipo = inputs[i].getAttribute('data-tipo');
+      var val = parseInt(inputs[i].value);
+      if (val > 0) await api('POST', 'profesional_tarifas', { profesional_id: profId, tipo: tipo, pago_profesional: val });
+    }
+    toast('✅ Tarifas guardadas');
+    loadAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
