@@ -767,7 +767,7 @@ async function verLegajo(pacId, profId) {
       }).join('') : '<div class="empty-state">Sin notas</div>') + '</div>';
 
     lv.innerHTML = html;
-  } catch(e) { console.error(e); lv.innerHTML = '<div class="empty-state">Error cargando legajo</div>'; }
+  } catch(e) { console.error(e); lv.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
 function openObs(tipo) {
