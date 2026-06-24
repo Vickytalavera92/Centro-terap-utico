@@ -601,7 +601,7 @@ async function verProf(idxOrId) {
     var pacs = [];
     if (asig.length) {
       var pacIds2 = asig.map(function(a) { return a.paciente_id; }).join(',');
-      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')&estado=eq.activo');
+      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')');
     }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
     if (CU.rol === 'directora') {
@@ -650,8 +650,8 @@ async function verProf(idxOrId) {
       '<span style="font-size:12px;color:var(--text-secondary);">' + pacs.length + ' legajos</span>' +
       '</div>' +
       '<div class="grid-2">' +
-      (pacs.length ? pacs.map(function(pac) {
-        return '<div class="prof-card" data-pac="' + pac.id + '" data-prof="' + profId + '" style="cursor:pointer;">' +
+      (pacs.length ? (window._curProfIdForMap = profId, pacs).map(function(pac) {
+        return '<div class="prof-card" data-pac="' + pac.id + '" data-prof="' + window._curProfIdForMap + '" style="cursor:pointer;">' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
           '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
           '<div><div style="font-size:13px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + '</div>' +
