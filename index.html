@@ -478,7 +478,6 @@ async function login() {
     document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
     document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : 'Profesional';
     loadDashboard();
-    toast('ID: ' + CU.id.slice(0,8));
   } catch(e) {
     document.getElementById('login-error').style.display = 'block';
   }
@@ -556,14 +555,17 @@ async function loadDashboard() {
 }
 
 // PROFESIONALES
+var _profs = [];
 async function loadProfs() {
   try {
-    var q = CU.rol === 'directora' ? '?rol=eq.profesional&activo=eq.true&order=nombre.asc' : '?rol=eq.profesional&activo=eq.true&id=eq.' + CU.id;
-    var profs = await api('GET', 'usuarios', null, q);
+    var isDirectora = CU.rol === 'directora';
+    var q = isDirectora ? '?activo=eq.true&order=nombre.asc' : '?id=eq.' + CU.id;
+    var todos = await api('GET', 'usuarios', null, q);
+    _profs = todos.filter(function(u) { return u.rol === 'profesional' || u.id === CU.id; });
     var el = document.getElementById('prof-cards');
-    if (!profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
-    el.innerHTML = profs.map(function(p, i) {
-      return '<div class="prof-card" onclick="verProf(' + JSON.stringify(p.id) + ')">' +
+    if (!_profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
+    el.innerHTML = _profs.map(function(p, i) {
+      return '<div class="prof-card" onclick="verProf(' + i + ')">' +
         '<div class="av">' + (p.avatar_iniciales||'??') + '</div>' +
         '<div style="font-size:14px;font-weight:600;margin-bottom:3px;">' + p.nombre + '</div>' +
         '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">' + (p.especialidad||'') + '</div>' +
@@ -573,11 +575,12 @@ async function loadProfs() {
     document.getElementById('view-profs').style.display = 'block';
     document.getElementById('view-prof-detail').style.display = 'none';
     document.getElementById('view-legajo').style.display = 'none';
-    if (CU.rol === 'directora') document.getElementById('topbar-btn').innerHTML = '<button class="btn btn-primary btn-sm" onclick="alert(\'Agregar profesional: agregala desde Supabase → Table Editor → usuarios\')">+ Nueva profesional</button>';
+    if (isDirectora) { document.getElementById('topbar-btn').innerHTML = ''; var _nb = document.getElementById('topbar-btn'); var _b = document.createElement('button'); _b.className = 'btn btn-primary btn-sm'; _b.textContent = '+ Nueva profesional'; _b.onclick = function() { alert('Agregar profesional desde Supabase'); }; _nb.appendChild(_b); }
   } catch(e) { console.error(e); }
 }
 
-async function verProf(profId) {
+async function verProf(idxOrId) {
+  var profId = (typeof idxOrId === 'number' && _profs[idxOrId]) ? _profs[idxOrId].id : idxOrId;
   curProfId = profId;
   document.getElementById('view-profs').style.display = 'none';
   document.getElementById('view-prof-detail').style.display = 'block';
@@ -593,11 +596,9 @@ async function verProf(profId) {
     ]);
     var p = results[0][0], asig = results[1], ses = results[2], ag = results[3];
     var pacs = [];
-    toast('Asig: ' + asig.length);
     if (asig.length) {
       var pacIds2 = asig.map(function(a) { return a.paciente_id; }).join(',');
-      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')');
-      toast('Pacs: ' + pacs.length);
+      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')&estado=eq.activo');
     }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
     if (CU.rol === 'directora') {
