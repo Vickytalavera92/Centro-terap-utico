@@ -648,7 +648,7 @@ async function verProf(idxOrId) {
     html += '<div id="tp-legajos" class="tab-sec">' +
       '<div class="flex justify-between items-center mb-12">' +
       '<span style="font-size:12px;color:var(--text-secondary);">' + pacs.length + ' legajos</span>' +
-      '<button class="btn btn-primary btn-sm" onclick="openModalPac(\'' + profId + '\')">+ Nuevo legajo</button></div>' +
+      '</div>' +
       '<div class="grid-2">' +
       (pacs.length ? pacs.map(function(pac) {
         return '<div class="prof-card" data-pac="' + pac.id + '" data-prof="' + profId + '" style="cursor:pointer;">' +
@@ -662,6 +662,18 @@ async function verProf(idxOrId) {
       }).join('') : '<div class="empty-state" style="grid-column:span 2">Sin pacientes</div>') +
       '</div></div>';
     dv.innerHTML = html;
+    // Add nuevo legajo button for directors only
+    if (isDir()) {
+      var legajosHeader = dv.querySelector('#tp-legajos .flex');
+      if (legajosHeader) {
+        var nb = document.createElement('button');
+        nb.className = 'btn btn-primary btn-sm';
+        nb.textContent = '+ Nuevo legajo';
+        nb.setAttribute('data-profid', profId);
+        nb.addEventListener('click', function() { openModalPac(this.getAttribute('data-profid')); });
+        legajosHeader.appendChild(nb);
+      }
+    }
   } catch(e) { console.error(e); dv.innerHTML = '<div class="empty-state">Error cargando datos</div>'; }
 }
 
