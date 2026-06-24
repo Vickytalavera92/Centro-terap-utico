@@ -1247,9 +1247,9 @@ document.getElementById('page-profesionales').addEventListener('click', function
   var card = e.target.closest('.prof-card');
   if (!card) return;
   if (card.getAttribute('data-pac')) {
-    // Legajo card
     var dpac = card.getAttribute('data-pac');
     var dprof = card.getAttribute('data-prof') || curProfId;
+    alert('pac: ' + dpac.slice(0,8) + ' prof: ' + (dprof||'EMPTY') + ' curProfId: ' + (curProfId||'EMPTY'));
     verLegajo(dpac, dprof);
   } else if (card.getAttribute('data-idx') !== null) {
     // Prof card
