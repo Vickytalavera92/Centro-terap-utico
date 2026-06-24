@@ -167,8 +167,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="nav-item" id="nav-profesionales" onclick="goTo('profesionales')">👩‍⚕️ Profesionales</div>
       <div class="nav-item" id="nav-pacientes" onclick="goTo('pacientes')">📁 Pacientes</div>
       <div class="nav-item" id="nav-agenda" onclick="goTo('agenda')">📅 Agenda</div>
+      <div class="nav-item" id="nav-perfil" onclick="goTo('perfil')">👤 Mi perfil</div>
     </div>
     <div class="sidebar-footer">
+      <div class="nav-item" onclick="openModal('modal-pass')">🔑 Cambiar contraseña</div>
       <div class="nav-item" onclick="logout()" style="color:var(--red)">🚪 Cerrar sesión</div>
     </div>
   </div>
@@ -208,6 +210,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <button class="btn btn-primary btn-sm" onclick="openModalPac()">+ Nuevo paciente</button>
         </div>
         <div id="pac-table-wrap"></div>
+      </div>
+    </div>
+
+    <!-- MI PERFIL -->
+    <div class="page" id="page-perfil">
+      <div class="card" style="max-width:560px;">
+        <div class="section-title">Mi perfil</div>
+        <div id="perfil-content"></div>
       </div>
     </div>
 
@@ -264,12 +274,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="form-group"><label>Cobertura</label><input id="pac-cob" placeholder="IIPS, particular..."></div>
     </div>
     <div class="form-group"><label>Diagnóstico</label><input id="pac-diag" placeholder="Diagnóstico principal"></div>
-    <div class="form-group" id="pac-prof-wrap"><label>Profesional asignada</label><select id="pac-prof"><option value="">Sin asignar</option></select></div>
+    <div class="form-group" id="pac-prof-wrap"><label>Profesionales asignadas</label><div id="prof-checkboxes" style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);max-height:160px;overflow-y:auto;"></div></div>
+    <input type="hidden" id="pac-prof">
     <div class="form-group"><label>Fecha de ingreso al centro</label><input type="date" id="pac-ingreso"></div>
     <div class="form-group"><label>🔗 Link de carpeta en Google Drive (opcional)</label><input id="pac-drive" placeholder="https://drive.google.com/..."></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-pac')">Cancelar</button>
       <button class="btn btn-primary" onclick="savePac()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CAMBIAR CONTRASEÑA -->
+<div class="modal-overlay" id="modal-pass">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header"><h3>Cambiar contraseña</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-pass')">✕</button></div>
+    <div class="form-group"><label>Nueva contraseña</label><input type="password" id="new-pass" placeholder="Mínimo 6 caracteres"></div>
+    <div class="form-group"><label>Repetir contraseña</label><input type="password" id="new-pass2" placeholder="Repetir contraseña"></div>
+    <div class="error-msg" id="pass-error">Las contraseñas no coinciden</div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pass')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveNewPass()">Guardar contraseña</button>
     </div>
   </div>
 </div>
@@ -404,9 +429,15 @@ async function login() {
     var users = await api('GET', 'usuarios', null, '?email=eq.' + encodeURIComponent(email) + '&limit=1');
     if (!users || users.length === 0) throw new Error('Sin perfil');
     CU = users[0];
+    window._authToken = authData.access_token;
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('sav').textContent = CU.avatar_iniciales || '??';
+    if (CU.foto_url) {
+      var avEl = document.getElementById('sav');
+      avEl.innerHTML = '<img src="' + CU.foto_url + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" alt="foto">';
+      avEl.style.padding = '0';
+    }
     document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
     document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : 'Profesional';
     loadDashboard();
@@ -426,12 +457,13 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
   if (page === 'pacientes') loadPacs();
   if (page === 'agenda') loadAgenda();
+  if (page === 'perfil') loadPerfil();
 }
 
 function switchTab(el, id) {
@@ -458,7 +490,8 @@ async function loadDashboard() {
       api('GET', 'sesiones', null, sesQ),
       api('GET', 'agenda', null, agQ)
     ]);
-    var profs = results[0], pacs = results[1], ses = results[2], ag = results[3];
+    var profs = results[0], pacsOrAsig = results[1], ses = results[2], ag = results[3];
+    var pacs = CU.rol === 'directora' ? pacsOrAsig : pacsOrAsig;
     document.getElementById('d-profs').textContent = profs.length;
     document.getElementById('d-pacs').textContent = pacs.length;
     document.getElementById('d-ses').textContent = ses.length;
@@ -512,11 +545,16 @@ async function verProf(profId) {
   try {
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?id=eq.' + profId + '&limit=1'),
-      api('GET', 'pacientes', null, '?profesional_id=eq.' + profId + '&estado=eq.activo'),
+      api('GET', 'asignaciones', null, '?profesional_id=eq.' + profId),
       api('GET', 'sesiones', null, '?profesional_id=eq.' + profId + '&fecha=gte.' + firstDay()),
       api('GET', 'agenda', null, '?profesional_id=eq.' + profId + '&fecha=eq.' + today() + '&order=hora.asc')
     ]);
-    var p = results[0][0], pacs = results[1], ses = results[2], ag = results[3];
+    var p = results[0][0], asig = results[1], ses = results[2], ag = results[3];
+    var pacs = [];
+    if (asig.length) {
+      var pacIds2 = asig.map(function(a) { return a.paciente_id; }).join(',');
+      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')&estado=eq.activo');
+    }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
     if (CU.rol === 'directora') html += '<div class="dir-banner">👁 Vista directora — acceso completo</div>';
     html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
@@ -597,7 +635,15 @@ async function verLegajo(pacId, profId) {
       (canEdit ? '<button class="btn btn-secondary btn-sm" onclick="openEditPac(\'' + pacId + '\')">✏️ Editar datos</button>' : '') +
       (canEdit && pac.estado === 'activo' ? '<button class="btn btn-sm" style="background:#FAEEDA;color:#633806;" onclick="darAlta(\'' + pacId + '\')">✅ Dar de alta</button>' : '') +
       '</div>';
+    // Get all assigned professionals for this patient
+    var asigPac = await api('GET', 'asignaciones', null, '?paciente_id=eq.' + pacId);
+    var asigProfIds = asigPac.map(function(a) { return a.profesional_id; });
+    var allProfs2 = asigProfIds.length ? await api('GET', 'usuarios', null, '?id=in.(' + asigProfIds.join(',') + ')') : [];
+    var profNames = allProfs2.map(function(p) { return p.nombre; }).join(', ');
     html += '<div class="dir-banner">📁 Legajo clínico' + (CU.rol === 'directora' ? ' — vista directora' : '') + '</div>';
+    if (allProfs2.length > 1) {
+      html += '<div style="background:#FEF6E0;color:#633806;padding:8px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:12px;">👥 Profesionales asignadas: ' + profNames + '</div>';
+    }
     html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
       '<div class="av" style="width:46px;height:46px;font-size:14px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
       '<div><div style="font-size:17px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + '</div>' +
@@ -692,8 +738,18 @@ async function regSesion() {
 
 async function loadPacs() {
   try {
-    var q = CU.rol === 'directora' ? '?order=created_at.desc' : '?profesional_id=eq.' + CU.id + '&order=created_at.desc';
-    var pacs = await api('GET', 'pacientes', null, q);
+    var pacs;
+    if (CU.rol === 'directora') {
+      pacs = await api('GET', 'pacientes', null, '?order=created_at.desc');
+    } else {
+      // Get asignaciones for this professional
+      var asig = await api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id);
+      if (!asig.length) { pacs = []; }
+      else {
+        var pacIds = asig.map(function(a) { return a.paciente_id; }).join(',');
+        pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds + ')&order=created_at.desc');
+      }
+    }
     var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional');
     var profMap = {};
     profs.forEach(function(p) { profMap[p.id] = p.nombre; });
@@ -725,19 +781,18 @@ async function openModalPac(profId) {
   var sel = document.getElementById('pac-prof');
   var selWrap = document.getElementById('pac-prof-wrap');
   if (CU.rol === 'directora') {
-    // Directors can assign to any professional
     selWrap.style.display = 'block';
     try {
       var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc');
-      sel.innerHTML = '<option value="">Sin asignar</option>' + profs.map(function(p) {
-        return '<option value="' + p.id + '">' + p.nombre + '</option>';
+      var cbDiv = document.getElementById('prof-checkboxes');
+      cbDiv.innerHTML = profs.map(function(p) {
+        var checked = profId === p.id ? 'checked' : '';
+        return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">' +
+          '<input type="checkbox" value="' + p.id + '" ' + checked + ' style="width:auto;"> ' + p.nombre + '</label>';
       }).join('');
-      if (profId) sel.value = profId;
     } catch(e) { console.error(e); }
   } else {
-    // Professionals: auto-assign to themselves, hide selector
     selWrap.style.display = 'none';
-    sel.innerHTML = '<option value="' + CU.id + '">' + CU.nombre + '</option>';
     sel.value = CU.id;
   }
   openModal('modal-pac');
@@ -748,17 +803,33 @@ async function savePac() {
   var apellido = document.getElementById('pac-apellido').value.trim();
   if (!nombre || !apellido) return;
   try {
-    await api('POST', 'pacientes', {
+    var result = await api('POST', 'pacientes', {
       nombre: nombre, apellido: apellido,
       dni: document.getElementById('pac-dni').value || null,
       fecha_nacimiento: document.getElementById('pac-fnac').value || null,
       telefono: document.getElementById('pac-tel').value || null,
       cobertura: document.getElementById('pac-cob').value || null,
       diagnostico: document.getElementById('pac-diag').value || null,
-      profesional_id: document.getElementById('pac-prof').value || null,
+      profesional_id: null,
       fecha_ingreso: document.getElementById('pac-ingreso').value || today(),
       drive_link: document.getElementById('pac-drive').value || null
     });
+    var newPac = result[0];
+    // Create asignaciones
+    var profIds = [];
+    if (CU.rol === 'directora') {
+      var checks = document.querySelectorAll('#prof-checkboxes input:checked');
+      checks.forEach(function(c) { profIds.push(c.value); });
+    } else {
+      profIds.push(CU.id);
+    }
+    for (var i = 0; i < profIds.length; i++) {
+      try { await api('POST', 'asignaciones', { paciente_id: newPac.id, profesional_id: profIds[i] }); } catch(e) {}
+    }
+    // Keep profesional_id as first assigned for backward compat
+    if (profIds.length > 0) {
+      await api('PATCH', 'pacientes', { profesional_id: profIds[0] }, '?id=eq.' + newPac.id);
+    }
     closeModal('modal-pac');
     toast('Paciente registrado');
     loadPacs();
@@ -915,6 +986,104 @@ async function deleteObs() {
     toast('Eliminado');
     verLegajo(curPacId, curProfId);
   } catch(e) { console.error(e); }
+}
+
+async function loadPerfil() {
+  var el = document.getElementById('perfil-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var users = await api('GET', 'usuarios', null, '?id=eq.' + CU.id + '&limit=1');
+    var u = users[0];
+    var photoUrl = u.foto_url ? u.foto_url : null;
+    var avatarHtml = photoUrl
+      ? '<img src="' + photoUrl + '" style="width:52px;height:52px;border-radius:50%;object-fit:cover;" alt="foto">'
+      : '<div class="av" style="width:52px;height:52px;font-size:16px;margin-bottom:0;">' + (u.avatar_iniciales||'??') + '</div>';
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">' +
+      '<div style="position:relative;">' + avatarHtml +
+      '<label for="foto-input" style="position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:white;" title="Cambiar foto">📷</label>' +
+      '<input type="file" id="foto-input" accept="image/*" style="display:none;" onchange="uploadFoto(this)"></div>' +
+      '<div><div style="font-size:17px;font-weight:600;">' + u.nombre + '</div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);">' + (u.especialidad||'') + '</div>' +
+      '<span class="badge b-green" style="margin-top:6px;">' + (u.rol === 'directora' ? 'Directora' : 'Profesional') + '</span>' +
+      '<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;">Hacé clic en 📷 para cambiar tu foto</div></div></div>' +
+      '<div class="grid-2">' +
+      '<div class="form-group"><label>Nombre completo</label><input id="p-nombre" value="' + (u.nombre||'') + '"></div>' +
+      '<div class="form-group"><label>Iniciales (avatar)</label><input id="p-iniciales" value="' + (u.avatar_iniciales||'') + '" maxlength="3" placeholder="Ej: PA"></div>' +
+      '<div class="form-group"><label>Especialidad</label><input id="p-especialidad" value="' + (u.especialidad||'') + '" placeholder="Ej: Psicología clínica"></div>' +
+      '<div class="form-group"><label>Matrícula</label><input id="p-matricula" value="' + (u.matricula||'') + '" placeholder="MP-12345"></div>' +
+      '<div class="form-group"><label>Teléfono</label><input id="p-telefono" value="' + (u.telefono||'') + '" placeholder="+595 981..."></div>' +
+      '<div class="form-group"><label>Horario de atención</label><input id="p-horario" value="' + (u.horario||'') + '" placeholder="Lun-Vie, 8:00-16:00"></div>' +
+      '</div>' +
+      '<div style="margin-top:8px;">' +
+      '<button class="btn btn-primary" onclick="savePerfil()">Guardar cambios</button>' +
+      '</div>';
+  } catch(e) { console.error(e); }
+}
+
+async function uploadFoto(input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { toast('La foto debe ser menor a 2MB'); return; }
+  toast('Subiendo foto...');
+  try {
+    var ext = file.name.split('.').pop();
+    var path = CU.id + '.' + ext;
+    var uploadRes = await fetch(SUPA_URL + '/storage/v1/object/avatars/' + path, {
+      method: 'POST',
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + (window._authToken || SUPA_KEY), 'Content-Type': file.type, 'x-upsert': 'true' },
+      body: file
+    });
+    if (!uploadRes.ok) throw new Error('Error subiendo foto');
+    var fotoUrl = SUPA_URL + '/storage/v1/object/public/avatars/' + path + '?t=' + Date.now();
+    await api('PATCH', 'usuarios', { foto_url: fotoUrl }, '?id=eq.' + CU.id);
+    CU.foto_url = fotoUrl;
+    var avEl = document.getElementById('sav');
+    avEl.innerHTML = '<img src="' + fotoUrl + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" alt="foto">';
+    avEl.style.padding = '0';
+    toast('✅ Foto actualizada');
+    loadPerfil();
+  } catch(e) { console.error(e); toast('Error al subir la foto'); }
+}
+
+async function savePerfil() {
+  try {
+    var updates = {
+      nombre: document.getElementById('p-nombre').value,
+      avatar_iniciales: document.getElementById('p-iniciales').value.toUpperCase(),
+      especialidad: document.getElementById('p-especialidad').value || null,
+      matricula: document.getElementById('p-matricula').value || null,
+      telefono: document.getElementById('p-telefono').value || null,
+      horario: document.getElementById('p-horario').value || null
+    };
+    await api('PATCH', 'usuarios', updates, '?id=eq.' + CU.id);
+    CU.nombre = updates.nombre;
+    CU.avatar_iniciales = updates.avatar_iniciales;
+    if (!CU.foto_url) document.getElementById('sav').textContent = updates.avatar_iniciales || '??';
+    document.getElementById('sname').textContent = updates.nombre.split(' ').slice(-2).join(' ');
+    toast('✅ Perfil actualizado');
+    loadPerfil();
+  } catch(e) { console.error(e); }
+}
+
+async function saveNewPass() {
+  var p1 = document.getElementById('new-pass').value;
+  var p2 = document.getElementById('new-pass2').value;
+  var errEl = document.getElementById('pass-error');
+  errEl.style.display = 'none';
+  if (p1.length < 6) { errEl.textContent = 'Mínimo 6 caracteres'; errEl.style.display = 'block'; return; }
+  if (p1 !== p2) { errEl.textContent = 'Las contraseñas no coinciden'; errEl.style.display = 'block'; return; }
+  try {
+    var res = await fetch(SUPA_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + window._authToken },
+      body: JSON.stringify({ password: p1 })
+    });
+    if (!res.ok) throw new Error('Error');
+    closeModal('modal-pass');
+    document.getElementById('new-pass').value = '';
+    document.getElementById('new-pass2').value = '';
+    toast('✅ Contraseña actualizada');
+  } catch(e) { errEl.textContent = 'Error al cambiar contraseña'; errEl.style.display = 'block'; }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
