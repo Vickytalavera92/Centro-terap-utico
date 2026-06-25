@@ -622,7 +622,10 @@ function toast(msg) {
   setTimeout(function() { t.classList.remove('show'); }, 2800);
 }
 
-function today() { return new Date().toISOString().slice(0,10); }
+function today() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
 function firstDay() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01'; }
 function lastDay() { var d = new Date(); return new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10); }
 function fmt(s) { if (!s) return '—'; return new Date(s + 'T12:00:00').toLocaleDateString('es-PY', {day:'numeric', month:'short', year:'numeric'}); }
@@ -1758,11 +1761,11 @@ function cambiarSemana(dir) {
 }
 
 function getLunes(offset) {
-  var d = new Date();
+  var now = new Date();
+  var d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   var day = d.getDay();
   var diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff + (offset * 7));
-  d.setHours(0,0,0,0);
   return d;
 }
 
@@ -1771,7 +1774,10 @@ function fmtShort(d) {
 }
 
 function dateStr(d) {
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  var y = d.getFullYear();
+  var m = String(d.getMonth()+1).padStart(2,'0');
+  var day = String(d.getDate()).padStart(2,'0');
+  return y + '-' + m + '-' + day;
 }
 
 async function loadSemanal() {
