@@ -411,6 +411,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     </div>
     <div id="edit-pac-prof-wrap" style="margin-bottom:16px;"></div>
     <div class="form-group"><label>💰 Precio total personalizado (Gs.) — opcional</label><input type="number" id="edit-pac-valor" placeholder="Ej: 150000 — dejar vacío para usar precio estándar"></div>
+    <div class="form-group"><label>👤 Nombre para factura (responsable)</label><input id="edit-pac-responsable" placeholder="Nombre del padre/madre que figura en factura"></div>
+    <div class="form-group"><label>🪪 RUC / CI del responsable</label><input id="edit-pac-ruc" placeholder="Ej: 1048676-3"></div>
     <div class="form-group"><label>💸 Pago profesional personalizado (Gs.) — opcional</label><input type="number" id="edit-pac-pago-prof" placeholder="Ej: 60000 — CREA gana la diferencia"></div>
     <div class="form-group"><label>🔗 Link Google Drive</label><input id="edit-pac-drive" placeholder="https://drive.google.com/..."></div>
     <div class="modal-footer">
@@ -942,11 +944,11 @@ async function loadPacs() {
     profs.forEach(function(p) { profMap[p.id] = p.nombre; });
     var el = document.getElementById('pac-table-wrap');
     if (!pacs.length) { el.innerHTML = '<div class="empty-state">Sin pacientes</div>'; return; }
-    el.innerHTML = '<table class="pac-table"><thead><tr><th>Paciente</th><th>Diagnóstico</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th><th></th></tr></thead><tbody>' +
+    el.innerHTML = '<table class="pac-table"><thead><tr><th>Paciente</th><th>Responsable / RUC</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th><th></th></tr></thead><tbody>' +
       pacs.map(function(p) {
         return '<tr>' +
           '<td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;">' + ini(p.nombre, p.apellido) + '</div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span></div></td>' +
-          '<td style="color:var(--text-secondary);">' + (p.diagnostico||'—') + '</td>' +
+          '<td style="color:var(--text-secondary);font-size:12px;"><div>' + (p.responsable_nombre||'—') + '</div><div style="font-size:11px;color:var(--text-tertiary);">' + (p.ruc||'') + '</div></td>' +
           '<td>' + (p.profesional_id && profMap[p.profesional_id] ? profMap[p.profesional_id].replace('Dra. ','').replace('Lic. ','') : '—') + '</td>' +
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
           '<td><span class="badge ' + (p.estado==='activo'?'b-green':p.estado==='alta'?'b-gray':'b-amber') + '">' + p.estado + '</span></td>' +
@@ -1247,6 +1249,8 @@ async function openEditPac(pacId) {
     document.getElementById('edit-pac-estado').value = p.estado || 'activo';
     document.getElementById('edit-pac-drive').value = p.drive_link || '';
     document.getElementById('edit-pac-valor').value = p.valor_sesion || '';
+    document.getElementById('edit-pac-responsable').value = p.responsable_nombre || '';
+    document.getElementById('edit-pac-ruc').value = p.ruc || '';
     document.getElementById('edit-pac-pago-prof').value = p.pago_profesional_custom || '';
     // Show professionals checkboxes
     var profWrap = document.getElementById('edit-pac-prof-wrap');
@@ -1274,6 +1278,8 @@ async function saveEditPac() {
       fecha_ingreso: document.getElementById('edit-pac-ingreso').value || null,
       estado: document.getElementById('edit-pac-estado').value,
       drive_link: document.getElementById('edit-pac-drive').value || null,
+      responsable_nombre: document.getElementById('edit-pac-responsable').value || null,
+      ruc: document.getElementById('edit-pac-ruc').value || null,
       valor_sesion: document.getElementById('edit-pac-valor').value ? parseInt(document.getElementById('edit-pac-valor').value) : null,
       pago_profesional_custom: document.getElementById('edit-pac-pago-prof').value ? parseInt(document.getElementById('edit-pac-pago-prof').value) : null
     }, '?id=eq.' + id);
@@ -1809,9 +1815,9 @@ async function loadAdmin() {
     // Summary stats
     html += '<div class="grid-4 mb-20">' +
       '<div class="stat-card"><div class="stat-num">' + totalTurnos + '</div><div class="stat-label">Atenciones confirmadas</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalGenerado) + '</div><div class="stat-label">Total facturado</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalGenerado) + '</div><div class="stat-label">Total generado</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="font-size:18px;color:#C0392B;">' + fmtGs(totalProfs) + '</div><div class="stat-label">A pagar profesionales</div></div>' +
-      '<div class="stat-card" style="border:2px solid #1B8A7A;"><div class="stat-num" style="font-size:18px;color:#1B8A7A;">' + fmtGs(totalCrea) + '</div><div class="stat-label" style="color:#1B8A7A;font-weight:600;">Ganancia CREA 🌿</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="font-size:18px;color:#1B8A7A;">' + fmtGs(totalCrea) + '</div><div class="stat-label">Ganancia CREA</div></div>' +
       '</div>';
 
     // Per prof breakdown
@@ -1871,10 +1877,8 @@ async function loadAdmin() {
           '<td style="padding:6px 10px;text-align:right;color:#C0392B;font-size:12px;">- ' + fmtGs(pb.adelanto) + '</td><td></td></tr>';
       }
       var totalFinal = pb.totalProf - pb.descuento - pb.adelanto;
-      html += '<tr style="background:#FEF6E0;"><td colspan="3" style="padding:8px 10px;font-weight:700;">TOTAL A PAGAR PROFESIONAL</td>' +
+      html += '<tr style="background:#FEF6E0;"><td colspan="3" style="padding:8px 10px;font-weight:700;">TOTAL A PAGAR</td>' +
         '<td style="padding:8px 10px;text-align:right;font-weight:700;color:#C0392B;font-size:15px;">' + fmtGs(totalFinal) + '</td><td></td></tr>';
-      html += '<tr style="background:#E8F6F4;"><td colspan="3" style="padding:8px 10px;font-weight:700;">GANANCIA CREA</td>' +
-        '<td></td><td style="padding:8px 10px;text-align:right;font-weight:700;color:#1B8A7A;font-size:15px;">' + fmtGs(pb.totalCrea) + '</td></tr>';
 
       html += '</tbody></table>' +
         '<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
