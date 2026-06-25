@@ -185,7 +185,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-        <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">↻ Actualizar</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadDashboard();if(document.getElementById('page-semanal').classList.contains('active')){loadSemanal();}">↻ Actualizar</button>
       </div>
       <div class="grid-4 mb-20">
         <div class="stat-card"><div class="stat-num" id="d-profs">—</div><div class="stat-label">Profesionales</div></div>
@@ -721,7 +721,8 @@ async function login() {
       document.getElementById('nav-perfil').style.display = 'none';
       goTo('admin');
     } else if (CU.rol === 'recepcionista') {
-      // Recepcionista sees profesionales (agenda only, no legajos), pacientes, agenda, semanal, cobros, gastos
+      // Recepcionista sees profesionales (agenda only), pacientes, agenda, semanal, cobros, gastos
+      // Nav items already visible by default
       loadDashboard();
     } else {
       loadDashboard();
@@ -770,7 +771,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // DASHBOARD
 async function loadDashboard() {
   try {
-    var isDir = CU.rol === 'directora';
+    var isDir = CU.rol === 'directora' || CU.rol === 'recepcionista';
     var pacQ = isDir ? '?estado=eq.activo' : '?profesional_id=eq.' + CU.id + '&estado=eq.activo';
     var sesQ = isDir ? '?estado=eq.confirmado&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay() : '?estado=eq.confirmado&profesional_id=eq.' + CU.id + '&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay();
     var agQ = isDir ? '?fecha=eq.' + today() + '&order=hora.asc' : '?fecha=eq.' + today() + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
@@ -822,7 +823,7 @@ async function loadProfs() {
     var el = document.getElementById('prof-cards');
     if (!_profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
     el.innerHTML = _profs.map(function(p, i) {
-      return '<div class="prof-card" data-idx="' + i + '" style="cursor:pointer;">' +
+      return '<div class="prof-card" data-idx="' + i + '" data-id="' + p.id + '" style="cursor:pointer;">' +
         '<div class="av">' + (p.avatar_iniciales||'??') + '</div>' +
         '<div style="font-size:14px;font-weight:600;margin-bottom:3px;">' + p.nombre + '</div>' +
         '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">' + (p.especialidad||'') + '</div>' +
@@ -1645,7 +1646,7 @@ document.getElementById('page-profesionales').addEventListener('click', function
     verLegajo(dpac, dprof);
   } else if (card.getAttribute('data-idx') !== null) {
     // Prof card
-    verProf(parseInt(card.getAttribute('data-idx')));
+    verProf(card.getAttribute('data-id') || parseInt(card.getAttribute('data-idx')));
   }
 });
 
