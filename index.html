@@ -860,10 +860,11 @@ async function verProf(idxOrId) {
       pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')');
     }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
-    if (CU.rol === 'directora') {
+    if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-        '<div class="dir-banner" style="margin-bottom:0;">👁 Vista directora — acceso completo</div>' +
-        '<button class="btn btn-secondary btn-sm" onclick="openEditProf(\'' + p.id + '\')">✏️ Editar datos</button></div>';
+        '<div class="dir-banner" style="margin-bottom:0;">' + (CU.rol === 'directora' ? '👁 Vista directora — acceso completo' : '📋 Vista recepción') + '</div>' +
+        (CU.rol === 'directora' ? '<button class="btn btn-secondary btn-sm" onclick="openEditProf(\'' + p.id + '\')">✏️ Editar datos</button>' : '') +
+        '</div>';
     }
     html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
       '<div class="av" style="width:50px;height:50px;font-size:16px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
@@ -875,17 +876,23 @@ async function verProf(idxOrId) {
       '<div class="stat-card"><div class="stat-num">' + pacs.length + '</div><div class="stat-label">Pacientes</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + ses.length + '</div><div class="stat-label">Atenciones este mes</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + ag.length + '</div><div class="stat-label">Turnos hoy</div></div></div>';
-    html += '<div class="tabs">' +
-      '<div class="tab active" onclick="switchTab(this,\'tp-datos\')">Datos</div>' +
-      '<div class="tab" onclick="switchTab(this,\'tp-agenda\')">Agenda hoy</div>' +
-      '<div class="tab" onclick="switchTab(this,\'tp-legajos\')">Legajos (' + pacs.length + ')</div></div>';
-    html += '<div id="tp-datos" class="tab-sec active">' +
+    if (CU.rol === 'recepcionista') {
+      html += '<div class="tabs">' +
+        '<div class="tab active" onclick="switchTab(this,\'tp-agenda\')">🗓 Agenda hoy</div>' +
+        '</div>';
+    } else {
+      html += '<div class="tabs">' +
+        '<div class="tab active" onclick="switchTab(this,\'tp-datos\')">Datos</div>' +
+        '<div class="tab" onclick="switchTab(this,\'tp-agenda\')">Agenda hoy</div>' +
+        '<div class="tab" onclick="switchTab(this,\'tp-legajos\')">Legajos (' + pacs.length + ')</div></div>';
+    }
+    html += '<div id="tp-datos" class="tab-sec' + (CU.rol === 'recepcionista' ? '' : ' active') + '">' +
       '<div class="grid-2">' +
       '<div class="form-group"><label>Email</label><div style="padding:8px 0;font-size:13px;">' + p.email + '</div></div>' +
       '<div class="form-group"><label>Teléfono</label><div style="padding:8px 0;font-size:13px;">' + (p.telefono||'—') + '</div></div>' +
       '<div class="form-group"><label>Matrícula</label><div style="padding:8px 0;font-size:13px;">' + (p.matricula||'—') + '</div></div>' +
       '<div class="form-group"><label>Horario</label><div style="padding:8px 0;font-size:13px;">' + (p.horario||'—') + '</div></div></div></div>';
-    html += '<div id="tp-agenda" class="tab-sec">' +
+    html += '<div id="tp-agenda" class="tab-sec' + (CU.rol === 'recepcionista' ? ' active' : '') + '">' +
       (ag.length ? ag.map(function(a) {
         var ECOLORS = { pendiente: '#F0A500', confirmado: '#1B8A7A', cancelado: '#C0392B', cancelado_hora: '#E8683A' };
         var est = a.estado || 'pendiente';
@@ -1424,6 +1431,16 @@ async function openEditPac(pacId) {
       }).join('') + '</div>';
     openModal('modal-edit-pac');
   } catch(e) { console.error(e); }
+}
+
+async function eliminarPac(pacId) {
+  if (!confirm('¿Eliminar este paciente? Esta acción no se puede deshacer.')) return;
+  try {
+    await api('DELETE', 'asignaciones', null, '?paciente_id=eq.' + pacId);
+    await api('DELETE', 'pacientes', null, '?id=eq.' + pacId);
+    toast('Paciente eliminado');
+    loadPacs();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 async function saveEditPac() {
