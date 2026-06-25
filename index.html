@@ -803,9 +803,14 @@ async function loadDashboard() {
       var estadoColor = { pendiente: '#F0A500', confirmado: '#1B8A7A', cancelado: '#C0392B', cancelado_hora: '#E8683A' };
       var est = a.estado || 'pendiente';
       var borderColor = estadoColor[est] || '#F0A500';
+      var profNombre = '';
+      if (isDir) {
+        var profAg = results[0].find(function(pr) { return pr.id === a.profesional_id; });
+        profNombre = profAg ? ' <span style="font-size:10px;color:var(--text-secondary);background:var(--bg);padding:2px 6px;border-radius:4px;">' + profAg.nombre.split(' ')[0] + '</span>' : '';
+      }
       return '<div class="agenda-slot" style="border-left:4px solid ' + borderColor + ';">' +
         '<span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
-        '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre || 'Turno libre') + '</span>' +
+        '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre || 'Turno libre') + profNombre + '</span>' +
         '<span style="font-size:11px;color:' + borderColor + ';font-weight:600;">' + (est==='pendiente'?'🟡':est==='confirmado'?'🟢':est==='cancelado'?'🔴':'🟠') + '</span></div>';
     }).join('');
   } catch(e) { console.error(e); }
@@ -839,7 +844,17 @@ async function loadProfs() {
 }
 
 async function verProf(idxOrId) {
-  var profId = (typeof idxOrId === 'number' && _profs[idxOrId]) ? _profs[idxOrId].id : idxOrId;
+  var profId;
+  if (typeof idxOrId === 'number' && _profs[idxOrId]) {
+    profId = _profs[idxOrId].id;
+  } else if (typeof idxOrId === 'string' && idxOrId.length > 10) {
+    profId = idxOrId; // UUID passed directly
+    // Make sure profesionales page is visible
+    goTo('profesionales');
+    await new Promise(function(r) { setTimeout(r, 100); });
+  } else {
+    profId = idxOrId;
+  }
   curProfId = profId;
 
   document.getElementById('view-profs').style.display = 'none';
@@ -1077,8 +1092,8 @@ async function regSesion() {
 async function loadPacs() {
   try {
     var pacs;
-    if (CU.rol === 'directora') {
-      pacs = await api('GET', 'pacientes', null, '?order=created_at.desc');
+    if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
+      pacs = await api('GET', 'pacientes', null, '?order=nombre.asc');
     } else {
       // Get asignaciones for this professional
       var asig = await api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id);
