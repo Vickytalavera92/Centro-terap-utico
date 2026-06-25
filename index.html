@@ -2483,12 +2483,13 @@ async function loadGastos() {
     }
     var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
 
+    var fijos = gastos.filter(function(g) { return g.tipo === 'fijo'; });
     var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
     if (!gastos.length) {
       html += '<div class="card"><div class="empty-state">No hay gastos registrados para este mes.<br>Hacé clic en "+ Nuevo gasto" para agregar.</div></div>';
     } else {
       // Group by tipo
-      var fijos = gastos.filter(function(g) { return g.tipo === 'fijo'; });
+
       
       function renderGastosTable(lista, titulo) {
         if (!lista.length) return '';
