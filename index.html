@@ -227,6 +227,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div id="cobros-content"></div>
     </div>
 
+    <!-- RESUMEN GENERAL -->
+    <div class="page" id="page-resumen">
+      <div id="resumen-content"></div>
+    </div>
+
     <!-- GASTOS -->
     <div class="page" id="page-gastos">
       <div id="gastos-content"></div>
@@ -681,6 +686,13 @@ async function login() {
       gastosNavR.innerHTML = '🧮 Gastos';
       gastosNavR.onclick = function() { goTo('gastos'); };
       document.querySelector('.sidebar-nav').appendChild(gastosNavR);
+
+      var resumenNav = document.createElement('div');
+      resumenNav.className = 'nav-item';
+      resumenNav.id = 'nav-resumen';
+      resumenNav.innerHTML = '📊 Resumen General';
+      resumenNav.onclick = function() { goTo('resumen'); };
+      document.querySelector('.sidebar-nav').appendChild(resumenNav);
     }
     
     if (CU.rol === 'directora' || CU.rol === 'administrador') {
@@ -690,6 +702,15 @@ async function login() {
       gastosNav.innerHTML = '🧮 Gastos';
       gastosNav.onclick = function() { goTo('gastos'); };
       document.querySelector('.sidebar-nav').appendChild(gastosNav);
+
+      if (CU.rol === 'directora') {
+        var resumenNavD = document.createElement('div');
+        resumenNavD.className = 'nav-item';
+        resumenNavD.id = 'nav-resumen';
+        resumenNavD.innerHTML = '📊 Resumen General';
+        resumenNavD.onclick = function() { goTo('resumen'); };
+        document.querySelector('.sidebar-nav').appendChild(resumenNavD);
+      }
     }
     if (CU.rol === 'administrador') {
       document.getElementById('nav-dashboard').style.display = 'none';
@@ -700,8 +721,7 @@ async function login() {
       document.getElementById('nav-perfil').style.display = 'none';
       goTo('admin');
     } else if (CU.rol === 'recepcionista') {
-      // Recepcionista can see agenda, semanal, pacientes, cobros but NOT legajos clinicos
-      document.getElementById('nav-profesionales').style.display = 'none';
+      // Recepcionista sees profesionales (agenda only, no legajos), pacientes, agenda, semanal, cobros, gastos
       loadDashboard();
     } else {
       loadDashboard();
@@ -722,7 +742,7 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
@@ -733,6 +753,7 @@ function goTo(page) {
   if (page === 'admin') loadAdmin();
   if (page === 'cobros') loadCobros();
   if (page === 'gastos') loadGastos();
+  if (page === 'resumen') loadResumen();
 }
 
 function switchTab(el, id) {
@@ -2523,6 +2544,104 @@ async function eliminarGasto() {
     toast('Gasto eliminado');
     loadGastos();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================
+// RESUMEN GENERAL
+// ==================
+var _resumenMes = new Date().getMonth() + 1;
+var _resumenAnio = new Date().getFullYear();
+
+function getResumenLabel() {
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return meses[_resumenMes - 1] + ' ' + _resumenAnio;
+}
+
+function cambiarMesResumen(dir) {
+  if (dir === 0) { _resumenMes = new Date().getMonth() + 1; _resumenAnio = new Date().getFullYear(); }
+  else { _resumenMes += dir; if (_resumenMes > 12) { _resumenMes = 1; _resumenAnio++; } if (_resumenMes < 1) { _resumenMes = 12; _resumenAnio--; } }
+  loadResumen();
+}
+
+async function loadResumen() {
+  var el = document.getElementById('resumen-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var firstDay = _resumenAnio + '-' + String(_resumenMes).padStart(2,'0') + '-01';
+    var lastDate = new Date(_resumenAnio, _resumenMes, 0);
+    var lastDay = _resumenAnio + '-' + String(_resumenMes).padStart(2,'0') + '-' + String(lastDate.getDate()).padStart(2,'0');
+    
+    // Get week range for semanal
+    var now = new Date();
+    var dayOfWeek = now.getDay() || 7;
+    var mondayOffset = -(dayOfWeek - 1);
+    var monday = new Date(now); monday.setDate(now.getDate() + mondayOffset);
+    var saturday = new Date(monday); saturday.setDate(monday.getDate() + 5);
+    var mondayStr = monday.toISOString().slice(0,10);
+    var saturdayStr = saturday.toISOString().slice(0,10);
+
+    var results = await Promise.all([
+      api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc'),
+      api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + firstDay + '&fecha=lte.' + lastDay),
+      api('GET', 'agenda', null, '?fecha=gte.' + mondayStr + '&fecha=lte.' + saturdayStr)
+    ]);
+
+    var profs = results[0];
+    var turnosMes = results[1];
+    var turnosSemana = results[2];
+
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesResumen(-1)">← Anterior</button>' +
+      '<span style="font-size:16px;font-weight:600;">' + getResumenLabel() + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesResumen(1)">Siguiente →</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesResumen(0)">Este mes</button>' +
+      '</div></div>';
+
+    var totalMes = turnosMes.length;
+    var totalSemana = turnosSemana.filter(function(t) { return t.estado === 'confirmado'; }).length;
+    var totalPendSemana = turnosSemana.filter(function(t) { return t.estado === 'pendiente'; }).length;
+
+    html += '<div class="grid-4 mb-20">' +
+      '<div class="stat-card"><div class="stat-num">' + profs.length + '</div><div class="stat-label">Profesionales activas</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + totalMes + '</div><div class="stat-label">Sesiones mes (' + getResumenLabel() + ')</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + totalSemana + '</div><div class="stat-label">✅ Confirmadas esta semana</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#FF9800;">' + totalPendSemana + '</div><div class="stat-label">⏳ Pendientes esta semana</div></div>' +
+      '</div>';
+
+    // Table by profesional
+    html += '<div class="card mb-20"><div class="section-title mb-12">📅 Sesiones por profesional — ' + getResumenLabel() + '</div>' +
+      '<table class="pac-table"><thead><tr>' +
+      '<th>Profesional</th><th>Especialidad</th>' +
+      '<th style="text-align:center;">Esta semana</th>' +
+      '<th style="text-align:center;">Confirmadas mes</th>' +
+      '<th style="text-align:center;">Pendientes mes</th>' +
+      '<th style="text-align:center;">Total mes</th>' +
+      '<th></th>' +
+      '</tr></thead><tbody>';
+
+    profs.forEach(function(p) {
+      var sesMes = turnosMes.filter(function(t) { return t.profesional_id === p.id; }).length;
+      var sesSemConf = turnosSemana.filter(function(t) { return t.profesional_id === p.id && t.estado === 'confirmado'; }).length;
+      var totalTurnosMesTodos = turnosSemana.filter(function(t) { return t.profesional_id === p.id; }).length;
+      var pendMes = turnosSemana.filter(function(t) { return t.profesional_id === p.id && t.estado === 'pendiente'; }).length;
+
+      html += '<tr>' +
+        '<td><div style="display:flex;align-items:center;gap:8px;">' +
+        '<div class="av" style="width:32px;height:32px;font-size:11px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
+        '<span style="font-weight:500;">' + p.nombre + '</span></div></td>' +
+        '<td style="font-size:12px;color:var(--text-secondary);">' + (p.especialidad||'—') + '</td>' +
+        '<td style="text-align:center;font-weight:600;color:#2196F3;">' + sesSemConf + '</td>' +
+        '<td style="text-align:center;font-weight:600;color:#1B8A7A;">' + sesMes + '</td>' +
+        '<td style="text-align:center;color:#FF9800;">' + pendMes + '</td>' +
+        '<td style="text-align:center;font-weight:700;">' + (sesMes + pendMes) + '</td>' +
+        '<td><button class="btn btn-secondary btn-sm" onclick="verProf(\'' + p.id + '\')">Ver agenda</button></td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
