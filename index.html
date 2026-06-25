@@ -227,6 +227,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div id="cobros-content"></div>
     </div>
 
+    <!-- GASTOS -->
+    <div class="page" id="page-gastos">
+      <div id="gastos-content"></div>
+    </div>
+
     <!-- MI PERFIL -->
     <div class="page" id="page-perfil">
       <div class="card" style="max-width:560px;">
@@ -384,6 +389,46 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-edit-prof')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveEditProf()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL GASTO -->
+<div class="modal-overlay" id="modal-gasto">
+  <div class="modal" style="width:440px;">
+    <div class="modal-header">
+      <h3 id="modal-gasto-title">Nuevo gasto</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-gasto')">✕</button>
+    </div>
+    <input type="hidden" id="gasto-id">
+    <div class="form-group"><label>Categoría</label>
+      <select id="gasto-categoria">
+        <option value="alquiler">🏠 Alquiler</option>
+        <option value="sueldo">👤 Sueldo fijo</option>
+        <option value="agua">💧 Agua</option>
+        <option value="luz">💡 Luz</option>
+        <option value="internet">🌐 Internet</option>
+        <option value="guarderia">🧒 Guardería</option>
+        <option value="materiales">📦 Materiales</option>
+        <option value="otros">📋 Otros</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Descripción</label><input id="gasto-desc" placeholder="Ej: Factura agua julio..."></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Monto (Gs.)</label><input type="number" id="gasto-monto" placeholder="Ej: 500000"></div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="gasto-tipo">
+          <option value="fijo">Fijo</option>
+          <option value="variable">Variable</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Fecha</label><input type="date" id="gasto-fecha"></div>
+    <div class="form-group"><label>N° comprobante (opcional)</label><input id="gasto-comprobante" placeholder="Ej: 001-001-0000123"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="gasto-delete-btn" onclick="eliminarGasto()" style="display:none;">🗑 Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-gasto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarGasto()">Guardar</button>
     </div>
   </div>
 </div>
@@ -604,7 +649,7 @@ async function login() {
       avEl.style.padding = '0';
     }
     document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
-    document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : CU.rol === 'administrador' ? 'Administrador' : 'Profesional';
+    document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : CU.rol === 'administrador' ? 'Administrador' : CU.rol === 'recepcionista' ? 'Recepcionista' : 'Profesional';
     // Show admin nav only for directors and administradores
     if (CU.rol === 'directora' || CU.rol === 'administrador') {
       var adminNav = document.createElement('div');
@@ -621,7 +666,31 @@ async function login() {
       cobrosNav.onclick = function() { goTo('cobros'); };
       document.querySelector('.sidebar-nav').appendChild(cobrosNav);
     }
-    // If administrador, go directly to admin module and hide other nav items
+    
+    if (CU.rol === 'recepcionista') {
+      var cobrosNavR = document.createElement('div');
+      cobrosNavR.className = 'nav-item';
+      cobrosNavR.id = 'nav-cobros';
+      cobrosNavR.innerHTML = '🧾 Cobros y Facturas';
+      cobrosNavR.onclick = function() { goTo('cobros'); };
+      document.querySelector('.sidebar-nav').appendChild(cobrosNavR);
+
+      var gastosNavR = document.createElement('div');
+      gastosNavR.className = 'nav-item';
+      gastosNavR.id = 'nav-gastos';
+      gastosNavR.innerHTML = '🧮 Gastos';
+      gastosNavR.onclick = function() { goTo('gastos'); };
+      document.querySelector('.sidebar-nav').appendChild(gastosNavR);
+    }
+    
+    if (CU.rol === 'directora' || CU.rol === 'administrador') {
+      var gastosNav = document.createElement('div');
+      gastosNav.className = 'nav-item';
+      gastosNav.id = 'nav-gastos';
+      gastosNav.innerHTML = '🧮 Gastos';
+      gastosNav.onclick = function() { goTo('gastos'); };
+      document.querySelector('.sidebar-nav').appendChild(gastosNav);
+    }
     if (CU.rol === 'administrador') {
       document.getElementById('nav-dashboard').style.display = 'none';
       document.getElementById('nav-profesionales').style.display = 'none';
@@ -630,6 +699,10 @@ async function login() {
       document.getElementById('nav-semanal').style.display = 'none';
       document.getElementById('nav-perfil').style.display = 'none';
       goTo('admin');
+    } else if (CU.rol === 'recepcionista') {
+      // Recepcionista can see agenda, semanal, pacientes, cobros but NOT legajos clinicos
+      document.getElementById('nav-profesionales').style.display = 'none';
+      loadDashboard();
     } else {
       loadDashboard();
     }
@@ -649,7 +722,7 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
@@ -659,6 +732,7 @@ function goTo(page) {
   if (page === 'semanal') { initSemanal(); loadSemanal(); }
   if (page === 'admin') loadAdmin();
   if (page === 'cobros') loadCobros();
+  if (page === 'gastos') loadGastos();
 }
 
 function switchTab(el, id) {
@@ -720,7 +794,7 @@ var _profs = [];
 var _legajoMap = {};
 async function loadProfs() {
   try {
-    var isDirectora = CU.rol === 'directora';
+    var isDirectora = CU.rol === 'directora' || CU.rol === 'recepcionista';
     var q = isDirectora ? '?activo=eq.true&order=nombre.asc' : '?id=eq.' + CU.id;
     var todos = await api('GET', 'usuarios', null, q);
     _profs = todos.filter(function(u) { return u.rol === 'profesional' || u.id === CU.id; });
@@ -1079,7 +1153,7 @@ async function loadAgenda() {
   var fechaDisplay = new Date(hoy + 'T12:00:00');
   document.getElementById('agenda-fecha').textContent = fechaDisplay.toLocaleDateString('es-PY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   try {
-    var agQ = CU.rol === 'directora' ? '?fecha=eq.' + hoy + '&order=hora.asc' : '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
+    var agQ = (CU.rol === 'directora' || CU.rol === 'recepcionista') ? '?fecha=eq.' + hoy + '&order=hora.asc' : '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
     var results = await Promise.all([
       api('GET', 'agenda', null, agQ),
       api('GET', 'usuarios', null, '?rol=eq.profesional')
@@ -1530,7 +1604,7 @@ async function copiarSemana() {
   var fechaFin = dateStr(dias[5]);
 
   try {
-    var isDirectora = CU.rol === 'directora';
+    var isDirectora = CU.rol === 'directora' || CU.rol === 'recepcionista';
     var agQ = isDirectora
       ? '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&order=hora.asc'
       : '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
@@ -2275,6 +2349,158 @@ async function guardarCobro() {
     closeModal('modal-cobro');
     toast('✅ Cobro guardado');
     loadCobros();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================
+// MÓDULO GASTOS
+// ==================
+var _gastosMes = new Date().getMonth() + 1;
+var _gastosAnio = new Date().getFullYear();
+
+function getGastosLabel() {
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return meses[_gastosMes - 1] + ' ' + _gastosAnio;
+}
+
+function cambiarMesGastos(dir) {
+  if (dir === 0) { _gastosMes = new Date().getMonth() + 1; _gastosAnio = new Date().getFullYear(); }
+  else { _gastosMes += dir; if (_gastosMes > 12) { _gastosMes = 1; _gastosAnio++; } if (_gastosMes < 1) { _gastosMes = 12; _gastosAnio--; } }
+  loadGastos();
+}
+
+var GASTO_LABELS = {
+  alquiler: '🏠 Alquiler', sueldo: '👤 Sueldo fijo', agua: '💧 Agua',
+  luz: '💡 Luz', internet: '🌐 Internet', guarderia: '🧒 Guardería',
+  materiales: '📦 Materiales', otros: '📋 Otros'
+};
+
+async function loadGastos() {
+  var el = document.getElementById('gastos-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var mesKey = _gastosAnio + '_' + String(_gastosMes).padStart(2,'0');
+    var gastos = await api('GET', 'gastos', null, '?mes=eq.' + mesKey + '&order=categoria.asc');
+    
+    var totalFijo = gastos.filter(function(g) { return g.tipo === 'fijo'; }).reduce(function(s,g) { return s+g.monto; }, 0);
+    var totalVar = gastos.filter(function(g) { return g.tipo === 'variable'; }).reduce(function(s,g) { return s+g.monto; }, 0);
+    var total = totalFijo + totalVar;
+    
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesGastos(-1)">← Anterior</button>' +
+      '<span style="font-size:16px;font-weight:600;">' + getGastosLabel() + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesGastos(1)">Siguiente →</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesGastos(0)">Hoy</button>' +
+      '</div>' +
+      '<button class="btn btn-primary btn-sm" onclick="abrirNuevoGasto()">+ Nuevo gasto</button>' +
+      '</div>';
+
+    html += '<div class="grid-4 mb-20">' +
+      '<div class="stat-card"><div class="stat-num">' + gastos.length + '</div><div class="stat-label">Gastos registrados</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalFijo) + '</div><div class="stat-label">Gastos fijos</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalVar) + '</div><div class="stat-label">Gastos variables</div></div>' +
+      '<div class="stat-card" style="border:2px solid #C0392B;"><div class="stat-num" style="font-size:18px;color:#C0392B;">' + fmtGs(total) + '</div><div class="stat-label" style="color:#C0392B;">Total gastos</div></div>' +
+      '</div>';
+
+    if (!gastos.length) {
+      html += '<div class="card"><div class="empty-state">No hay gastos registrados para este mes.<br>Hacé clic en "+ Nuevo gasto" para agregar.</div></div>';
+    } else {
+      // Group by tipo
+      var fijos = gastos.filter(function(g) { return g.tipo === 'fijo'; });
+      var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
+      
+      function renderGastosTable(lista, titulo) {
+        if (!lista.length) return '';
+        var t = '<div class="card mb-16"><div class="section-title mb-12">' + titulo + '</div>' +
+          '<table class="pac-table"><thead><tr>' +
+          '<th>Categoría</th><th>Descripción</th><th>Fecha</th><th>Comprobante</th><th style="text-align:right;">Monto</th><th></th>' +
+          '</tr></thead><tbody>';
+        lista.forEach(function(g) {
+          t += '<tr>' +
+            '<td>' + (GASTO_LABELS[g.categoria]||g.categoria) + '</td>' +
+            '<td style="color:var(--text-secondary);">' + (g.descripcion||'—') + '</td>' +
+            '<td style="font-size:12px;">' + (g.fecha||'') + '</td>' +
+            '<td style="font-size:12px;color:var(--text-secondary);">' + (g.comprobante||'—') + '</td>' +
+            '<td style="text-align:right;font-weight:500;">' + fmtGs(g.monto) + '</td>' +
+            '<td><button onclick="editarGasto(\'' + g.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">✏️</button></td>' +
+            '</tr>';
+        });
+        t += '</tbody></table></div>';
+        return t;
+      }
+      
+      html += renderGastosTable(fijos, '📌 Gastos fijos');
+      html += renderGastosTable(variables, '📊 Gastos variables');
+    }
+    
+    el.innerHTML = html;
+    window._gastosCurrentMes = mesKey;
+  } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+function abrirNuevoGasto() {
+  document.getElementById('modal-gasto-title').textContent = 'Nuevo gasto';
+  document.getElementById('gasto-id').value = '';
+  document.getElementById('gasto-categoria').value = 'otros';
+  document.getElementById('gasto-desc').value = '';
+  document.getElementById('gasto-monto').value = '';
+  document.getElementById('gasto-tipo').value = 'variable';
+  document.getElementById('gasto-fecha').value = today();
+  document.getElementById('gasto-comprobante').value = '';
+  document.getElementById('gasto-delete-btn').style.display = 'none';
+  openModal('modal-gasto');
+}
+
+async function editarGasto(id) {
+  try {
+    var gastos = await api('GET', 'gastos', null, '?id=eq.' + id + '&limit=1');
+    var g = gastos[0];
+    document.getElementById('modal-gasto-title').textContent = 'Editar gasto';
+    document.getElementById('gasto-id').value = g.id;
+    document.getElementById('gasto-categoria').value = g.categoria;
+    document.getElementById('gasto-desc').value = g.descripcion || '';
+    document.getElementById('gasto-monto').value = g.monto;
+    document.getElementById('gasto-tipo').value = g.tipo || 'variable';
+    document.getElementById('gasto-fecha').value = g.fecha || today();
+    document.getElementById('gasto-comprobante').value = g.comprobante || '';
+    document.getElementById('gasto-delete-btn').style.display = 'inline-block';
+    openModal('modal-gasto');
+  } catch(e) { console.error(e); }
+}
+
+async function guardarGasto() {
+  var id = document.getElementById('gasto-id').value;
+  var mesKey = window._gastosCurrentMes || (_gastosAnio + '_' + String(_gastosMes).padStart(2,'0'));
+  var data = {
+    categoria: document.getElementById('gasto-categoria').value,
+    descripcion: document.getElementById('gasto-desc').value || null,
+    monto: parseFloat(document.getElementById('gasto-monto').value) || 0,
+    tipo: document.getElementById('gasto-tipo').value,
+    fecha: document.getElementById('gasto-fecha').value,
+    comprobante: document.getElementById('gasto-comprobante').value || null,
+    mes: mesKey
+  };
+  try {
+    if (id) {
+      await api('PATCH', 'gastos', data, '?id=eq.' + id);
+    } else {
+      await api('POST', 'gastos', data);
+    }
+    closeModal('modal-gasto');
+    toast('✅ Gasto guardado');
+    loadGastos();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarGasto() {
+  if (!confirm('¿Eliminar este gasto?')) return;
+  var id = document.getElementById('gasto-id').value;
+  try {
+    await api('DELETE', 'gastos', null, '?id=eq.' + id);
+    closeModal('modal-gasto');
+    toast('Gasto eliminado');
+    loadGastos();
   } catch(e) { alert('Error: ' + e.message); }
 }
 
