@@ -1786,7 +1786,7 @@ async function loadSemanal() {
   var fechaFin = dateStr(dias[5]);
   document.getElementById('semana-label').textContent = fmtShort(dias[0]) + ' — ' + fmtShort(dias[5]);
 
-  var isDirectora = CU.rol === 'directora';
+  var isDirectora = CU.rol === 'directora' || CU.rol === 'recepcionista';
   var agQ = isDirectora
     ? '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&order=hora.asc'
     : '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
@@ -1843,15 +1843,6 @@ async function loadSemanal() {
 
     // Resumen
     var resumen = {};
-    // Load adelantos and pagado status from pagos_mes
-    profs.forEach(function(p) {
-      if (pagosMesMap[p.id]) {
-        profBreakdown[p.id].adelanto = pagosMesMap[p.id].adelanto || 0;
-        profBreakdown[p.id].observacion = pagosMesMap[p.id].observacion || '';
-        profBreakdown[p.id].pagado = pagosMesMap[p.id].pagado || false;
-      }
-    });
-
     turnos.forEach(function(t) {
       if (t.estado === 'confirmado') {
         var tipo = t.tipo || 'sesion';
