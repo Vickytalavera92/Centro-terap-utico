@@ -1183,12 +1183,23 @@ async function loadAgenda() {
         '</div>';
     }).join('');
     var tsel = document.getElementById('turno-prof');
-    if (CU.rol === 'directora') {
+    if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
       tsel.innerHTML = profs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + '</option>'; }).join('');
     } else {
       tsel.innerHTML = '<option value="' + CU.id + '">' + CU.nombre + '</option>';
     }
-    var pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
+    // Load patients - profesionales only see their own
+    var pacs;
+    if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
+      pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
+    } else {
+      var myAsigA = await api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id);
+      if (!myAsigA.length) { pacs = []; }
+      else {
+        var myPacIdsA = myAsigA.map(function(a) { return a.paciente_id; }).join(',');
+        pacs = await api('GET', 'pacientes', null, '?id=in.(' + myPacIdsA + ')&estado=eq.activo&order=nombre.asc');
+      }
+    }
     var psel = document.getElementById('turno-pac');
     psel.innerHTML = '<option value="">Turno libre</option>' + pacs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + '</option>'; }).join('');
   } catch(e) { console.error(e); }
@@ -1206,8 +1217,18 @@ async function openEditTurno(turnoId) {
     document.getElementById('edit-turno-fecha').value = t.fecha;
     document.getElementById('edit-turno-hora').value = t.hora ? t.hora.slice(0,5) : '';
     document.getElementById('edit-turno-tipo').value = t.tipo || 'sesion';
-    // Load pacientes
-    var pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
+    // Load pacientes - profesionales only see their own
+    var pacs;
+    if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
+      pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
+    } else {
+      var myAsigE = await api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id);
+      if (!myAsigE.length) { pacs = []; }
+      else {
+        var myPacIdsE = myAsigE.map(function(a) { return a.paciente_id; }).join(',');
+        pacs = await api('GET', 'pacientes', null, '?id=in.(' + myPacIdsE + ')&estado=eq.activo&order=nombre.asc');
+      }
+    }
     var psel = document.getElementById('edit-turno-pac');
     psel.innerHTML = '<option value="">Turno libre</option>' + pacs.map(function(p) {
       var sel = t.paciente_id === p.id ? ' selected' : '';
