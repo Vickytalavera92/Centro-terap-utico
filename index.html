@@ -222,6 +222,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div id="admin-content"></div>
     </div>
 
+    <!-- COBROS -->
+    <div class="page" id="page-cobros">
+      <div id="cobros-content"></div>
+    </div>
+
     <!-- MI PERFIL -->
     <div class="page" id="page-perfil">
       <div class="card" style="max-width:560px;">
@@ -379,6 +384,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-edit-prof')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveEditProf()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COBRO -->
+<div class="modal-overlay" id="modal-cobro">
+  <div class="modal" style="width:440px;">
+    <div class="modal-header">
+      <h3>Registrar cobro</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-cobro')">✕</button>
+    </div>
+    <input type="hidden" id="cobro-id">
+    <div style="font-size:13px;font-weight:500;color:var(--teal);margin-bottom:16px;" id="cobro-pac-nombre"></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Monto cobrado (Gs.)</label><input type="number" id="cobro-monto" placeholder="Ej: 440000"></div>
+      <div class="form-group"><label>Método de pago</label>
+        <select id="cobro-metodo">
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Observación</label><input id="cobro-obs" placeholder="Ej: Pago parcial, adelanto..."></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:12px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="cobro-facturado" style="width:auto;">
+        Factura emitida
+      </label>
+    </div>
+    <div class="form-group"><label>Número de factura</label><input id="cobro-nro-factura" placeholder="Ej: 001-001-0001234"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cobro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCobro()">Guardar</button>
     </div>
   </div>
 </div>
@@ -575,6 +613,13 @@ async function login() {
       adminNav.innerHTML = '💰 Administración';
       adminNav.onclick = function() { goTo('admin'); };
       document.querySelector('.sidebar-nav').appendChild(adminNav);
+
+      var cobrosNav = document.createElement('div');
+      cobrosNav.className = 'nav-item';
+      cobrosNav.id = 'nav-cobros';
+      cobrosNav.innerHTML = '🧾 Cobros y Facturas';
+      cobrosNav.onclick = function() { goTo('cobros'); };
+      document.querySelector('.sidebar-nav').appendChild(cobrosNav);
     }
     // If administrador, go directly to admin module and hide other nav items
     if (CU.rol === 'administrador') {
@@ -604,7 +649,7 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
@@ -613,6 +658,7 @@ function goTo(page) {
   if (page === 'perfil') loadPerfil();
   if (page === 'semanal') { initSemanal(); loadSemanal(); }
   if (page === 'admin') loadAdmin();
+  if (page === 'cobros') loadCobros();
 }
 
 function switchTab(el, id) {
@@ -2025,6 +2071,210 @@ async function togglePago(el, pagado) {
     }
     toast(pagado ? '✅ Marcado como pagado' : '↩ Marcado como pendiente');
     loadAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================
+// MÓDULO COBROS
+// ==================
+var _cobrosMes = new Date().getMonth() + 1;
+var _cobrosAnio = new Date().getFullYear();
+var _cobrosPacSearch = '';
+
+function getCobrosRng() {
+  var first = _cobrosAnio + '-' + String(_cobrosMes).padStart(2,'0') + '-01';
+  var last = new Date(_cobrosAnio, _cobrosMes, 0);
+  var lastStr = _cobrosAnio + '-' + String(_cobrosMes).padStart(2,'0') + '-' + String(last.getDate()).padStart(2,'0');
+  return { first: first, last: lastStr };
+}
+
+function getCobrosLabel() {
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return meses[_cobrosMes - 1] + ' ' + _cobrosAnio;
+}
+
+function cambiarMesCobros(dir) {
+  if (dir === 0) { _cobrosMes = new Date().getMonth() + 1; _cobrosAnio = new Date().getFullYear(); }
+  else { _cobrosMes += dir; if (_cobrosMes > 12) { _cobrosMes = 1; _cobrosAnio++; } if (_cobrosMes < 1) { _cobrosMes = 12; _cobrosAnio--; } }
+  loadCobros();
+}
+
+async function loadCobros() {
+  var el = document.getElementById('cobros-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var rng = getCobrosRng();
+    var mesKey = _cobrosAnio + '_' + String(_cobrosMes).padStart(2,'0');
+    
+    var results = await Promise.all([
+      api('GET', 'pacientes', null, '?order=nombre.asc'),
+      api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
+      api('GET', 'cobros', null, '?mes=eq.' + mesKey),
+      api('GET', 'tarifas', null, '')
+    ]);
+    
+    var pacientes = results[0];
+    var turnos = results[1];
+    var cobros = results[2];
+    var tarifas = results[3];
+    
+    var tarifaMap = {};
+    tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    
+    var cobrosMap = {};
+    cobros.forEach(function(c) { cobrosMap[c.paciente_id] = c; });
+    
+    // Group turnos by patient
+    var turnosPorPac = {};
+    turnos.forEach(function(t) {
+      if (!t.paciente_id) return;
+      if (!turnosPorPac[t.paciente_id]) turnosPorPac[t.paciente_id] = [];
+      turnosPorPac[t.paciente_id].push(t);
+    });
+    
+    // Stats
+    var totalFacturar = 0;
+    var totalCobrado = 0;
+    var totalPendiente = 0;
+    var pacConSesiones = pacientes.filter(function(p) { return turnosPorPac[p.id] && turnosPorPac[p.id].length > 0; });
+    
+    pacConSesiones.forEach(function(p) {
+      var ts = turnosPorPac[p.id] || [];
+      var montoTotal = ts.reduce(function(sum, t) {
+        return sum + (p.valor_sesion || tarifaMap[t.tipo] || 220000);
+      }, 0);
+      totalFacturar += montoTotal;
+      var cobro = cobrosMap[p.id];
+      if (cobro) { totalCobrado += cobro.monto || 0; }
+      else { totalPendiente += montoTotal; }
+    });
+    
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesCobros(-1)">← Anterior</button>' +
+      '<span style="font-size:16px;font-weight:600;">' + getCobrosLabel() + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesCobros(1)">Siguiente →</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesCobros(0)">Hoy</button>' +
+      '</div></div>';
+    
+    // Summary
+    html += '<div class="grid-4 mb-20">' +
+      '<div class="stat-card"><div class="stat-num">' + pacConSesiones.length + '</div><div class="stat-label">Pacientes con sesiones</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalFacturar) + '</div><div class="stat-label">Total a facturar</div></div>' +
+      '<div class="stat-card" style="border:2px solid #1B8A7A;"><div class="stat-num" style="font-size:18px;color:#1B8A7A;">' + fmtGs(totalCobrado) + '</div><div class="stat-label" style="color:#1B8A7A;">✅ Cobrado</div></div>' +
+      '<div class="stat-card" style="border:2px solid #C0392B;"><div class="stat-num" style="font-size:18px;color:#C0392B;">' + fmtGs(totalPendiente) + '</div><div class="stat-label" style="color:#C0392B;">⏳ Pendiente/Mora</div></div>' +
+      '</div>';
+
+    // Search
+    html += '<div class="form-group" style="max-width:300px;margin-bottom:16px;">' +
+      '<input id="cobros-search" placeholder="Buscar paciente..." value="' + _cobrosPacSearch + '" oninput="handleCobrosSearch(this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
+      '</div>';
+
+    html += '<div id="cobros-table"></div>';
+    el.innerHTML = html;
+    renderCobrosTable(pacConSesiones, turnosPorPac, cobrosMap, tarifaMap, mesKey);
+    
+  } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+function handleCobrosSearch(val) {
+  _cobrosPacSearch = val;
+  var d = window._cobrosData;
+  renderCobrosTable(d.pacConSesiones, d.turnosPorPac, d.cobrosMap, d.tarifaMap, d.mesKey);
+}
+
+function renderCobrosTable(pacientes, turnosPorPac, cobrosMap, tarifaMap, mesKey) {
+  var search = _cobrosPacSearch.toLowerCase();
+  var filtered = pacientes.filter(function(p) {
+    if (!search) return true;
+    return (p.nombre + ' ' + p.apellido + ' ' + (p.responsable_nombre||'')).toLowerCase().indexOf(search) > -1;
+  });
+  
+  var html = '<div class="card"><table class="pac-table"><thead><tr>' +
+    '<th>Paciente / Responsable</th>' +
+    '<th>RUC</th>' +
+    '<th style="text-align:center;">Sesiones</th>' +
+    '<th style="text-align:right;">Total</th>' +
+    '<th style="text-align:right;">Cobrado</th>' +
+    '<th style="text-align:center;">Estado</th>' +
+    '<th style="text-align:center;">Factura</th>' +
+    '<th></th>' +
+    '</tr></thead><tbody>';
+  
+  filtered.forEach(function(p) {
+    var ts = turnosPorPac[p.id] || [];
+    var montoTotal = ts.reduce(function(sum, t) { return sum + (p.valor_sesion || tarifaMap[t.tipo] || 220000); }, 0);
+    var cobro = cobrosMap[p.id];
+    var cobrado = cobro ? (cobro.monto || 0) : 0;
+    var saldo = montoTotal - cobrado;
+    var estado = cobrado >= montoTotal ? 'pagado' : cobrado > 0 ? 'parcial' : 'pendiente';
+    var estadoBadge = estado === 'pagado' 
+      ? '<span class="badge b-green">✅ Pagado</span>'
+      : estado === 'parcial'
+      ? '<span class="badge b-amber">⚡ Parcial</span>'
+      : '<span class="badge b-red">⏳ Pendiente</span>';
+    var facturaBadge = cobro && cobro.facturado
+      ? '<span class="badge b-green">📄 ' + (cobro.nro_factura||'Emitida') + '</span>'
+      : '<span style="font-size:11px;color:var(--text-tertiary);">Sin factura</span>';
+    
+    html += '<tr>' +
+      '<td><div style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);">' + (p.responsable_nombre||'—') + '</div></td>' +
+      '<td style="font-size:12px;color:var(--text-secondary);">' + (p.ruc||'—') + '</td>' +
+      '<td style="text-align:center;font-weight:600;">' + ts.length + '</td>' +
+      '<td style="text-align:right;font-weight:500;">' + fmtGs(montoTotal) + '</td>' +
+      '<td style="text-align:right;color:' + (cobrado>0?'#1B8A7A':'var(--text-tertiary)') + ';font-weight:500;">' + fmtGs(cobrado) + (saldo>0?'<div style="font-size:10px;color:#C0392B;">Debe: '+fmtGs(saldo)+'</div>':'') + '</td>' +
+      '<td style="text-align:center;">' + estadoBadge + '</td>' +
+      '<td style="text-align:center;">' + facturaBadge + '</td>' +
+      '<td><button onclick="abrirCobroModal(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">✏️</button></td>' +
+      '</tr>';
+  });
+  
+  html += '</tbody></table></div>';
+  document.getElementById('cobros-table').innerHTML = html;
+  window._cobrosCurrentMes = mesKey;
+}
+
+var _cobrosPacId = null;
+async function abrirCobroModal(pacId) {
+  _cobrosPacId = pacId;
+  var mesKey = window._cobrosCurrentMes;
+  try {
+    var pacs = await api('GET', 'pacientes', null, '?id=eq.' + pacId + '&limit=1');
+    var cobros = await api('GET', 'cobros', null, '?paciente_id=eq.' + pacId + '&mes=eq.' + mesKey);
+    var p = pacs[0];
+    var c = cobros[0];
+    
+    document.getElementById('cobro-pac-nombre').textContent = p.nombre + ' ' + p.apellido + ' — ' + getCobrosLabel();
+    document.getElementById('cobro-monto').value = c ? c.monto : '';
+    document.getElementById('cobro-metodo').value = c ? (c.metodo||'efectivo') : 'efectivo';
+    document.getElementById('cobro-obs').value = c ? (c.observacion||'') : '';
+    document.getElementById('cobro-facturado').checked = c ? (c.facturado||false) : false;
+    document.getElementById('cobro-nro-factura').value = c ? (c.nro_factura||'') : '';
+    document.getElementById('cobro-id').value = c ? c.id : '';
+    openModal('modal-cobro');
+  } catch(e) { console.error(e); }
+}
+
+async function guardarCobro() {
+  var pacId = _cobrosPacId;
+  var mesKey = window._cobrosCurrentMes;
+  var monto = parseFloat(document.getElementById('cobro-monto').value) || 0;
+  var metodo = document.getElementById('cobro-metodo').value;
+  var obs = document.getElementById('cobro-obs').value;
+  var facturado = document.getElementById('cobro-facturado').checked;
+  var nroFac = document.getElementById('cobro-nro-factura').value;
+  var cobroId = document.getElementById('cobro-id').value;
+  
+  try {
+    if (cobroId) {
+      await api('PATCH', 'cobros', { monto: monto, metodo: metodo, observacion: obs, facturado: facturado, nro_factura: nroFac || null }, '?id=eq.' + cobroId);
+    } else {
+      await api('POST', 'cobros', { paciente_id: pacId, monto: monto, metodo: metodo, observacion: obs, facturado: facturado, nro_factura: nroFac || null, mes: mesKey, fecha: today() });
+    }
+    closeModal('modal-cobro');
+    toast('✅ Cobro guardado');
+    loadCobros();
   } catch(e) { alert('Error: ' + e.message); }
 }
 
