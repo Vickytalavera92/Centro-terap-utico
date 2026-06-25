@@ -421,7 +421,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="form-group"><label>Descripción</label><input id="gasto-desc" placeholder="Ej: Factura agua julio..."></div>
     <div class="grid-2">
       <div class="form-group"><label>Monto (Gs.)</label><input type="number" id="gasto-monto" placeholder="Ej: 500000"></div>
-      <div class="form-group"><label>Tipo</label>
+      <div class="form-group" id="gasto-tipo-wrap"><label>Tipo</label>
         <select id="gasto-tipo">
           <option value="fijo">Fijo</option>
           <option value="variable">Variable</option>
@@ -2468,19 +2468,27 @@ async function loadGastos() {
       '<button class="btn btn-primary btn-sm" onclick="abrirNuevoGasto()">+ Nuevo gasto</button>' +
       '</div>';
 
-    html += '<div class="grid-4 mb-20">' +
-      '<div class="stat-card"><div class="stat-num">' + gastos.length + '</div><div class="stat-label">Gastos registrados</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalFijo) + '</div><div class="stat-label">Gastos fijos</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalVar) + '</div><div class="stat-label">Gastos variables</div></div>' +
-      '<div class="stat-card" style="border:2px solid #C0392B;"><div class="stat-num" style="font-size:18px;color:#C0392B;">' + fmtGs(total) + '</div><div class="stat-label" style="color:#C0392B;">Total gastos</div></div>' +
-      '</div>';
+    if (CU.rol === 'recepcionista') {
+      html += '<div class="grid-2 mb-20">' +
+        '<div class="stat-card"><div class="stat-num">' + variables.length + '</div><div class="stat-label">Gastos variables registrados</div></div>' +
+        '<div class="stat-card" style="border:2px solid #C0392B;"><div class="stat-num" style="font-size:18px;color:#C0392B;">' + fmtGs(totalVar) + '</div><div class="stat-label" style="color:#C0392B;">Total variables</div></div>' +
+        '</div>';
+    } else {
+      html += '<div class="grid-4 mb-20">' +
+        '<div class="stat-card"><div class="stat-num">' + gastos.length + '</div><div class="stat-label">Gastos registrados</div></div>' +
+        '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalFijo) + '</div><div class="stat-label">Gastos fijos</div></div>' +
+        '<div class="stat-card"><div class="stat-num" style="font-size:18px;">' + fmtGs(totalVar) + '</div><div class="stat-label">Gastos variables</div></div>' +
+        '<div class="stat-card" style="border:2px solid #C0392B;"><div class="stat-num" style="font-size:18px;color:#C0392B;">' + fmtGs(total) + '</div><div class="stat-label" style="color:#C0392B;">Total gastos</div></div>' +
+        '</div>';
+    }
+    var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
 
+    var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
     if (!gastos.length) {
       html += '<div class="card"><div class="empty-state">No hay gastos registrados para este mes.<br>Hacé clic en "+ Nuevo gasto" para agregar.</div></div>';
     } else {
       // Group by tipo
       var fijos = gastos.filter(function(g) { return g.tipo === 'fijo'; });
-      var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
       
       function renderGastosTable(lista, titulo) {
         if (!lista.length) return '';
@@ -2502,7 +2510,9 @@ async function loadGastos() {
         return t;
       }
       
-      html += renderGastosTable(fijos, '📌 Gastos fijos');
+      if (CU.rol !== 'recepcionista') {
+        html += renderGastosTable(fijos, '📌 Gastos fijos');
+      }
       html += renderGastosTable(variables, '📊 Gastos variables');
     }
     
@@ -2521,6 +2531,14 @@ function abrirNuevoGasto() {
   document.getElementById('gasto-fecha').value = today();
   document.getElementById('gasto-comprobante').value = '';
   document.getElementById('gasto-delete-btn').style.display = 'none';
+  // Recepcionista solo puede cargar variables
+  var tipoWrap = document.getElementById('gasto-tipo-wrap');
+  if (CU.rol === 'recepcionista') {
+    tipoWrap.style.display = 'none';
+    document.getElementById('gasto-tipo').value = 'variable';
+  } else {
+    tipoWrap.style.display = 'block';
+  }
   openModal('modal-gasto');
 }
 
@@ -2534,6 +2552,13 @@ async function editarGasto(id) {
     document.getElementById('gasto-desc').value = g.descripcion || '';
     document.getElementById('gasto-monto').value = g.monto;
     document.getElementById('gasto-tipo').value = g.tipo || 'variable';
+  var tipoWrapE = document.getElementById('gasto-tipo-wrap');
+  if (CU.rol === 'recepcionista') {
+    tipoWrapE.style.display = 'none';
+    document.getElementById('gasto-tipo').value = 'variable';
+  } else {
+    tipoWrapE.style.display = 'block';
+  }
     document.getElementById('gasto-fecha').value = g.fecha || today();
     document.getElementById('gasto-comprobante').value = g.comprobante || '';
     document.getElementById('gasto-delete-btn').style.display = 'inline-block';
