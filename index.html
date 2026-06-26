@@ -997,21 +997,40 @@ async function loadProfs() {
 
 async function verProf(idxOrId) {
   var profId;
-  if (typeof idxOrId === 'number' && _profs[idxOrId]) {
-    profId = _profs[idxOrId].id;
-  } else if (typeof idxOrId === 'string' && idxOrId.length > 10) {
-    profId = idxOrId; // UUID passed directly
-    // Make sure profesionales page is visible
-    goTo('profesionales');
-    await new Promise(function(r) { setTimeout(r, 100); });
-  } else {
-    profId = idxOrId;
+  // Handle both index and UUID
+  if (typeof idxOrId === 'number') {
+    if (_profs[idxOrId]) profId = _profs[idxOrId].id;
+  } else if (typeof idxOrId === 'string') {
+    // Could be UUID or stringified number
+    if (idxOrId.length > 10) {
+      profId = idxOrId;
+    } else {
+      var idx = parseInt(idxOrId);
+      if (!isNaN(idx) && _profs[idx]) profId = _profs[idx].id;
+    }
   }
+  if (!profId) { console.error('verProf: no profId found for', idxOrId); return; }
   curProfId = profId;
 
-  document.getElementById('view-profs').style.display = 'none';
-  document.getElementById('view-prof-detail').style.display = 'block';
-  document.getElementById('view-legajo').style.display = 'none';
+  // Make sure we're on profesionales page
+  if (!document.getElementById('page-profesionales').classList.contains('active')) {
+    // Navigate to profesionales and wait for DOM
+    document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
+    var navEl = document.getElementById('nav-profesionales');
+    if (navEl) navEl.classList.add('active');
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.getElementById('page-profesionales').classList.add('active');
+    document.getElementById('page-title').textContent = 'Profesionales';
+    // Load profs list first if empty
+    if (!_profs.length) { await loadProfs(); }
+  }
+
+  var vProfs = document.getElementById('view-profs');
+  var vDet = document.getElementById('view-prof-detail');
+  var vLeg = document.getElementById('view-legajo');
+  if (vProfs) vProfs.style.display = 'none';
+  if (vDet) vDet.style.display = 'block';
+  if (vLeg) vLeg.style.display = 'none';
   var dv = document.getElementById('view-prof-detail');
   dv.innerHTML = '<div class="loading">Cargando...</div>';
   try {
