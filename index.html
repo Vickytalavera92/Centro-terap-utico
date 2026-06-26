@@ -860,7 +860,8 @@ async function loadDashboard() {
       facturacionMes += valorTotal;
       // Find prof tarifa
       var profTar = profTarifas.find(function(pt) { return pt.profesional_id === t.profesional_id && pt.tipo === tipo; });
-      var pago = profTar ? profTar.pago_profesional : Math.round(valorTotal * 0.59);
+      var DEFAULT_PAGO_DASH = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+      var pago = profTar ? profTar.pago_profesional : (DEFAULT_PAGO_DASH[tipo] || 130000);
       honorariosMes += pago;
     });
     var gananciaMes = facturacionMes - honorariosMes;
@@ -2148,8 +2149,10 @@ async function loadAdmin() {
       var pagoProfDefault = DEFAULT_PAGO[tipo] || 130000;
       var pagoProf = profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo] ? profTarifaMap[t.profesional_id][tipo] : pagoProfDefault;
       
-      // Compartida - split between two
-      if (tipo === 'compartida') pagoProf = 65000;
+      // Compartida - respect custom tarifa, otherwise default to 65000
+      if (tipo === 'compartida' && !(profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo])) {
+        pagoProf = 65000;
+      }
       
       // Custom patient price overrides total and prof pay
       if (pacientesMap[t.paciente_id]) {
