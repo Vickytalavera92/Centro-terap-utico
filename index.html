@@ -809,48 +809,175 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 async function loadDashboard() {
   try {
     var isDir = CU.rol === 'directora' || CU.rol === 'recepcionista';
-    var pacQ = isDir ? '?estado=eq.activo' : '?profesional_id=eq.' + CU.id + '&estado=eq.activo';
-    var sesQ = isDir ? '?estado=eq.confirmado&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay() : '?estado=eq.confirmado&profesional_id=eq.' + CU.id + '&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay();
-    var agQ = isDir ? '?fecha=eq.' + today() + '&order=hora.asc' : '?fecha=eq.' + today() + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
+    var hoy = today();
+    var fFirst = firstDay();
+    var fLast = lastDay();
+
+    // Previous month range
+    var now = new Date();
+    var prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+    var prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    var prevFirst = prevYear + '-' + String(prevMonth).padStart(2,'0') + '-01';
+    var prevLast = new Date(prevYear, prevMonth, 0);
+    var prevLastStr = prevYear + '-' + String(prevMonth).padStart(2,'0') + '-' + String(prevLast.getDate()).padStart(2,'0');
+
     var results = await Promise.all([
-      api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true'),
-      api('GET', 'pacientes', null, pacQ),
-      api('GET', 'agenda', null, sesQ),
-      api('GET', 'agenda', null, agQ)
+      api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc'),
+      api('GET', 'pacientes', null, '?estado=eq.activo'),
+      api('GET', 'agenda', null, '?fecha=gte.' + fFirst + '&fecha=lte.' + fLast),
+      api('GET', 'agenda', null, '?fecha=eq.' + hoy + '&order=hora.asc'),
+      api('GET', 'pacientes', null, '?created_at=gte.' + fFirst + 'T00:00:00&created_at=lte.' + fLast + 'T23:59:59'),
+      api('GET', 'agenda', null, '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=eq.confirmado'),
+      api('GET', 'cobros', null, '?mes=eq.' + fFirst.slice(0,7).replace('-','_')).catch(function(){return [];}),
+      api('GET', 'profesional_tarifas', null, '').catch(function(){return [];}),
+      api('GET', 'tarifas', null, '').catch(function(){return [];})
     ]);
-    var profs = results[0], pacsOrAsig = results[1], ses = results[2], ag = results[3];
-    var pacs = CU.rol === 'directora' ? pacsOrAsig : pacsOrAsig;
-    document.getElementById('d-profs').textContent = profs.length;
-    document.getElementById('d-pacs').textContent = pacs.length;
-    document.getElementById('d-ses').textContent = ses.length;
-    var atendidos = ag.filter(function(a) { return a.estado === 'confirmado'; }).length;
-    var cancelados = ag.filter(function(a) { return a.estado === 'cancelado' || a.estado === 'cancelado_hora'; }).length;
-    document.getElementById('d-hoy').textContent = atendidos + '/' + ag.length;
-    document.getElementById('d-hoy').style.fontSize = '20px';
-    var teamEl = document.getElementById('d-team');
-    teamEl.innerHTML = profs.map(function(p) {
-      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">' +
-        '<div class="av" style="width:32px;height:32px;font-size:11px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
-        '<div style="flex:1;"><div style="font-size:13px;font-weight:500;">' + p.nombre + '</div><div style="font-size:11px;color:var(--text-secondary);">' + (p.especialidad||'') + '</div></div>' +
-        '<span class="badge b-green">Activa</span></div>';
-    }).join('');
-    var agEl = document.getElementById('d-agenda');
-    if (!ag.length) { agEl.innerHTML = '<div class="empty-state">Sin turnos hoy</div>'; }
-    else agEl.innerHTML = ag.map(function(a) {
+
+    var profs = results[0];
+    var pacsActivos = results[1];
+    var turnosMes = results[2];
+    var turnosHoy = results[3];
+    var pacsNuevos = results[4];
+    var turnosMesAnt = results[5];
+    var cobros = results[6];
+    var profTarifas = results[7];
+    var tarifas = results[8];
+
+    var tarifaMap = {};
+    tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+
+    // Calculos mes actual
+    var confirmadosMes = turnosMes.filter(function(t) { return t.estado === 'confirmado'; });
+    var canceladosMes = turnosMes.filter(function(t) { return t.estado === 'cancelado'; });
+    var canceladosHora = turnosMes.filter(function(t) { return t.estado === 'cancelado_hora'; });
+    var pendientesMes = turnosMes.filter(function(t) { return t.estado === 'pendiente'; });
+
+    // Por tipo
+    var contTipos = {};
+    confirmadosMes.forEach(function(t) {
+      var tipo = t.tipo || 'sesion';
+      contTipos[tipo] = (contTipos[tipo] || 0) + 1;
+    });
+
+    // Hoy
+    var confirmadosHoy = turnosHoy.filter(function(t) { return t.estado === 'confirmado'; });
+    var pendientesHoy = turnosHoy.filter(function(t) { return t.estado === 'pendiente'; });
+
+    // Financiero proyectado
+    var facturacionMes = 0;
+    var honorariosMes = 0;
+    confirmadosMes.forEach(function(t) {
+      var tipo = t.tipo || 'sesion';
+      var valorTotal = tarifaMap[tipo] || 220000;
+      facturacionMes += valorTotal;
+      // Find prof tarifa
+      var profTar = profTarifas.find(function(pt) { return pt.profesional_id === t.profesional_id && pt.tipo === tipo; });
+      var pago = profTar ? profTar.pago_profesional : Math.round(valorTotal * 0.59);
+      honorariosMes += pago;
+    });
+    var gananciaMes = facturacionMes - honorariosMes;
+    var totalCobrado = cobros.reduce(function(s,c) { return s + (c.monto||0); }, 0);
+    var pendienteCobrar = facturacionMes - totalCobrado;
+
+    // Mes anterior
+    var confirmadosAnt = turnosMesAnt.length;
+    var diffSes = confirmadosMes.length - confirmadosAnt;
+
+    var el = document.getElementById('dash-content');
+    var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    var mesNombre = meses[now.getMonth()];
+
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+      '<div style="font-size:15px;font-weight:600;color:var(--text-secondary);">📅 ' + mesNombre + ' ' + now.getFullYear() + '</div>' +
+      '<button class="btn btn-secondary btn-sm" onclick="loadDashboard()">↻ Actualizar</button></div>';
+
+    // ROW 1: Indicadores principales
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
+      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + pacsActivos.length + '</div><div class="stat-label">Pacientes activos</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + profs.length + '</div><div class="stat-label">Profesionales activas</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + confirmadosHoy.length + '<span style="font-size:14px;color:var(--text-secondary);">/' + turnosHoy.length + '</span></div><div class="stat-label">Atenciones hoy</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + confirmadosMes.length + '<span style="font-size:12px;color:' + (diffSes>=0?'#1B8A7A':'#C0392B') + ';margin-left:6px;">' + (diffSes>=0?'▲':'▼') + Math.abs(diffSes) + '</span></div><div class="stat-label">Atenciones ' + mesNombre + '</div></div>' +
+      '</div>';
+
+    // ROW 2: Tipos de sesion y eventos
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
+      '<div class="stat-card"><div class="stat-num" style="color:#4CAF50;">' + (contTipos['sesion']||0) + '</div><div class="stat-label">Sesiones normales</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#9C27B0;">' + (contTipos['devolucion']||0) + '</div><div class="stat-label">Devoluciones</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + (contTipos['captada']||0) + '</div><div class="stat-label">Captadas</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#FF9800;">' + (contTipos['premium']||0) + '</div><div class="stat-label">Premium</div></div>' +
+      '</div>';
+
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
+      '<div class="stat-card"><div class="stat-num" style="color:#FFC107;">' + (contTipos['preferencial']||0) + '</div><div class="stat-label">Preferenciales</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#E91E63;">' + (contTipos['compartida']||0) + '</div><div class="stat-label">Compartidas</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#00BCD4;">' + (contTipos['colegio']||0) + '</div><div class="stat-label">Colegio</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#795548;">' + (contTipos['evaluacion']||0) + '</div><div class="stat-label">Evaluaciones</div></div>' +
+      '</div>';
+
+    // ROW 3: Cancelaciones y nuevos
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
+      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + pacsNuevos.length + '</div><div class="stat-label">Pacientes nuevos</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#C0392B;">' + canceladosMes.length + '</div><div class="stat-label">Cancelaciones</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#E8683A;">' + canceladosHora.length + '</div><div class="stat-label">Cancelac. sobre la hora</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#607D8B;">' + pendientesMes.length + '</div><div class="stat-label">Pendientes mes</div></div>' +
+      '</div>';
+
+    // ROW 4: Panel financiero (solo directora/administrador)
+    if (CU.rol === 'directora' || CU.rol === 'administrador') {
+      html += '<div class="card mb-16" style="border:2px solid #1B8A7A;">' +
+        '<div class="section-title mb-12">💰 Panel Financiero — ' + mesNombre + '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">' +
+        '<div style="text-align:center;padding:12px;background:var(--bg);border-radius:8px;"><div style="font-size:18px;font-weight:700;color:#2196F3;">' + fmtGs(facturacionMes) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Facturación proyectada</div></div>' +
+        '<div style="text-align:center;padding:12px;background:var(--bg);border-radius:8px;"><div style="font-size:18px;font-weight:700;color:#C0392B;">' + fmtGs(honorariosMes) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Honorarios a pagar</div></div>' +
+        '<div style="text-align:center;padding:12px;background:#E8F6F4;border-radius:8px;"><div style="font-size:18px;font-weight:700;color:#1B8A7A;">' + fmtGs(gananciaMes) + '</div><div style="font-size:11px;color:#1B8A7A;margin-top:4px;">Ganancia proyectada CREA</div></div>' +
+        '<div style="text-align:center;padding:12px;background:' + (pendienteCobrar>0?'#FEF6E0':'var(--bg)') + ';border-radius:8px;"><div style="font-size:18px;font-weight:700;color:' + (pendienteCobrar>0?'#F0A500':'#1B8A7A') + ';">' + fmtGs(pendienteCobrar) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Pendiente de cobrar</div></div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text-secondary);border-top:1px solid var(--border);padding-top:10px;">' +
+        '<span>📊 Mes anterior: <strong>' + confirmadosAnt + ' sesiones</strong></span>' +
+        '<span style="margin-left:16px;">Variación: <strong style="color:' + (diffSes>=0?'#1B8A7A':'#C0392B') + ';">' + (diffSes>=0?'+':'') + diffSes + ' sesiones</strong></span>' +
+        '</div></div>';
+    }
+
+    // Agenda hoy + Equipo
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
+      '<div class="card"><div class="section-title mb-12">🗓 Agenda de hoy</div><div id="d-agenda-inner"></div></div>' +
+      '<div class="card"><div class="section-title mb-12">👥 Equipo</div><div id="d-team-inner"></div></div>' +
+      '</div>';
+
+    el.innerHTML = html;
+
+    // Agenda hoy
+    var agEl = document.getElementById('d-agenda-inner');
+    if (!turnosHoy.length) { agEl.innerHTML = '<div class="empty-state">Sin turnos hoy</div>'; }
+    else agEl.innerHTML = turnosHoy.map(function(a) {
       var estadoColor = { pendiente: '#F0A500', confirmado: '#1B8A7A', cancelado: '#C0392B', cancelado_hora: '#E8683A' };
       var est = a.estado || 'pendiente';
       var borderColor = estadoColor[est] || '#F0A500';
-      var profNombre = '';
-      if (isDir) {
-        var profAg = results[0].find(function(pr) { return pr.id === a.profesional_id; });
-        profNombre = profAg ? ' <span style="font-size:10px;color:var(--text-secondary);background:var(--bg);padding:2px 6px;border-radius:4px;">' + profAg.nombre.split(' ')[0] + '</span>' : '';
-      }
+      var profAg = profs.find(function(pr) { return pr.id === a.profesional_id; });
+      var profNombre = isDir && profAg ? ' <span style="font-size:10px;color:var(--text-secondary);background:var(--bg);padding:2px 6px;border-radius:4px;">' + profAg.nombre.split(' ')[0] + '</span>' : '';
       return '<div class="agenda-slot" style="border-left:4px solid ' + borderColor + ';">' +
         '<span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
         '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre || 'Turno libre') + profNombre + '</span>' +
         '<span style="font-size:11px;color:' + borderColor + ';font-weight:600;">' + (est==='pendiente'?'🟡':est==='confirmado'?'🟢':est==='cancelado'?'🔴':'🟠') + '</span></div>';
     }).join('');
-  } catch(e) { console.error(e); }
+
+    // Equipo
+    var teamEl = document.getElementById('d-team-inner');
+    var profSesMap = {};
+    confirmadosMes.forEach(function(t) { profSesMap[t.profesional_id] = (profSesMap[t.profesional_id]||0)+1; });
+    teamEl.innerHTML = profs.map(function(p) {
+      var sesProf = profSesMap[p.id] || 0;
+      var turnosHoyProf = turnosHoy.filter(function(t){return t.profesional_id===p.id;}).length;
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">' +
+        '<div class="av" style="width:32px;height:32px;font-size:11px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
+        '<div style="flex:1;"><div style="font-size:13px;font-weight:500;">' + p.nombre + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);">' + (p.especialidad||'') + '</div></div>' +
+        '<div style="text-align:right;">' +
+        '<div style="font-size:12px;font-weight:600;color:#1B8A7A;">' + sesProf + ' ses/mes</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);">' + turnosHoyProf + ' hoy</div></div></div>';
+    }).join('');
+
+  } catch(e) { console.error('Dashboard error:', e); }
 }
 
 // PROFESIONALES
