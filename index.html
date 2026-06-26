@@ -1091,19 +1091,23 @@ async function verProf(idxOrId) {
       '<div style="font-size:13px;color:var(--text-secondary);">' + (p.especialidad||'') + '</div>' +
       '<div style="margin-top:6px;display:flex;gap:6px;"><span class="badge b-green">Activa</span>' +
       (p.matricula ? '<span class="badge b-gray">' + p.matricula + '</span>' : '') + '</div></div></div>';
-    html += '<div class="grid-3 mb-20">' +
-      '<div class="stat-card"><div class="stat-num">' + pacs.length + '</div><div class="stat-label">Pacientes</div></div>' +
+    html += '<div class="grid-4 mb-20">' +
+      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + pacs.length + '</div><div class="stat-label">Pacientes asignados</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + ses.length + '</div><div class="stat-label">Atenciones este mes</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + ag.length + '</div><div class="stat-label">Turnos hoy</div></div></div>';
+      '<div class="stat-card"><div class="stat-num">' + ag.length + '</div><div class="stat-label">Turnos hoy</div></div>' +
+      '<div class="stat-card" id="prof-honor-card"><div class="stat-num" style="font-size:16px;">—</div><div class="stat-label">Honorarios mes</div></div></div>';
     if (CU.rol === 'recepcionista') {
       html += '<div class="tabs">' +
         '<div class="tab active" onclick="switchTab(this,\'tp-agenda\')">🗓 Agenda hoy</div>' +
         '</div>';
     } else {
+      var showHonorarios = CU.rol === 'directora';
       html += '<div class="tabs">' +
         '<div class="tab active" onclick="switchTab(this,\'tp-datos\')">Datos</div>' +
         '<div class="tab" onclick="switchTab(this,\'tp-agenda\')">Agenda hoy</div>' +
-        '<div class="tab" onclick="switchTab(this,\'tp-legajos\')">Legajos (' + pacs.length + ')</div></div>';
+        (CU.rol !== 'profesional' || CU.id === profId ? '<div class="tab" onclick="switchTab(this,\'tp-legajos\')">Legajos (' + pacs.length + ')</div>' : '') +
+        (showHonorarios ? '<div class="tab" onclick="switchTab(this,\'tp-honorarios\');loadHonorariosProfTab(\'' + profId + '\');">💰 Honorarios</div>' : '') +
+        '</div>';
     }
     html += '<div id="tp-datos" class="tab-sec' + (CU.rol === 'recepcionista' ? '' : ' active') + '">' +
       '<div class="grid-2">' +
@@ -1127,6 +1131,7 @@ async function verProf(idxOrId) {
           '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre||'Turno libre') + '</span>' +
           sel + '</div>';
       }).join('') : '<div class="empty-state">Sin turnos hoy</div>') + '</div>';
+    html += '<div id="tp-honorarios" class="tab-sec"><div class="loading" id="honorarios-loading">Cargando honorarios...</div></div>';
     html += '<div id="tp-legajos" class="tab-sec">' +
       '<div class="flex justify-between items-center mb-12">' +
       '<span style="font-size:12px;color:var(--text-secondary);">' + pacs.length + ' legajos</span>' +
@@ -1146,7 +1151,9 @@ async function verProf(idxOrId) {
     dv.innerHTML = html;
     // Add nuevo legajo button for directors only
     if ((CU && CU.rol === 'directora')) {
-      var legajosHeader = dv.querySelector('#tp-legajos .flex');
+      // Load honorarios summary for stat card (directora only)
+    if (CU.rol === 'directora') loadHonorariosProfStat(profId);
+    var legajosHeader = dv.querySelector('#tp-legajos .flex');
       if (legajosHeader) {
         var nb = document.createElement('button');
         nb.className = 'btn btn-primary btn-sm';
@@ -2995,6 +3002,129 @@ async function ejecutarMerge() {
     toast('✅ Pacientes fusionados correctamente');
     loadPacs();
   } catch(e) { alert('Error al fusionar: ' + e.message); }
+}
+
+// ==================
+// HONORARIOS PROFESIONAL
+// ==================
+async function loadHonorariosProfStat(profId) {
+  try {
+    var now = new Date();
+    var mesKey = now.getFullYear() + '_' + String(now.getMonth()+1).padStart(2,'0');
+    var fFirst = firstDay();
+    var fLast = lastDay();
+    
+    var results = await Promise.all([
+      api('GET', 'agenda', null, '?estado=eq.confirmado&profesional_id=eq.' + profId + '&fecha=gte.' + fFirst + '&fecha=lte.' + fLast),
+      api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId),
+      api('GET', 'tarifas', null, ''),
+      api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey).catch(function(){return[];})
+    ]);
+    
+    var turnos = results[0];
+    var profTarifas = results[1];
+    var tarifas = results[2];
+    var pagosMes = results[3];
+    
+    var tarifaMap = {};
+    tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    var profTarMap = {};
+    profTarifas.forEach(function(pt) { profTarMap[pt.tipo] = pt.pago_profesional; });
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    
+    var totalHonorarios = turnos.reduce(function(sum, t) {
+      var tipo = t.tipo || 'sesion';
+      return sum + (profTarMap[tipo] !== undefined ? profTarMap[tipo] : (DEFAULT_PAGO[tipo] || 130000));
+    }, 0);
+    
+    var pagado = pagosMes.length > 0 && pagosMes[0].pagado;
+    var adelanto = pagosMes.length > 0 ? (pagosMes[0].adelanto || 0) : 0;
+    var totalFinal = totalHonorarios - adelanto;
+    
+    var card = document.getElementById('prof-honor-card');
+    if (card) {
+      card.innerHTML = '<div style="font-size:14px;font-weight:700;color:' + (pagado?'#1B8A7A':'#C0392B') + ';">' + fmtGs(totalFinal) + '</div>' +
+        '<div style="font-size:10px;color:var(--text-secondary);">Honorarios mes ' + (pagado ? '✅ Pagado' : '⏳ Pendiente') + '</div>';
+      if (pagado) card.style.border = '1px solid #1B8A7A';
+      else card.style.border = '1px solid #C0392B';
+    }
+  } catch(e) { console.error('honorarios stat error:', e); }
+}
+
+async function loadHonorariosProfTab(profId) {
+  var el = document.getElementById('tp-honorarios');
+  if (!el) return;
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var now = new Date();
+    var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    
+    // Load last 6 months
+    var promises = [];
+    for (var i = 0; i < 6; i++) {
+      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      var mesKey = d.getFullYear() + '_' + String(d.getMonth()+1).padStart(2,'0');
+      var fFirst = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01';
+      var lastDate = new Date(d.getFullYear(), d.getMonth()+1, 0);
+      var fLast = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(lastDate.getDate()).padStart(2,'0');
+      promises.push({ mesKey: mesKey, mesNombre: meses[d.getMonth()] + ' ' + d.getFullYear(), fFirst: fFirst, fLast: fLast });
+    }
+    
+    var profTarifas = await api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
+    var tarifas = await api('GET', 'tarifas', null, '');
+    var pagosMes = await api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&order=mes.desc&limit=6').catch(function(){return[];});
+    
+    var tarifaMap = {};
+    tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    var profTarMap = {};
+    profTarifas.forEach(function(pt) { profTarMap[pt.tipo] = pt.pago_profesional; });
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    var pagosMesMap = {};
+    pagosMes.forEach(function(pm) { pagosMesMap[pm.mes] = pm; });
+    
+    var html = '<div class="section-title mb-12">💰 Historial de honorarios</div>';
+    
+    // Load turnos for each month in parallel
+    var turnoPromises = promises.map(function(m) {
+      return api('GET', 'agenda', null, '?estado=eq.confirmado&profesional_id=eq.' + profId + '&fecha=gte.' + m.fFirst + '&fecha=lte.' + m.fLast);
+    });
+    var allTurnos = await Promise.all(turnoPromises);
+    
+    html += '<table style="width:100%;border-collapse:collapse;">' +
+      '<thead><tr style="background:var(--bg);">' +
+      '<th style="padding:10px 12px;text-align:left;font-size:12px;color:var(--text-secondary);">Mes</th>' +
+      '<th style="padding:10px 12px;text-align:center;font-size:12px;color:var(--text-secondary);">Sesiones</th>' +
+      '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Honorarios</th>' +
+      '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Adelanto</th>' +
+      '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Total a pagar</th>' +
+      '<th style="padding:10px 12px;text-align:center;font-size:12px;color:var(--text-secondary);">Estado</th>' +
+      '</tr></thead><tbody>';
+    
+    promises.forEach(function(m, i) {
+      var turnos = allTurnos[i] || [];
+      var total = turnos.reduce(function(sum, t) {
+        var tipo = t.tipo || 'sesion';
+        return sum + (profTarMap[tipo] !== undefined ? profTarMap[tipo] : (DEFAULT_PAGO[tipo] || 130000));
+      }, 0);
+      var pm = pagosMesMap[m.mesKey];
+      var adelanto = pm ? (pm.adelanto || 0) : 0;
+      var pagado = pm ? pm.pagado : false;
+      var totalFinal = total - adelanto;
+      var obs = pm ? (pm.observacion || '') : '';
+      
+      html += '<tr style="border-bottom:1px solid var(--border);">' +
+        '<td style="padding:10px 12px;font-size:13px;font-weight:500;">' + m.mesNombre + (obs ? '<div style="font-size:11px;color:var(--text-secondary);">' + obs + '</div>' : '') + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;font-size:13px;">' + turnos.length + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;font-size:13px;">' + fmtGs(total) + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;font-size:13px;color:#C0392B;">' + (adelanto > 0 ? '- ' + fmtGs(adelanto) : '—') + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;color:' + (pagado?'#1B8A7A':'#C0392B') + ';">' + fmtGs(totalFinal) + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;">' + (pagado ? '<span class="badge b-green">✅ Pagado</span>' : '<span class="badge b-amber">⏳ Pendiente</span>') + '</td>' +
+        '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch(e) { console.error('honorarios tab error:', e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
