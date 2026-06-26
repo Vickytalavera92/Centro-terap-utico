@@ -111,6 +111,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .flex { display: flex; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
+input[type="time"]::-webkit-datetime-edit-ampm-field { display: none; }
+input[type="time"] { -webkit-appearance: none; }
 </style>
 </head>
 <body>
@@ -208,6 +210,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
     <!-- PACIENTES -->
     <div class="page" id="page-pacientes">
+      <div id="pac-header-actions" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
       <div class="card">
         <div class="flex items-center justify-between mb-16">
           <div class="section-title" style="margin-bottom:0;">Pacientes</div>
@@ -398,6 +401,37 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 </div>
 
+<!-- MODAL MERGE DUPLICADOS -->
+<div class="modal-overlay" id="modal-merge">
+  <div class="modal" style="width:560px;max-height:80vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3>🔄 Fusionar pacientes duplicados</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-merge')">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
+      Seleccioná dos registros del mismo paciente. Se va a mantener el primero y se van a transferir todas las asignaciones, turnos y legajos del segundo al primero.
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Paciente a conservar</label>
+        <input id="merge-search-1" placeholder="Buscar nombre..." oninput="buscarMerge(1,this.value)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+        <div id="merge-results-1" style="border:1px solid var(--border);border-radius:6px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
+        <div id="merge-selected-1" style="margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;font-size:12px;color:#1B8A7A;display:none;"></div>
+      </div>
+      <div class="form-group">
+        <label>Paciente a eliminar (duplicado)</label>
+        <input id="merge-search-2" placeholder="Buscar nombre..." oninput="buscarMerge(2,this.value)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+        <div id="merge-results-2" style="border:1px solid var(--border);border-radius:6px;max-height:150px;overflow-y:auto;margin-top:4px;"></div>
+        <div id="merge-selected-2" style="margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;font-size:12px;color:#C0392B;display:none;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-merge')">Cancelar</button>
+      <button class="btn btn-danger" onclick="ejecutarMerge()">🔄 Fusionar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL GASTO -->
 <div class="modal-overlay" id="modal-gasto">
   <div class="modal" style="width:440px;">
@@ -543,7 +577,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="form-group"><label>Paciente</label><select id="edit-turno-pac"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha</label><input type="date" id="edit-turno-fecha"></div>
-      <div class="form-group"><label>Hora</label><input type="time" id="edit-turno-hora"></div>
+      <div class="form-group"><label>Hora</label><input type="time" id="edit-turno-hora" style="font-size:14px;" step="300"></div>
     </div>
     <div class="form-group"><label>Tipo de atención</label>
       <select id="edit-turno-tipo">
@@ -575,7 +609,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="form-group"><label>Paciente</label><select id="turno-pac"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha</label><input type="date" id="turno-fecha"></div>
-      <div class="form-group"><label>Hora</label><input type="time" id="turno-hora"></div>
+      <div class="form-group"><label>Hora</label><input type="time" id="turno-hora" style="font-size:14px;" step="300"></div>
     </div>
     <div class="form-group"><label>Tipo de atención</label>
       <select id="turno-tipo">
@@ -1109,12 +1143,17 @@ async function loadPacs() {
     var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional');
     var profMap = {};
     profs.forEach(function(p) { profMap[p.id] = p.nombre; });
+    // Add merge tool button for directora
+    var headerEl = document.getElementById('pac-header-actions');
+    if (headerEl && CU.rol === 'directora') {
+      headerEl.innerHTML += '<button class="btn btn-secondary btn-sm" onclick="abrirMergeDuplicados()">🔄 Fusionar duplicados</button>';
+    }
     var el = document.getElementById('pac-table-wrap');
     if (!pacs.length) { el.innerHTML = '<div class="empty-state">Sin pacientes</div>'; return; }
     el.innerHTML = '<table class="pac-table"><thead><tr><th>Paciente</th><th>Responsable / RUC</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th><th></th></tr></thead><tbody>' +
       pacs.map(function(p) {
         return '<tr>' +
-          '<td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;">' + ini(p.nombre, p.apellido) + '</div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span></div></td>' +
+          '<td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;">' + ini(p.nombre, p.apellido) + '</div><div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span>' + (p.fecha_nacimiento ? '<div style="font-size:11px;color:var(--text-secondary);">' + calcAge(p.fecha_nacimiento) + ' años</div>' : '') + '</div></div></td>' +
           '<td style="color:var(--text-secondary);font-size:12px;"><div>' + (p.responsable_nombre||'—') + '</div><div style="font-size:11px;color:var(--text-tertiary);">' + (p.ruc||'') + '</div></td>' +
           '<td>' + (p.profesional_id && profMap[p.profesional_id] ? profMap[p.profesional_id].replace('Dra. ','').replace('Lic. ','') : '—') + '</td>' +
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
@@ -1435,6 +1474,7 @@ async function openEditPac(pacId) {
     document.getElementById('edit-pac-diag').value = p.diagnostico || '';
     document.getElementById('edit-pac-ingreso').value = p.fecha_ingreso || '';
     document.getElementById('edit-pac-estado').value = p.estado || 'activo';
+    document.getElementById('edit-pac-fnac').value = p.fecha_nacimiento || '';
     document.getElementById('edit-pac-drive').value = p.drive_link || '';
     document.getElementById('edit-pac-valor').value = p.valor_sesion || '';
     document.getElementById('edit-pac-responsable').value = p.responsable_nombre || '';
@@ -1478,6 +1518,7 @@ async function saveEditPac() {
       drive_link: document.getElementById('edit-pac-drive').value || null,
       responsable_nombre: document.getElementById('edit-pac-responsable').value || null,
       ruc: document.getElementById('edit-pac-ruc').value || null,
+      fecha_nacimiento: document.getElementById('edit-pac-fnac').value || null,
       valor_sesion: document.getElementById('edit-pac-valor').value ? parseInt(document.getElementById('edit-pac-valor').value) : null,
       pago_profesional_custom: document.getElementById('edit-pac-pago-prof').value ? parseInt(document.getElementById('edit-pac-pago-prof').value) : null
     }, '?id=eq.' + id);
@@ -2698,6 +2739,77 @@ async function loadResumen() {
     html += '</tbody></table></div>';
     el.innerHTML = html;
   } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+// ==================
+// MERGE DUPLICADOS
+// ==================
+var _mergeId1 = null, _mergeId2 = null;
+var _allPacsCache = [];
+
+async function abrirMergeDuplicados() {
+  _mergeId1 = null; _mergeId2 = null;
+  document.getElementById('merge-search-1').value = '';
+  document.getElementById('merge-search-2').value = '';
+  document.getElementById('merge-results-1').innerHTML = '';
+  document.getElementById('merge-results-2').innerHTML = '';
+  document.getElementById('merge-selected-1').style.display = 'none';
+  document.getElementById('merge-selected-2').style.display = 'none';
+  _allPacsCache = await api('GET', 'pacientes', null, '?order=nombre.asc');
+  openModal('modal-merge');
+}
+
+function buscarMerge(slot, query) {
+  if (!query || query.length < 2) { document.getElementById('merge-results-' + slot).innerHTML = ''; return; }
+  var q = query.toLowerCase();
+  var results = _allPacsCache.filter(function(p) {
+    return (p.nombre + ' ' + p.apellido).toLowerCase().indexOf(q) > -1;
+  }).slice(0, 8);
+  var html = results.map(function(p) {
+    var nom = p.nombre + ' ' + p.apellido;
+    var edad = p.fecha_nacimiento ? ' (' + calcAge(p.fecha_nacimiento) + ' años)' : '';
+    return '<div onclick="window._mergeSel(' + slot + ',this)" data-id="' + p.id + '" data-nom="' + nom + '" style="padding:8px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);">' + nom + edad + '</div>';
+  }).join('');
+  document.getElementById('merge-results-' + slot).innerHTML = html || '<div style="padding:8px;font-size:12px;color:var(--text-secondary);">Sin resultados</div>';
+}
+
+window._mergeSel = function(slot, el) {
+  var id = el.getAttribute('data-id');
+  var nombre = el.getAttribute('data-nom');
+  seleccionarMerge(slot, id, nombre);
+};
+
+function seleccionarMerge(slot, id, nombre) {
+  if (slot === 1) { _mergeId1 = id; }
+  else { _mergeId2 = id; }
+  document.getElementById('merge-results-' + slot).innerHTML = '';
+  document.getElementById('merge-search-' + slot).value = nombre;
+  var sel = document.getElementById('merge-selected-' + slot);
+  sel.style.display = 'block';
+  sel.textContent = (slot === 1 ? '✅ Conservar: ' : '🗑 Eliminar: ') + nombre;
+}
+
+async function ejecutarMerge() {
+  if (!_mergeId1 || !_mergeId2) { alert('Seleccioná ambos pacientes'); return; }
+  if (_mergeId1 === _mergeId2) { alert('Son el mismo paciente'); return; }
+  if (!confirm('¿Fusionar estos dos pacientes? El duplicado se eliminará y todos sus datos pasarán al primero.')) return;
+  try {
+    // Transfer asignaciones
+    await api('PATCH', 'asignaciones', { paciente_id: _mergeId1 }, '?paciente_id=eq.' + _mergeId2);
+    // Transfer agenda
+    await api('PATCH', 'agenda', { paciente_id: _mergeId1 }, '?paciente_id=eq.' + _mergeId2);
+    // Transfer legajos
+    await api('PATCH', 'legajos', { paciente_id: _mergeId1 }, '?paciente_id=eq.' + _mergeId2);
+    // Transfer sesiones
+    await api('PATCH', 'sesiones', { paciente_id: _mergeId1 }, '?paciente_id=eq.' + _mergeId2);
+    // Transfer cobros
+    await api('PATCH', 'cobros', { paciente_id: _mergeId1 }, '?paciente_id=eq.' + _mergeId2);
+    // Delete duplicate
+    await api('DELETE', 'pacientes', null, '?id=eq.' + _mergeId2);
+    closeModal('modal-merge');
+    toast('✅ Pacientes fusionados correctamente');
+    loadPacs();
+  } catch(e) { alert('Error al fusionar: ' + e.message); }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
