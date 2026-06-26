@@ -868,11 +868,13 @@ async function loadDashboard() {
     var canceladosHora = turnosMes.filter(function(t) { return t.estado === 'cancelado_hora'; });
     var pendientesMes = turnosMes.filter(function(t) { return t.estado === 'pendiente'; });
 
-    // Por tipo
+    // Por tipo - premium y nueva se cuentan como sesion normal (confidencial)
     var contTipos = {};
     confirmadosMes.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
-      contTipos[tipo] = (contTipos[tipo] || 0) + 1;
+      // Premium y nueva son confidenciales - se muestran como sesion normal
+      var tipoDisplay = (tipo === 'premium' || tipo === 'nueva') ? 'sesion' : tipo;
+      contTipos[tipoDisplay] = (contTipos[tipoDisplay] || 0) + 1;
     });
 
     // Hoy
@@ -918,17 +920,17 @@ async function loadDashboard() {
 
     // ROW 2: Tipos de sesion y eventos
     html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
-      '<div class="stat-card"><div class="stat-num" style="color:#4CAF50;">' + (contTipos['sesion']||0) + '</div><div class="stat-label">Sesiones normales</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#4CAF50;">' + (contTipos['sesion']||0) + '</div><div class="stat-label">Sesiones</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#FFC107;">' + (contTipos['preferencial']||0) + '</div><div class="stat-label">Preferenciales</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#9C27B0;">' + (contTipos['devolucion']||0) + '</div><div class="stat-label">Devoluciones</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + (contTipos['captada']||0) + '</div><div class="stat-label">Captadas</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="color:#FF9800;">' + (contTipos['premium']||0) + '</div><div class="stat-label">Premium</div></div>' +
       '</div>';
 
     html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
-      '<div class="stat-card"><div class="stat-num" style="color:#FFC107;">' + (contTipos['preferencial']||0) + '</div><div class="stat-label">Preferenciales</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#E91E63;">' + (contTipos['compartida']||0) + '</div><div class="stat-label">Compartidas</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#00BCD4;">' + (contTipos['colegio']||0) + '</div><div class="stat-label">Colegio</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#795548;">' + (contTipos['evaluacion']||0) + '</div><div class="stat-label">Evaluaciones</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#607D8B;">' + (contTipos['libre']||0) + '</div><div class="stat-label">Libres</div></div>' +
       '</div>';
 
     // ROW 3: Cancelaciones y nuevos
