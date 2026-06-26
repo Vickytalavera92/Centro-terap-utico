@@ -816,7 +816,7 @@ async function loadDashboard() {
       api('GET', 'agenda', null, '?fecha=eq.' + hoy + '&order=hora.asc'),
       api('GET', 'pacientes', null, '?created_at=gte.' + fFirst + 'T00:00:00&created_at=lte.' + fLast + 'T23:59:59'),
       api('GET', 'agenda', null, '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=eq.confirmado'),
-      api('GET', 'cobros', null, '?mes=eq.' + fFirst.slice(0,7).replace('-','_')).catch(function(){return [];}),
+      api('GET', 'cobros', null, '?mes=eq.' + fFirst.slice(0,4) + '_' + fFirst.slice(5,7)).catch(function(){return [];}),
       api('GET', 'profesional_tarifas', null, '').catch(function(){return [];}),
       api('GET', 'tarifas', null, '').catch(function(){return [];})
     ]);
@@ -2087,7 +2087,7 @@ async function loadAdmin() {
       api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
       api('GET', 'tarifas', null, ''),
       api('GET', 'profesional_tarifas', null, ''),
-      api('GET', 'pacientes', null, '?or=(valor_sesion.not.is.null,pago_profesional_custom.not.is.null)'),
+      api('GET', 'pacientes', null, ''),
       api('GET', 'pagos_mes', null, '?mes=eq.' + mesKey).catch(function() { return []; })
     ]);
     
@@ -2323,45 +2323,50 @@ async function configProfTarifas(el) {
     var profMap = {};
     profTarifas.forEach(function(pt) { profMap[pt.tipo] = pt.pago_profesional; });
     var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    var TIPO_LABELS = { sesion:'Sesión normal', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación' };
     
-    var html = '<div class="card"><div style="font-size:15px;font-weight:600;margin-bottom:16px;">Tarifas de ' + profNombre + '</div>' +
+    var tipos = Object.keys(DEFAULT_PAGO);
+    var rows = tipos.map(function(tipo) {
+      var val = profMap[tipo] !== undefined ? profMap[tipo] : DEFAULT_PAGO[tipo];
+      var isCustom = profMap[tipo] !== undefined;
+      return '<tr style="' + (isCustom ? 'background:#E8F6F4;' : '') + '">' +
+        '<td style="padding:8px 12px;font-size:13px;">' + (TIPO_LABELS[tipo]||tipo) + (isCustom ? ' <span style="font-size:10px;color:#1B8A7A;">✓ Personalizado</span>' : '') + '</td>' +
+        '<td style="padding:8px 12px;"><input type="number" id="tar-' + tipo + '" value="' + val + '" style="width:120px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;"></td>' +
+        '<td style="padding:8px 12px;font-size:12px;color:var(--text-secondary);">Gs. ' + DEFAULT_PAGO[tipo].toLocaleString('es-PY') + ' estándar</td>' +
+        '</tr>';
+    }).join('');
+    
+    var modalHtml = '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Configurá el pago por tipo de sesión para <strong>' + profNombre + '</strong>. Los resaltados en verde tienen tarifa personalizada.</div>' +
       '<table style="width:100%;border-collapse:collapse;">' +
-      '<thead><tr>' +
-      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Tipo</th>' +
-      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago profesional (Gs.)</th>' +
-      '</tr></thead><tbody>';
+      '<thead><tr style="background:var(--bg);"><th style="padding:8px 12px;text-align:left;font-size:12px;color:var(--text-secondary);">Tipo</th><th style="padding:8px 12px;text-align:left;font-size:12px;color:var(--text-secondary);">Pago profesional (Gs.)</th><th style="padding:8px 12px;text-align:left;font-size:12px;color:var(--text-secondary);">Estándar</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
     
-    tarifas.forEach(function(t) {
-      var val = profMap[t.tipo] || DEFAULT_PAGO[t.tipo] || 0;
-      html += '<tr><td style="padding:8px;border-bottom:1px solid var(--border);">' + t.nombre + '</td>' +
-        '<td style="padding:8px;border-bottom:1px solid var(--border);text-align:right;">' +
-        '<input type="number" value="' + val + '" data-tipo="' + t.tipo + '" data-profid="' + profId + '" style="width:120px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;text-align:right;font-size:13px;">' +
-        '</td></tr>';
-    });
-    
-    html += '</tbody></table>' +
-      '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">' +
-      '<button class="btn btn-secondary" onclick="loadAdmin()">Cancelar</button>' +
-      '<button class="btn btn-primary" onclick="saveProfTarifas()">Guardar tarifas</button>' +
-      '</div></div>';
-    document.getElementById('admin-content').innerHTML = html;
+    document.getElementById('modal-tarifas-title').textContent = '⚙️ Tarifas — ' + profNombre;
+    document.getElementById('modal-tarifas-body').innerHTML = modalHtml;
+    openModal('modal-tarifas');
   } catch(e) { console.error(e); }
 }
 
+
 async function saveProfTarifas() {
   var profId = window._configProfId;
-  var inputs = document.querySelectorAll('[data-profid="' + profId + '"]');
+  if (!profId) return;
+  var tipos = ['sesion','preferencial','devolucion','captada','premium','nueva','colegio','compartida','evaluacion'];
   try {
+    // Delete existing and reinsert
     await api('DELETE', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
-    for (var i = 0; i < inputs.length; i++) {
-      var tipo = inputs[i].getAttribute('data-tipo');
-      var val = parseInt(inputs[i].value);
-      if (val > 0) await api('POST', 'profesional_tarifas', { profesional_id: profId, tipo: tipo, pago_profesional: val });
-    }
+    var inserts = tipos.map(function(tipo) {
+      var input = document.getElementById('tar-' + tipo);
+      var val = input ? parseInt(input.value) || 0 : 0;
+      return api('POST', 'profesional_tarifas', { profesional_id: profId, tipo: tipo, pago_profesional: val });
+    });
+    await Promise.all(inserts);
+    closeModal('modal-tarifas');
     toast('✅ Tarifas guardadas');
     loadAdmin();
   } catch(e) { alert('Error: ' + e.message); }
 }
+
 
 async function guardarPagoMes(el) {
   var profId = el.getAttribute('data-pid');
@@ -2643,6 +2648,9 @@ async function loadGastos() {
       '<button class="btn btn-primary btn-sm" onclick="abrirNuevoGasto()">+ Nuevo gasto</button>' +
       '</div>';
 
+    var fijos = gastos.filter(function(g) { return g.tipo === 'fijo'; });
+    var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
+
     if (CU.rol === 'recepcionista') {
       html += '<div class="grid-2 mb-20">' +
         '<div class="stat-card"><div class="stat-num">' + variables.length + '</div><div class="stat-label">Gastos variables registrados</div></div>' +
@@ -2656,10 +2664,6 @@ async function loadGastos() {
         '<div class="stat-card" style="border:2px solid #C0392B;"><div class="stat-num" style="font-size:18px;color:#C0392B;">' + fmtGs(total) + '</div><div class="stat-label" style="color:#C0392B;">Total gastos</div></div>' +
         '</div>';
     }
-    var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
-
-    var fijos = gastos.filter(function(g) { return g.tipo === 'fijo'; });
-    var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
     if (!gastos.length) {
       html += '<div class="card"><div class="empty-state">No hay gastos registrados para este mes.<br>Hacé clic en "+ Nuevo gasto" para agregar.</div></div>';
     } else {
