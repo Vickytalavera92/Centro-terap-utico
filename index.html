@@ -2154,16 +2154,14 @@ async function loadAdmin() {
         pagoProf = 65000;
       }
       
-      // Custom patient price overrides total and prof pay
+      // Custom patient price: valor_sesion changes what patient pays (affects CREA income)
+      // pago_profesional_custom overrides what prof earns
+      // valor_sesion alone does NOT change prof pago - prof always earns their fixed rate
       if (pacientesMap[t.paciente_id]) {
         var cp = pacientesMap[t.paciente_id];
         if (cp.valor_sesion) valorTotal = cp.valor_sesion;
         if (cp.pago_profesional_custom) pagoProf = cp.pago_profesional_custom;
-        else if (cp.valor_sesion) {
-          var stdTotal = tarifaMap[tipo] || 220000;
-          var ratio = stdTotal > 0 ? pagoProf / stdTotal : 0;
-          pagoProf = Math.round(cp.valor_sesion * ratio);
-        }
+        // No ratio recalculation - prof pago stays as per profTarifaMap or DEFAULT_PAGO
       }
       
       var ganCrea = valorTotal - pagoProf;
