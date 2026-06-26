@@ -808,6 +808,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 async function loadDashboard() {
   try {
     var isDir = CU.rol === 'directora' || CU.rol === 'recepcionista';
+    var isProf = CU.rol === 'profesional';
     var hoy = today();
     var fFirst = firstDay();
     var fLast = lastDay();
@@ -820,23 +821,39 @@ async function loadDashboard() {
     var prevLast = new Date(prevYear, prevMonth, 0);
     var prevLastStr = prevYear + '-' + String(prevMonth).padStart(2,'0') + '-' + String(prevLast.getDate()).padStart(2,'0');
 
+    // Profesional only sees their own data
+    var agendaQ = isProf 
+      ? '?fecha=gte.' + fFirst + '&fecha=lte.' + fLast + '&profesional_id=eq.' + CU.id
+      : '?fecha=gte.' + fFirst + '&fecha=lte.' + fLast;
+    var agendaHoyQ = isProf
+      ? '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc'
+      : '?fecha=eq.' + hoy + '&order=hora.asc';
+    var agendaAntQ = isProf
+      ? '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=eq.confirmado&profesional_id=eq.' + CU.id
+      : '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=eq.confirmado';
+
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc'),
-      api('GET', 'pacientes', null, '?estado=eq.activo'),
-      api('GET', 'agenda', null, '?fecha=gte.' + fFirst + '&fecha=lte.' + fLast),
-      api('GET', 'agenda', null, '?fecha=eq.' + hoy + '&order=hora.asc'),
-      api('GET', 'pacientes', null, '?created_at=gte.' + fFirst + 'T00:00:00&created_at=lte.' + fLast + 'T23:59:59'),
-      api('GET', 'agenda', null, '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=eq.confirmado'),
+      isProf 
+        ? api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id)
+        : api('GET', 'pacientes', null, '?estado=eq.activo'),
+      api('GET', 'agenda', null, agendaQ),
+      api('GET', 'agenda', null, agendaHoyQ),
+      isProf
+        ? api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id)
+        : api('GET', 'pacientes', null, '?created_at=gte.' + fFirst + 'T00:00:00&created_at=lte.' + fLast + 'T23:59:59'),
+      api('GET', 'agenda', null, agendaAntQ),
       api('GET', 'cobros', null, '?mes=eq.' + fFirst.slice(0,4) + '_' + fFirst.slice(5,7)).catch(function(){return [];}),
       api('GET', 'profesional_tarifas', null, '').catch(function(){return [];}),
       api('GET', 'tarifas', null, '').catch(function(){return [];})
     ]);
 
     var profs = results[0];
-    var pacsActivos = results[1];
+    var pacsActivos = isProf ? results[1] : results[1]; // asignaciones count for prof, pacientes for dir
+    var pacsActivosCount = isProf ? results[1].length : results[1].length;
     var turnosMes = results[2];
     var turnosHoy = results[3];
-    var pacsNuevos = results[4];
+    var pacsNuevos = isProf ? [] : results[4];
     var turnosMesAnt = results[5];
     var cobros = results[6];
     var profTarifas = results[7];
@@ -893,8 +910,8 @@ async function loadDashboard() {
 
     // ROW 1: Indicadores principales
     html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
-      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + pacsActivos.length + '</div><div class="stat-label">Pacientes activos</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + profs.length + '</div><div class="stat-label">Profesionales activas</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + pacsActivosCount + '</div><div class="stat-label">' + (isProf ? 'Mis pacientes' : 'Pacientes activos') + '</div></div>' +
+      (isProf ? '' : '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + profs.length + '</div><div class="stat-label">Profesionales activas</div></div>') +
       '<div class="stat-card"><div class="stat-num">' + confirmadosHoy.length + '<span style="font-size:14px;color:var(--text-secondary);">/' + turnosHoy.length + '</span></div><div class="stat-label">Atenciones hoy</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + confirmadosMes.length + '<span style="font-size:12px;color:' + (diffSes>=0?'#1B8A7A':'#C0392B') + ';margin-left:6px;">' + (diffSes>=0?'▲':'▼') + Math.abs(diffSes) + '</span></div><div class="stat-label">Atenciones ' + mesNombre + '</div></div>' +
       '</div>';
@@ -938,10 +955,10 @@ async function loadDashboard() {
         '</div></div>';
     }
 
-    // Agenda hoy + Equipo
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
-      '<div class="card"><div class="section-title mb-12">🗓 Agenda de hoy</div><div id="d-agenda-inner"></div></div>' +
-      '<div class="card"><div class="section-title mb-12">👥 Equipo</div><div id="d-team-inner"></div></div>' +
+    // Agenda hoy + Equipo (equipo only for dir/recep)
+    html += '<div style="display:grid;grid-template-columns:' + (isProf ? '1fr' : '1fr 1fr') + ';gap:16px;">' +
+      '<div class="card"><div class="section-title mb-12">🗓 ' + (isProf ? 'Mi agenda de hoy' : 'Agenda de hoy') + '</div><div id="d-agenda-inner"></div></div>' +
+      (isProf ? '' : '<div class="card"><div class="section-title mb-12">👥 Equipo</div><div id="d-team-inner"></div></div>') +
       '</div>';
 
     el.innerHTML = html;
@@ -961,8 +978,9 @@ async function loadDashboard() {
         '<span style="font-size:11px;color:' + borderColor + ';font-weight:600;">' + (est==='pendiente'?'🟡':est==='confirmado'?'🟢':est==='cancelado'?'🔴':'🟠') + '</span></div>';
     }).join('');
 
-    // Equipo
+    // Equipo (only for directora/recepcionista)
     var teamEl = document.getElementById('d-team-inner');
+    if (!teamEl) return; // profesional has no team section
     var profSesMap = {};
     confirmadosMes.forEach(function(t) { profSesMap[t.profesional_id] = (profSesMap[t.profesional_id]||0)+1; });
     teamEl.innerHTML = profs.map(function(p) {
