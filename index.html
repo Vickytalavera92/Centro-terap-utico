@@ -186,19 +186,7 @@ input[type="time"] { -webkit-appearance: none; }
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-        <button class="btn btn-secondary btn-sm" onclick="loadDashboard();if(document.getElementById('page-semanal').classList.contains('active')){loadSemanal();}">↻ Actualizar</button>
-      </div>
-      <div class="grid-4 mb-20">
-        <div class="stat-card"><div class="stat-num" id="d-profs">—</div><div class="stat-label">Profesionales</div></div>
-        <div class="stat-card"><div class="stat-num" id="d-pacs">—</div><div class="stat-label">Pacientes activos</div></div>
-        <div class="stat-card"><div class="stat-num" id="d-ses">—</div><div class="stat-label">Atenciones este mes</div></div>
-        <div class="stat-card"><div class="stat-num" id="d-hoy">—</div><div class="stat-label">Atendidos hoy</div></div>
-      </div>
-      <div class="grid-2">
-        <div class="card"><div class="section-title">Equipo</div><div id="d-team"></div></div>
-        <div class="card"><div class="section-title">Agenda de hoy</div><div id="d-agenda"></div></div>
-      </div>
+      <div id="dash-content"><div class="loading">Cargando dashboard...</div></div>
     </div>
 
     <!-- PROFESIONALES -->
