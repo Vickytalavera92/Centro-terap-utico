@@ -653,6 +653,17 @@ function lastDay() { var d = new Date(); return new Date(d.getFullYear(), d.getM
 function fmt(s) { if (!s) return '—'; return new Date(s + 'T12:00:00').toLocaleDateString('es-PY', {day:'numeric', month:'short', year:'numeric'}); }
 function ini(n, a) { return ((n||'').charAt(0) + (a||'').charAt(0)).toUpperCase(); }
 function calcAge(dob) { var d = new Date(dob); var n = new Date(); var a = n.getFullYear() - d.getFullYear(); if (n < new Date(n.getFullYear(), d.getMonth(), d.getDate())) a--; return a; }
+function calcTiempoTratamiento(fechaIngreso) {
+  if (!fechaIngreso) return null;
+  var d = new Date(fechaIngreso + 'T12:00:00');
+  var n = new Date();
+  var meses = (n.getFullYear() - d.getFullYear()) * 12 + (n.getMonth() - d.getMonth());
+  if (meses < 1) return 'Menos de 1 mes';
+  if (meses < 12) return meses + ' mes' + (meses > 1 ? 'es' : '');
+  var anios = Math.floor(meses / 12);
+  var mesesRest = meses % 12;
+  return anios + ' año' + (anios > 1 ? 's' : '') + (mesesRest > 0 ? ' y ' + mesesRest + ' mes' + (mesesRest > 1 ? 'es' : '') : '');
+}
 
 async function login() {
   var email = document.getElementById('login-email').value.trim();
@@ -1137,14 +1148,18 @@ async function verLegajo(pacId, profId) {
   var lv = document.getElementById('view-legajo');
   lv.innerHTML = '<div class="loading">Cargando legajo...</div>';
   try {
+    var hoyStr = today();
     var results = await Promise.all([
       api('GET', 'pacientes', null, '?id=eq.' + pacId + '&limit=1'),
       api('GET', 'legajos', null, '?paciente_id=eq.' + pacId + '&order=created_at.desc'),
-      api('GET', 'sesiones', null, '?paciente_id=eq.' + pacId + '&order=fecha.desc&limit=20')
+      api('GET', 'sesiones', null, '?paciente_id=eq.' + pacId + '&order=fecha.desc&limit=20'),
+      api('GET', 'agenda', null, '?paciente_id=eq.' + pacId + '&fecha=gte.' + hoyStr + '&order=fecha.asc&order=hora.asc&limit=5')
     ]);
     var pac = results[0][0];
     var legajos = results[1];
     var sesiones = results[2];
+    var proximosTurnos = results[3] || [];
+    var proximaTurno = proximosTurnos.find(function(t) { return t.estado !== 'cancelado' && t.estado !== 'cancelado_hora'; });
     var obs = legajos.filter(function(l) { return l.tipo === 'observacion'; });
     var objs = legajos.filter(function(l) { return l.tipo === 'objetivo'; });
     var estr = legajos.filter(function(l) { return l.tipo === 'estrategia'; });
@@ -1171,18 +1186,29 @@ async function verLegajo(pacId, profId) {
     }
     html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
       '<div class="av" style="width:46px;height:46px;font-size:14px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
-      '<div><div style="font-size:17px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + '</div>' +
-      '<div style="font-size:13px;color:var(--text-secondary);">' + (pac.diagnostico||'Sin diagnóstico') + '</div>' +
-      '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">' +
-      '<span class="badge b-green">Activo</span>' +
+      '<div style="flex:1;">' +
+      '<div style="font-size:17px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + 
+      (pac.fecha_nacimiento ? ' <span style="font-size:13px;font-weight:400;color:var(--text-secondary);">(' + calcAge(pac.fecha_nacimiento) + ' años)</span>' : '') + '</div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">' + (pac.diagnostico||'Sin diagnóstico') + '</div>' +
+      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
+      '<span class="badge ' + (pac.estado==='activo'?'b-green':pac.estado==='alta'?'b-gray':'b-amber') + '">' + (pac.estado||'activo') + '</span>' +
       (pac.cobertura ? '<span class="badge b-gray">' + pac.cobertura + '</span>' : '') +
-      (pac.fecha_nacimiento ? '<span style="font-size:11px;color:var(--text-tertiary);">' + calcAge(pac.fecha_nacimiento) + ' años</span>' : '') +
+      (calcTiempoTratamiento(pac.fecha_ingreso) ? '<span style="font-size:11px;background:#E8F6F4;color:#1B8A7A;padding:3px 8px;border-radius:4px;">🗓 ' + calcTiempoTratamiento(pac.fecha_ingreso) + ' en tratamiento</span>' : '') +
+      (proximaTurno ? '<span style="font-size:11px;background:#E3F2FD;color:#1565C0;padding:3px 8px;border-radius:4px;">📅 Próx: ' + fmt(proximaTurno.fecha) + ' ' + (proximaTurno.hora ? proximaTurno.hora.slice(0,5) : '') + '</span>' : '') +
       '</div></div></div>';
-    html += '<div class="grid-4 mb-16">' +
-      (pac.dni ? '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">CI/DNI</div><div style="font-size:13px;font-weight:600;">' + pac.dni + '</div></div>' : '') +
-      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Sesiones</div><div style="font-size:13px;font-weight:600;">' + sesiones.length + '</div></div>' +
-      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Objetivos</div><div style="font-size:13px;font-weight:600;">' + objs.filter(function(o) { return o.cumplido; }).length + '/' + objs.length + '</div></div>' +
-      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Ingreso</div><div style="font-size:13px;font-weight:600;">' + fmt(pac.fecha_ingreso) + '</div></div>' +
+    var tiempoTrat = calcTiempoTratamiento(pac.fecha_ingreso);
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">' +
+      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Sesiones registradas</div><div style="font-size:16px;font-weight:700;color:#1B8A7A;">' + sesiones.length + '</div></div>' +
+      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Objetivos</div><div style="font-size:16px;font-weight:700;">' + objs.filter(function(o) { return o.cumplido; }).length + '/' + objs.length + '</div></div>' +
+      '<div class="stat-card" style="padding:12px;"><div style="font-size:10px;color:var(--text-secondary);">Tiempo en tratamiento</div><div style="font-size:13px;font-weight:600;color:#1B8A7A;">' + (tiempoTrat || '—') + '</div>' +
+      (canEdit && pac.fecha_ingreso ? '<div style="font-size:10px;color:var(--text-tertiary);margin-top:2px;">desde ' + fmt(pac.fecha_ingreso) + '</div>' : '') + '</div>' +
+      '<div class="stat-card" style="padding:12px;' + (proximaTurno ? 'border:1px solid #2196F3;' : '') + '">' +
+      '<div style="font-size:10px;color:var(--text-secondary);">Próxima sesión</div>' +
+      (proximaTurno ? 
+        '<div style="font-size:13px;font-weight:600;color:#1565C0;">' + fmt(proximaTurno.fecha) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);">' + (proximaTurno.hora ? proximaTurno.hora.slice(0,5) + ' hs' : '') + '</div>' :
+        '<div style="font-size:12px;color:var(--text-tertiary);">Sin turno agendado</div>') +
+      '</div>' +
       '</div>';
     if (pac.drive_link) {
       html += '<a href="' + pac.drive_link + '" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:#E8F0FE;color:#1A73E8;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;margin-bottom:16px;">📁 Abrir carpeta en Google Drive</a>';
