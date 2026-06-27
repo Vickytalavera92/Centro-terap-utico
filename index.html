@@ -729,6 +729,11 @@ function calcTiempoTratamiento(fechaIngreso) {
   return anios + ' año' + (anios > 1 ? 's' : '') + (mesesRest > 0 ? ' y ' + mesesRest + ' mes' + (mesesRest > 1 ? 'es' : '') : '');
 }
 
+function quickLogin() {
+  // Just focus password field - email already filled
+  document.getElementById('login-pass').focus();
+}
+
 async function login() {
   var email = document.getElementById('login-email').value.trim();
   var pass = document.getElementById('login-pass').value;
@@ -746,7 +751,7 @@ async function login() {
     CU = users[0];
     window._authToken = authData.access_token;
     HDR['Authorization'] = 'Bearer ' + authData.access_token;
-    try { sessionStorage.setItem('crea_session', JSON.stringify({email: email, pass: pass})); } catch(e) {}
+    try { sessionStorage.setItem('crea_session', JSON.stringify({email: email, nombre: CU.nombre})); } catch(e) {}
     // Clean nav before building for new user
     ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
       var el = document.getElementById(id);
@@ -3410,20 +3415,23 @@ async function guardarReprogramar() {
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
 
-// Auto-login on page refresh
-(async function() {
+// Show quick-access if same user refreshed
+(function() {
   try {
     var saved = sessionStorage.getItem('crea_session');
     if (!saved) return;
     var creds = JSON.parse(saved);
-    if (!creds.email || !creds.pass) return;
-    // Pre-fill and login
-    document.getElementById('login-email').value = creds.email;
-    document.getElementById('login-pass').value = creds.pass;
-    await login();
-  } catch(e) {
-    sessionStorage.removeItem('crea_session');
-  }
+    if (!creds.email || !creds.nombre) return;
+    // Show continue button
+    var btn = document.getElementById('login-continue-btn');
+    var lbl = document.getElementById('login-continue-label');
+    if (btn && lbl) {
+      lbl.textContent = 'Continuar como ' + creds.nombre;
+      btn.style.display = 'block';
+      // Pre-fill email only
+      document.getElementById('login-email').value = creds.email;
+    }
+  } catch(e) {}
 })();
 
 
