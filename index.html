@@ -745,6 +745,7 @@ async function login() {
     if (!users || users.length === 0) throw new Error('Sin perfil');
     CU = users[0];
     window._authToken = authData.access_token;
+    HDR['Authorization'] = 'Bearer ' + authData.access_token;
     try { sessionStorage.setItem('crea_token', authData.access_token); } catch(e) {}
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
@@ -840,7 +841,12 @@ function logout() {
   // Clean dynamic nav items
   ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) el.parentNode.removeChild(el);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  });
+  // Reset all nav visibility
+  ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = '';
   });
   // Reset nav active states
   document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
@@ -882,6 +888,8 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 // DASHBOARD
 async function loadDashboard() {
+  var el = document.getElementById('dash-content');
+  if (el) el.innerHTML = '<div class="loading">Cargando dashboard...</div>';
   try {
     var isDir = CU.rol === 'directora' || CU.rol === 'recepcionista';
     var isProf = CU.rol === 'profesional';
@@ -1073,7 +1081,7 @@ async function loadDashboard() {
         '<div style="font-size:11px;color:var(--text-secondary);">' + turnosHoyProf + ' hoy</div></div></div>';
     }).join('');
 
-  } catch(e) { console.error('Dashboard error:', e); }
+  } catch(e) { console.error('Dashboard error:', e); var el2 = document.getElementById('dash-content'); if(el2) el2.innerHTML = '<div class="empty-state">Error cargando dashboard. <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">↻ Reintentar</button></div>'; }
 }
 
 // PROFESIONALES
@@ -3409,6 +3417,16 @@ document.getElementById('login-pass').addEventListener('keydown', function(e) { 
     var users = await api('GET', 'usuarios', null, '?email=eq.' + encodeURIComponent(authUser.email) + '&limit=1');
     if (!users || !users.length) throw new Error('Sin perfil');
     CU = users[0];
+    // Clean ALL dynamic nav items and reset nav visibility before rebuilding
+    ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    // Reset all nav items visibility
+    ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
     // Show app
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
