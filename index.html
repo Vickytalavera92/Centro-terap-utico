@@ -1008,7 +1008,7 @@ async function loadProfs() {
     var isDirectora = CU.rol === 'directora' || CU.rol === 'recepcionista';
     var q = isDirectora ? '?activo=eq.true&order=nombre.asc' : '?id=eq.' + CU.id;
     var todos = await api('GET', 'usuarios', null, q);
-    _profs = todos.filter(function(u) { return u.rol === 'profesional' || u.id === CU.id; });
+    _profs = todos.filter(function(u) { return u.rol === 'profesional'; });
     var el = document.getElementById('prof-cards');
     if (!_profs.length) { el.innerHTML = '<div class="empty-state">Sin profesionales</div>'; return; }
     el.innerHTML = _profs.map(function(p, i) {
