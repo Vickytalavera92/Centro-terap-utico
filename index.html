@@ -1588,17 +1588,11 @@ async function loadAgendaMes() {
       html += '<div data-date="' + dateStr + '" class="cal-day" style="min-height:80px;background:' + (isToday?'#E8F6F4':'var(--surface)') + ';border-radius:4px;padding:4px;cursor:pointer;border:' + (isToday?'2px solid #1B8A7A':'1px solid var(--border)') + ';">' +
         '<div style="font-size:11px;font-weight:' + (isToday?'700':'500') + ';color:' + (isToday?'#1B8A7A':'var(--text-primary)') + ';margin-bottom:3px;">' + day + '</div>';
       
-      var maxShow = 3;
-      dayTurnos.slice(0, maxShow).forEach(function(t) {
+      dayTurnos.forEach(function(t) {
         var color = ESTADO_COLORS[t.estado] || '#F0A500';
-        var tipoColor = TIPO_COLORS[t.tipo] || '#607D8B';
         html += '<div style="font-size:10px;background:' + color + '20;border-left:2px solid ' + color + ';padding:2px 4px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
           (t.hora ? t.hora.slice(0,5) + ' ' : '') + (t.paciente_nombre || 'Libre') + '</div>';
       });
-      
-      if (dayTurnos.length > maxShow) {
-        html += '<div style="font-size:10px;color:var(--text-secondary);text-align:center;">+' + (dayTurnos.length - maxShow) + ' más</div>';
-      }
       
       html += '</div>';
     }
@@ -1623,10 +1617,12 @@ async function loadAgendaMes() {
 }
 
 function irADia(dateStr) {
-  // Calculate offset from today
-  var today = new Date();
-  var target = new Date(dateStr + 'T12:00:00');
-  var diff = Math.round((target - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / (1000*60*60*24));
+  // Calculate offset from today using local dates only
+  var parts = dateStr.split('-');
+  var target = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  var now = new Date();
+  var todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var diff = Math.round((target - todayLocal) / (1000*60*60*24));
   _agendaOffset = diff;
   switchAgendaView('dia');
   loadAgenda();
