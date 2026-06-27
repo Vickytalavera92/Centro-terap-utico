@@ -271,8 +271,16 @@ input[type="time"] { -webkit-appearance: none; }
 
     <!-- AGENDA -->
     <div class="page" id="page-agenda">
+      <!-- VISTA TABS -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-primary btn-sm" id="agenda-tab-dia" onclick="switchAgendaView('dia')">📅 Día</button>
+        <button class="btn btn-secondary btn-sm" id="agenda-tab-mes" onclick="switchAgendaView('mes')">📆 Mes</button>
+      </div>
+
+      <!-- VISTA DIA -->
+      <div id="agenda-view-dia">
       <div class="card">
-        <div class="flex items-center justify-between mb-16">
+        <div class="flex items-center justify-between mb-12">
           <div style="display:flex;align-items:center;gap:10px;">
             <button class="btn btn-secondary btn-sm" onclick="cambiarDia(-1)">←</button>
             <div>
@@ -284,13 +292,51 @@ input[type="time"] { -webkit-appearance: none; }
           </div>
           <button class="btn btn-primary btn-sm" onclick="openModalTurno()">+ Nuevo turno</button>
         </div>
-        <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
-          <span style="font-size:12px;color:var(--text-secondary);">🟡 Pendiente</span>
-          <span style="font-size:12px;color:var(--text-secondary);">🟢 Asistió</span>
-          <span style="font-size:12px;color:var(--text-secondary);">🔴 Cancelado</span>
-          <span style="font-size:12px;color:var(--text-secondary);">🟠 Canceló sobre la hora</span>
+        <!-- FILTROS -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <input id="agenda-search" placeholder="🔍 Buscar paciente..." oninput="loadAgenda()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:180px;">
+          <select id="agenda-filter-prof" onchange="loadAgenda()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+            <option value="">Todas las profesionales</option>
+          </select>
+          <select id="agenda-filter-tipo" onchange="loadAgenda()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+            <option value="">Todos los tipos</option>
+            <option value="sesion">Sesión</option>
+            <option value="evaluacion">Evaluación</option>
+            <option value="devolucion">Devolución</option>
+            <option value="captada">Captada</option>
+            <option value="preferencial">Preferencial</option>
+            <option value="compartida">Compartida</option>
+            <option value="colegio">Colegio</option>
+            <option value="libre">Libre</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="limpiarFiltrosAgenda()">✕ Limpiar</button>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:var(--text-secondary);">🟡 Pendiente</span>
+          <span style="font-size:11px;color:var(--text-secondary);">🟢 Asistió</span>
+          <span style="font-size:11px;color:var(--text-secondary);">🔴 Cancelado</span>
+          <span style="font-size:11px;color:var(--text-secondary);">🟠 Canceló sobre la hora</span>
         </div>
         <div id="agenda-wrap"></div>
+      </div>
+      </div>
+
+      <!-- VISTA MES -->
+      <div id="agenda-view-mes" style="display:none;">
+      <div class="card">
+        <div class="flex items-center justify-between mb-16">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="btn btn-secondary btn-sm" onclick="cambiarMesAgenda(-1)">←</button>
+            <div id="agenda-mes-titulo" class="section-title"></div>
+            <button class="btn btn-secondary btn-sm" onclick="cambiarMesAgenda(1)">→</button>
+            <button class="btn btn-secondary btn-sm" onclick="cambiarMesAgenda(0)">Hoy</button>
+          </div>
+          <select id="agenda-mes-filter-prof" onchange="loadAgendaMes()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+            <option value="">Todas las profesionales</option>
+          </select>
+        </div>
+        <div id="agenda-mes-wrap"></div>
+      </div>
       </div>
     </div>
   </div>
@@ -416,6 +462,23 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-merge')">Cancelar</button>
       <button class="btn btn-danger" onclick="ejecutarMerge()">🔄 Fusionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REPROGRAMAR -->
+<div class="modal-overlay" id="modal-reprogramar">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header">
+      <h3>📅 Reprogramar turno</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-reprogramar')">✕</button>
+    </div>
+    <div class="form-group"><label>Nueva fecha</label><input type="date" id="reprog-fecha"></div>
+    <div class="form-group"><label>Nueva hora</label><input type="time" id="reprog-hora" step="300"></div>
+    <div class="form-group"><label>Motivo (opcional)</label><input id="reprog-motivo" placeholder="Ej: Pedido del paciente..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-reprogramar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarReprogramar()">📅 Reprogramar</button>
     </div>
   </div>
 </div>
@@ -1422,19 +1485,186 @@ async function savePac() {
   } catch(e) { console.error(e); }
 }
 
+function switchAgendaView(view) {
+  _agendaView = view;
+  document.getElementById('agenda-view-dia').style.display = view === 'dia' ? 'block' : 'none';
+  document.getElementById('agenda-view-mes').style.display = view === 'mes' ? 'block' : 'none';
+  document.getElementById('agenda-tab-dia').className = view === 'dia' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('agenda-tab-mes').className = view === 'mes' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (view === 'mes') loadAgendaMes();
+}
+
+function limpiarFiltrosAgenda() {
+  var s = document.getElementById('agenda-search');
+  var p = document.getElementById('agenda-filter-prof');
+  var t = document.getElementById('agenda-filter-tipo');
+  if (s) s.value = '';
+  if (p) p.value = '';
+  if (t) t.value = '';
+  loadAgenda();
+}
+
+function cambiarMesAgenda(dir) {
+  if (dir === 0) { _agendaMesOffset = 0; }
+  else { _agendaMesOffset += dir; }
+  loadAgendaMes();
+}
+
+async function loadAgendaMes() {
+  var now = new Date();
+  var d = new Date(now.getFullYear(), now.getMonth() + _agendaMesOffset, 1);
+  var mesNombre = d.toLocaleDateString('es-PY', { month: 'long', year: 'numeric' });
+  var tituloEl = document.getElementById('agenda-mes-titulo');
+  if (tituloEl) tituloEl.textContent = mesNombre.charAt(0).toUpperCase() + mesNombre.slice(1);
+  
+  var fFirst = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01';
+  var lastDate = new Date(d.getFullYear(), d.getMonth()+1, 0);
+  var fLast = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(lastDate.getDate()).padStart(2,'0');
+  
+  var isDir = CU.rol === 'directora' || CU.rol === 'recepcionista';
+  var agQ = isDir ? '?fecha=gte.' + fFirst + '&fecha=lte.' + fLast + '&order=fecha.asc,hora.asc'
+                  : '?fecha=gte.' + fFirst + '&fecha=lte.' + fLast + '&profesional_id=eq.' + CU.id + '&order=fecha.asc,hora.asc';
+  
+  try {
+    var results = await Promise.all([
+      api('GET', 'agenda', null, agQ),
+      isDir ? api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc') : Promise.resolve([])
+    ]);
+    var turnos = results[0];
+    var profs = results[1];
+    
+    // Fill prof filter
+    var profFilter = document.getElementById('agenda-mes-filter-prof');
+    if (profFilter && profs.length && profFilter.options.length === 1) {
+      profs.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.nombre;
+        profFilter.appendChild(opt);
+      });
+    }
+    
+    var filterProf = profFilter ? profFilter.value : '';
+    if (filterProf) turnos = turnos.filter(function(t) { return t.profesional_id === filterProf; });
+    
+    var profMap = {};
+    profs.forEach(function(p) { profMap[p.id] = p; });
+    
+    // Build calendar grid
+    var firstDow = d.getDay() === 0 ? 6 : d.getDay() - 1; // Monday = 0
+    var daysInMonth = lastDate.getDate();
+    
+    // Group turnos by date
+    var turnosByDate = {};
+    turnos.forEach(function(t) {
+      var key = t.fecha;
+      if (!turnosByDate[key]) turnosByDate[key] = [];
+      turnosByDate[key].push(t);
+    });
+    
+    var TIPO_COLORS = { sesion:'#4CAF50', preferencial:'#FFC107', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548' };
+    var ESTADO_COLORS = { pendiente:'#F0A500', confirmado:'#1B8A7A', cancelado:'#C0392B', cancelado_hora:'#E8683A' };
+    
+    var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">';
+    ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].forEach(function(d) {
+      html += '<div style="text-align:center;font-size:11px;font-weight:600;color:var(--text-secondary);padding:6px 0;">' + d + '</div>';
+    });
+    html += '</div>';
+    
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">';
+    
+    // Empty cells before first day
+    for (var i = 0; i < firstDow; i++) {
+      html += '<div style="min-height:80px;background:var(--bg);border-radius:4px;"></div>';
+    }
+    
+    var todayStr = today();
+    for (var day = 1; day <= daysInMonth; day++) {
+      var dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+      var dayTurnos = turnosByDate[dateStr] || [];
+      var isToday = dateStr === todayStr;
+      
+      html += '<div data-date="' + dateStr + '" class="cal-day" style="min-height:80px;background:' + (isToday?'#E8F6F4':'var(--surface)') + ';border-radius:4px;padding:4px;cursor:pointer;border:' + (isToday?'2px solid #1B8A7A':'1px solid var(--border)') + ';">' +
+        '<div style="font-size:11px;font-weight:' + (isToday?'700':'500') + ';color:' + (isToday?'#1B8A7A':'var(--text-primary)') + ';margin-bottom:3px;">' + day + '</div>';
+      
+      var maxShow = 3;
+      dayTurnos.slice(0, maxShow).forEach(function(t) {
+        var color = ESTADO_COLORS[t.estado] || '#F0A500';
+        var tipoColor = TIPO_COLORS[t.tipo] || '#607D8B';
+        html += '<div style="font-size:10px;background:' + color + '20;border-left:2px solid ' + color + ';padding:2px 4px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+          (t.hora ? t.hora.slice(0,5) + ' ' : '') + (t.paciente_nombre || 'Libre') + '</div>';
+      });
+      
+      if (dayTurnos.length > maxShow) {
+        html += '<div style="font-size:10px;color:var(--text-secondary);text-align:center;">+' + (dayTurnos.length - maxShow) + ' más</div>';
+      }
+      
+      html += '</div>';
+    }
+    html += '</div>';
+    
+    // Summary row
+    var totalMes = turnos.length;
+    var confMes = turnos.filter(function(t){return t.estado==='confirmado';}).length;
+    var cancMes = turnos.filter(function(t){return t.estado==='cancelado'||t.estado==='cancelado_hora';}).length;
+    html += '<div style="display:flex;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--text-secondary);">' +
+      '<span>Total: <strong>' + totalMes + '</strong></span>' +
+      '<span>✅ Confirmados: <strong>' + confMes + '</strong></span>' +
+      '<span>❌ Cancelados: <strong>' + cancMes + '</strong></span>' +
+      '</div>';
+    
+    document.getElementById('agenda-mes-wrap').innerHTML = html;
+    // Add click handlers for calendar days
+    document.querySelectorAll('.cal-day').forEach(function(el) {
+      el.addEventListener('click', function() { irADia(this.getAttribute('data-date')); });
+    });
+  } catch(e) { console.error(e); }
+}
+
+function irADia(dateStr) {
+  // Calculate offset from today
+  var today = new Date();
+  var target = new Date(dateStr + 'T12:00:00');
+  var diff = Math.round((target - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / (1000*60*60*24));
+  _agendaOffset = diff;
+  switchAgendaView('dia');
+  loadAgenda();
+}
+
 async function loadAgenda() {
   var hoy = getAgendaFecha();
   var fechaDisplay = new Date(hoy + 'T12:00:00');
   document.getElementById('agenda-fecha').textContent = fechaDisplay.toLocaleDateString('es-PY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   try {
-    var agQ = (CU.rol === 'directora' || CU.rol === 'recepcionista') ? '?fecha=eq.' + hoy + '&order=hora.asc' : '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
+    var isDir = CU.rol === 'directora' || CU.rol === 'recepcionista';
+    var agQ = isDir ? '?fecha=eq.' + hoy + '&order=hora.asc' : '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc';
     var results = await Promise.all([
       api('GET', 'agenda', null, agQ),
-      api('GET', 'usuarios', null, '?rol=eq.profesional')
+      api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc')
     ]);
     var ag = results[0], profs = results[1];
     var profMap = {};
-    profs.forEach(function(p) { profMap[p.id] = p.nombre; });
+    profs.forEach(function(p) { profMap[p.id] = p; });
+    
+    // Populate prof filter dropdown
+    var profFilterEl = document.getElementById('agenda-filter-prof');
+    if (profFilterEl && isDir && profFilterEl.options.length === 1) {
+      profs.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.nombre;
+        profFilterEl.appendChild(opt);
+      });
+    }
+    
+    // Apply filters
+    var searchVal = (document.getElementById('agenda-search') ? document.getElementById('agenda-search').value : '').toLowerCase();
+    var filterProf = profFilterEl ? profFilterEl.value : '';
+    var filterTipo = document.getElementById('agenda-filter-tipo') ? document.getElementById('agenda-filter-tipo').value : '';
+    
+    if (searchVal) ag = ag.filter(function(a) { return (a.paciente_nombre||'').toLowerCase().indexOf(searchVal) > -1; });
+    if (filterProf) ag = ag.filter(function(a) { return a.profesional_id === filterProf; });
+    if (filterTipo) ag = ag.filter(function(a) { return a.tipo === filterTipo; });
     var el = document.getElementById('agenda-wrap');
     if (!ag.length) { el.innerHTML = '<div class="empty-state">Sin turnos para hoy</div>'; }
     else el.innerHTML = ag.map(function(a) {
@@ -1446,7 +1676,7 @@ async function loadAgenda() {
         '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + borderColor + ';margin-right:6px;flex-shrink:0;"></span>' +
         '<span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
         '<span style="flex:1;font-size:13px;font-weight:500;">' + (a.paciente_nombre || 'Turno libre') + '</span>' +
-        '<span style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + (a.profesional_id && profMap[a.profesional_id] ? profMap[a.profesional_id].replace('Dra. ','').replace('Lic. ','') : '') + '</span>' +
+        '<span style="font-size:12px;color:var(--text-secondary);margin-right:8px;">' + (a.profesional_id && profMap[a.profesional_id] ? profMap[a.profesional_id].nombre.split(' ')[0] : '') + '</span>' +
         '<select id="sel_' + a.id.slice(0,8) + '" onchange="updateEstado(this.dataset.id,this.value)" onfocus="this.selectedIndex=-1" data-id="' + a.id + '" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid ' + borderColor + ';background:white;color:' + borderColor + ';font-weight:600;cursor:pointer;">' +
         '<option value="pendiente" ' + (est==='pendiente'?'selected':'') + '>Pendiente</option>' +
         '<option value="confirmado" ' + (est==='confirmado'?'selected':'') + '>Asistio</option>' +
@@ -1480,6 +1710,8 @@ async function loadAgenda() {
 }
 
 var _agendaOffset = 0;
+var _agendaView = 'dia';
+var _agendaMesOffset = 0;
 var _editTurnoId = null;
 
 async function openEditTurno(turnoId) {
@@ -1788,7 +2020,7 @@ async function loadPerfil() {
     el.innerHTML = '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">' +
       '<div style="position:relative;">' + avatarHtml +
       '<label for="foto-input" style="position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:white;" title="Cambiar foto">📷</label>' +
-      '<input type="file" id="foto-input" accept="image/*" style="display:none;" onchange="uploadFoto(this)"></div>' +
+      '<input type="file" id="foto-input" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" onchange="uploadFoto(this)"></div>' +
       '<div><div style="font-size:17px;font-weight:600;">' + u.nombre + '</div>' +
       '<div style="font-size:13px;color:var(--text-secondary);">' + (u.especialidad||'') + '</div>' +
       '<span class="badge b-green" style="margin-top:6px;">' + (u.rol === 'directora' ? 'Directora' : 'Profesional') + '</span>' +
@@ -3125,6 +3357,29 @@ async function loadHonorariosProfTab(profId) {
     html += '</tbody></table>';
     el.innerHTML = html;
   } catch(e) { console.error('honorarios tab error:', e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+// Reprogramar turno
+var _reprogramarId = null;
+function reprogramarTurno(turnoId, fechaActual, horaActual) {
+  _reprogramarId = turnoId;
+  document.getElementById('reprog-fecha').value = fechaActual || today();
+  document.getElementById('reprog-hora').value = horaActual ? horaActual.slice(0,5) : '';
+  document.getElementById('reprog-motivo').value = '';
+  openModal('modal-reprogramar');
+}
+
+async function guardarReprogramar() {
+  if (!_reprogramarId) return;
+  var nuevaFecha = document.getElementById('reprog-fecha').value;
+  var nuevaHora = document.getElementById('reprog-hora').value;
+  if (!nuevaFecha || !nuevaHora) { alert('Ingresá fecha y hora'); return; }
+  try {
+    await api('PATCH', 'agenda', { fecha: nuevaFecha, hora: nuevaHora, estado: 'pendiente' }, '?id=eq.' + _reprogramarId);
+    closeModal('modal-reprogramar');
+    toast('📅 Turno reprogramado');
+    loadAgenda();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
