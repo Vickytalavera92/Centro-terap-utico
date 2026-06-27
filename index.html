@@ -752,15 +752,18 @@ async function login() {
     window._authToken = authData.access_token;
     HDR['Authorization'] = 'Bearer ' + authData.access_token;
     try { sessionStorage.setItem('crea_e', btoa(email)); sessionStorage.setItem('crea_p', btoa(pass)); } catch(e) {}
-    // Clean nav before building for new user
+    // Clean and rebuild nav for this user
+    // 1. Remove all dynamic items
     ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
+    // 2. Reset all static items visibility
     ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.style.display = '';
     });
+    // 3. Show app UI
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('sav').textContent = CU.avatar_iniciales || '??';
@@ -771,79 +774,42 @@ async function login() {
     }
     document.getElementById('sname').textContent = CU.nombre.split(' ').slice(-2).join(' ');
     document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : CU.rol === 'administrador' ? 'Administrador' : CU.rol === 'recepcionista' ? 'Recepcionista' : 'Profesional';
-    // Show admin nav only for directors and administradores
-    if (CU.rol === 'directora' || CU.rol === 'administrador') {
-      var adminNav = document.createElement('div');
-      adminNav.className = 'nav-item';
-      adminNav.id = 'nav-admin';
-      adminNav.innerHTML = '💰 Administración';
-      adminNav.onclick = function() { goTo('admin'); };
-      document.querySelector('.sidebar-nav').appendChild(adminNav);
-
-      var cobrosNav = document.createElement('div');
-      cobrosNav.className = 'nav-item';
-      cobrosNav.id = 'nav-cobros';
-      cobrosNav.innerHTML = '🧾 Cobros y Facturas';
-      cobrosNav.onclick = function() { goTo('cobros'); };
-      document.querySelector('.sidebar-nav').appendChild(cobrosNav);
+    // 4. Build nav by role
+    var sidebar = document.querySelector('.sidebar-nav');
+    function addNav(id, label, page) {
+      var el = document.createElement('div');
+      el.className = 'nav-item'; el.id = id;
+      el.innerHTML = label;
+      el.onclick = function() { goTo(page); };
+      sidebar.appendChild(el);
     }
-    
-    if (CU.rol === 'recepcionista') {
-      var cobrosNavR = document.createElement('div');
-      cobrosNavR.className = 'nav-item';
-      cobrosNavR.id = 'nav-cobros';
-      cobrosNavR.innerHTML = '🧾 Cobros y Facturas';
-      cobrosNavR.onclick = function() { goTo('cobros'); };
-      document.querySelector('.sidebar-nav').appendChild(cobrosNavR);
-
-      var gastosNavR = document.createElement('div');
-      gastosNavR.className = 'nav-item';
-      gastosNavR.id = 'nav-gastos';
-      gastosNavR.innerHTML = '🧮 Gastos';
-      gastosNavR.onclick = function() { goTo('gastos'); };
-      document.querySelector('.sidebar-nav').appendChild(gastosNavR);
-
-      var resumenNav = document.createElement('div');
-      resumenNav.className = 'nav-item';
-      resumenNav.id = 'nav-resumen';
-      resumenNav.innerHTML = '📊 Resumen General';
-      resumenNav.onclick = function() { goTo('resumen'); };
-      document.querySelector('.sidebar-nav').appendChild(resumenNav);
-    }
-    
-    if (CU.rol === 'directora' || CU.rol === 'administrador') {
-      var gastosNav = document.createElement('div');
-      gastosNav.className = 'nav-item';
-      gastosNav.id = 'nav-gastos';
-      gastosNav.innerHTML = '🧮 Gastos';
-      gastosNav.onclick = function() { goTo('gastos'); };
-      document.querySelector('.sidebar-nav').appendChild(gastosNav);
-
-      if (CU.rol === 'directora') {
-        var resumenNavD = document.createElement('div');
-        resumenNavD.className = 'nav-item';
-        resumenNavD.id = 'nav-resumen';
-        resumenNavD.innerHTML = '📊 Resumen General';
-        resumenNavD.onclick = function() { goTo('resumen'); };
-        document.querySelector('.sidebar-nav').appendChild(resumenNavD);
-      }
-    }
-    if (CU.rol === 'administrador') {
-      document.getElementById('nav-dashboard').style.display = 'none';
-      document.getElementById('nav-profesionales').style.display = 'none';
-      document.getElementById('nav-pacientes').style.display = 'none';
-      document.getElementById('nav-agenda').style.display = 'none';
-      document.getElementById('nav-semanal').style.display = 'none';
-      document.getElementById('nav-perfil').style.display = 'none';
-      goTo('admin');
+    if (CU.rol === 'directora') {
+      addNav('nav-admin', '💰 Administración', 'admin');
+      addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
+      addNav('nav-gastos', '🧮 Gastos', 'gastos');
+      addNav('nav-resumen', '📊 Resumen General', 'resumen');
+    } else if (CU.rol === 'administrador') {
+      addNav('nav-admin', '💰 Administración', 'admin');
+      addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
+      addNav('nav-gastos', '🧮 Gastos', 'gastos');
+      ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
+        var el = document.getElementById(id); if (el) el.style.display = 'none';
+      });
     } else if (CU.rol === 'recepcionista') {
-      // Recepcionista sees profesionales (agenda only), pacientes, agenda, semanal, cobros, gastos
-      // Nav items already visible by default
-      loadDashboard();
+      addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
+      addNav('nav-gastos', '🧮 Gastos', 'gastos');
+      addNav('nav-resumen', '📊 Resumen General', 'resumen');
+    } else if (CU.rol === 'profesional') {
+      document.getElementById('nav-profesionales').style.display = 'none';
+    }
+    // 5. Route to first page
+    if (CU.rol === 'administrador') {
+      goTo('admin');
     } else {
       loadDashboard();
     }
-  } catch(e) {
+  
+} catch(e) {
     document.getElementById('login-error').style.display = 'block';
   }
 }
