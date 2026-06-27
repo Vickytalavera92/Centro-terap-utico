@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- CREA v2.6 - Session restore con localStorage -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -123,8 +122,7 @@ input[type="time"] { -webkit-appearance: none; }
 <!-- LOGIN -->
 <div class="login-wrap" id="login-page">
   <div class="login-card">
-    <div style="font-size:10px;color:#ccc;text-align:right;margin-bottom:4px;">v2.6</div>
-      <div class="login-logo">
+    <div class="login-logo">
       <div class="logo-box" style="background:white;gap:1px;flex-direction:row;padding:8px;">
   <span style="color:#1B8A7A;font-size:18px;font-weight:900;">C</span>
   <span style="color:#C0392B;font-size:18px;font-weight:900;">R</span>
@@ -753,12 +751,7 @@ async function login() {
     CU = users[0];
     window._authToken = authData.access_token;
     HDR['Authorization'] = 'Bearer ' + authData.access_token;
-    try {
-      localStorage.setItem('crea_access', authData.access_token);
-      localStorage.setItem('crea_refresh', authData.refresh_token || '');
-      localStorage.setItem('crea_nombre', CU.nombre);
-      localStorage.setItem('crea_email', email);
-    } catch(e) {}
+    try { sessionStorage.setItem('crea_e', btoa(email)); sessionStorage.setItem('crea_p', btoa(pass)); } catch(e) {}
     // Clean nav before building for new user
     ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
       var el = document.getElementById(id);
@@ -858,7 +851,7 @@ async function login() {
 function logout() {
   CU = null;
   // Clear session
-  try { localStorage.removeItem('crea_access'); localStorage.removeItem('crea_refresh'); localStorage.removeItem('crea_nombre'); localStorage.removeItem('crea_email'); } catch(e) {}
+  try { sessionStorage.removeItem('crea_e'); sessionStorage.removeItem('crea_p'); } catch(e) {}
   // Clean dynamic nav items
   ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
     var el = document.getElementById(id);
@@ -3425,128 +3418,18 @@ async function guardarReprogramar() {
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
 
-// Restore session on page load
+// Auto-login on page refresh
 (async function() {
   try {
-    var accessToken = localStorage.getItem('crea_access');
-    var refreshToken = localStorage.getItem('crea_refresh');
-    if (!accessToken && !refreshToken) return;
-
-    var finalToken = null;
-    var authUser = null;
-
-    // Try access token first
-    if (accessToken) {
-      HDR['Authorization'] = 'Bearer ' + accessToken;
-      var r = await fetch(SUPA_URL + '/auth/v1/user', { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + accessToken } });
-      if (r.ok) {
-        authUser = await r.json();
-        finalToken = accessToken;
-      }
-    }
-
-    // If access token expired, use refresh token
-    if (!authUser && refreshToken) {
-      var rr = await fetch(SUPA_URL + '/auth/v1/token?grant_type=refresh_token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
-        body: JSON.stringify({ refresh_token: refreshToken })
-      });
-      if (rr.ok) {
-        var newSession = await rr.json();
-        finalToken = newSession.access_token;
-        try {
-          localStorage.setItem('crea_access', finalToken);
-          localStorage.setItem('crea_refresh', newSession.refresh_token || refreshToken);
-        } catch(e) {}
-        var r2 = await fetch(SUPA_URL + '/auth/v1/user', { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + finalToken } });
-        if (r2.ok) authUser = await r2.json();
-      }
-    }
-
-    if (!authUser || !finalToken) {
-      localStorage.removeItem('crea_access');
-      localStorage.removeItem('crea_refresh');
-      return;
-    }
-
-    // Set token
-    HDR['Authorization'] = 'Bearer ' + finalToken;
-    window._authToken = finalToken;
-
-    // Get profile
-    var users = await api('GET', 'usuarios', null, '?email=eq.' + encodeURIComponent(authUser.email) + '&limit=1');
-    if (!users || !users.length) return;
-    CU = users[0];
-
-    // Clean nav
-    ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el && el.parentNode) el.parentNode.removeChild(el);
-    });
-    ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.style.display = '';
-    });
-
-    // Show app
-    document.getElementById('login-page').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    document.getElementById('sav').textContent = CU.avatar_iniciales || '??';
-    if (CU.foto_url) {
-      document.getElementById('sav').innerHTML = '<img src="' + CU.foto_url + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">';
-    }
-    document.getElementById('snom').textContent = CU.nombre;
-    document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : CU.rol === 'administrador' ? 'Administrador' : CU.rol === 'recepcionista' ? 'Recepcionista' : 'Profesional';
-
-    // Build nav for role
-    if (CU.rol === 'directora' || CU.rol === 'administrador') {
-      var sidebar = document.querySelector('.sidebar-nav');
-      if (!document.getElementById('nav-admin')) {
-        var n1 = document.createElement('div'); n1.className='nav-item'; n1.id='nav-admin'; n1.innerHTML='💰 Administración'; n1.onclick=function(){goTo('admin');}; sidebar.appendChild(n1);
-      }
-      if (!document.getElementById('nav-cobros')) {
-        var n2 = document.createElement('div'); n2.className='nav-item'; n2.id='nav-cobros'; n2.innerHTML='🧾 Cobros y Facturas'; n2.onclick=function(){goTo('cobros');}; sidebar.appendChild(n2);
-      }
-      if (!document.getElementById('nav-gastos')) {
-        var n3 = document.createElement('div'); n3.className='nav-item'; n3.id='nav-gastos'; n3.innerHTML='🧮 Gastos'; n3.onclick=function(){goTo('gastos');}; sidebar.appendChild(n3);
-      }
-      if (CU.rol === 'directora' && !document.getElementById('nav-resumen')) {
-        var n4 = document.createElement('div'); n4.className='nav-item'; n4.id='nav-resumen'; n4.innerHTML='📊 Resumen General'; n4.onclick=function(){goTo('resumen');}; sidebar.appendChild(n4);
-      }
-    }
-    if (CU.rol === 'recepcionista') {
-      var sidebarR = document.querySelector('.sidebar-nav');
-      if (!document.getElementById('nav-cobros')) {
-        var r1 = document.createElement('div'); r1.className='nav-item'; r1.id='nav-cobros'; r1.innerHTML='🧾 Cobros y Facturas'; r1.onclick=function(){goTo('cobros');}; sidebarR.appendChild(r1);
-      }
-      if (!document.getElementById('nav-gastos')) {
-        var r2 = document.createElement('div'); r2.className='nav-item'; r2.id='nav-gastos'; r2.innerHTML='🧮 Gastos'; r2.onclick=function(){goTo('gastos');}; sidebarR.appendChild(r2);
-      }
-      if (!document.getElementById('nav-resumen')) {
-        var r3 = document.createElement('div'); r3.className='nav-item'; r3.id='nav-resumen'; r3.innerHTML='📊 Resumen General'; r3.onclick=function(){goTo('resumen');}; sidebarR.appendChild(r3);
-      }
-    }
-
-    // Route by role
-    if (CU.rol === 'administrador') {
-      ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id){
-        var el=document.getElementById(id); if(el) el.style.display='none';
-      });
-      goTo('admin');
-    } else if (CU.rol === 'profesional') {
-      var np = document.getElementById('nav-profesionales');
-      if (np) np.style.display = 'none';
-      loadDashboard();
-    } else {
-      loadDashboard();
-    }
-  } catch(e) {
-    console.error('Session restore error:', e);
-    localStorage.removeItem('crea_access');
-    localStorage.removeItem('crea_refresh');
-  }
+    var e64 = sessionStorage.getItem('crea_e');
+    var p64 = sessionStorage.getItem('crea_p');
+    if (!e64 || !p64) return;
+    document.getElementById('login-email').value = atob(e64);
+    document.getElementById('login-pass').value = atob(p64);
+    await login();
+  } catch(ex) { sessionStorage.removeItem('crea_e'); sessionStorage.removeItem('crea_p'); }
 })();
+
 
 
 </script>
