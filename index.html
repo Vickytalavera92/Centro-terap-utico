@@ -3424,9 +3424,18 @@ document.getElementById('login-pass').addEventListener('keydown', function(e) { 
     var e64 = sessionStorage.getItem('crea_e');
     var p64 = sessionStorage.getItem('crea_p');
     if (!e64 || !p64) return;
-    document.getElementById('login-email').value = atob(e64);
-    document.getElementById('login-pass').value = atob(p64);
-    await login();
+    var savedEmail = atob(e64);
+    var savedPass = atob(p64);
+    // Show who will auto-login
+    document.getElementById('login-email').value = savedEmail;
+    document.getElementById('login-pass').value = savedPass;
+    // Small delay so user can cancel if needed
+    await new Promise(function(r) { setTimeout(r, 800); });
+    // Only auto-login if credentials weren't changed by user
+    if (document.getElementById('login-email').value === savedEmail &&
+        document.getElementById('login-pass').value === savedPass) {
+      await login();
+    }
   } catch(ex) { sessionStorage.removeItem('crea_e'); sessionStorage.removeItem('crea_p'); }
 })();
 
