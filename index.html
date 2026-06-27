@@ -1095,7 +1095,7 @@ async function verProf(idxOrId) {
       '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + pacs.length + '</div><div class="stat-label">Pacientes asignados</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + ses.length + '</div><div class="stat-label">Atenciones este mes</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + ag.length + '</div><div class="stat-label">Turnos hoy</div></div>' +
-      '<div class="stat-card" id="prof-honor-card"><div class="stat-num" style="font-size:16px;">—</div><div class="stat-label">Honorarios mes</div></div></div>';
+      (CU.rol === 'directora' ? '<div class="stat-card" id="prof-honor-card"><div class="stat-num" style="font-size:16px;">—</div><div class="stat-label">Honorarios mes</div></div>' : '') + '</div>';
     if (CU.rol === 'recepcionista') {
       html += '<div class="tabs">' +
         '<div class="tab active" onclick="switchTab(this,\'tp-agenda\')">🗓 Agenda hoy</div>' +
@@ -1131,7 +1131,7 @@ async function verProf(idxOrId) {
           '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre||'Turno libre') + '</span>' +
           sel + '</div>';
       }).join('') : '<div class="empty-state">Sin turnos hoy</div>') + '</div>';
-    html += '<div id="tp-honorarios" class="tab-sec"><div class="loading" id="honorarios-loading">Cargando honorarios...</div></div>';
+    if (CU.rol === 'directora') html += '<div id="tp-honorarios" class="tab-sec"><div class="loading" id="honorarios-loading">Cargando honorarios...</div></div>';
     html += '<div id="tp-legajos" class="tab-sec">' +
       '<div class="flex justify-between items-center mb-12">' +
       '<span style="font-size:12px;color:var(--text-secondary);">' + pacs.length + ' legajos</span>' +
