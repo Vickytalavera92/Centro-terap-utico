@@ -745,6 +745,7 @@ async function login() {
     if (!users || users.length === 0) throw new Error('Sin perfil');
     CU = users[0];
     window._authToken = authData.access_token;
+    try { sessionStorage.setItem('crea_token', authData.access_token); } catch(e) {}
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('sav').textContent = CU.avatar_iniciales || '??';
@@ -834,8 +835,19 @@ async function login() {
 
 function logout() {
   CU = null;
+  // Clear session
+  try { sessionStorage.removeItem('crea_token'); sessionStorage.removeItem('crea_refresh'); } catch(e) {}
+  // Clean dynamic nav items
+  ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.parentNode.removeChild(el);
+  });
+  // Reset nav active states
+  document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value = '';
 }
 
 function goTo(page) {
@@ -3380,6 +3392,109 @@ async function guardarReprogramar() {
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
+
+// Restore session on page load
+(async function restoreSession() {
+  try {
+    var token = sessionStorage.getItem('crea_token');
+    if (!token) return;
+    // Set token in HDR
+    HDR['Authorization'] = 'Bearer ' + token;
+    window._authToken = token;
+    // Get user from Supabase
+    var userRes = await fetch(SUPA_URL + '/auth/v1/user', { headers: HDR });
+    if (!userRes.ok) throw new Error('Token inválido');
+    var authUser = await userRes.json();
+    // Get profile
+    var users = await api('GET', 'usuarios', null, '?email=eq.' + encodeURIComponent(authUser.email) + '&limit=1');
+    if (!users || !users.length) throw new Error('Sin perfil');
+    CU = users[0];
+    // Show app
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('sav').textContent = CU.avatar_iniciales || '??';
+    if (CU.foto_url) {
+      document.getElementById('sav').innerHTML = '<img src="' + CU.foto_url + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">';
+    }
+    document.getElementById('snom').textContent = CU.nombre;
+    document.getElementById('srol').textContent = CU.rol === 'directora' ? 'Directora' : CU.rol === 'administrador' ? 'Administrador' : CU.rol === 'recepcionista' ? 'Recepcionista' : 'Profesional';
+    // Add dynamic nav items
+    if (CU.rol === 'directora' || CU.rol === 'administrador') {
+      if (!document.getElementById('nav-admin')) {
+        var adminNav = document.createElement('div');
+        adminNav.className = 'nav-item'; adminNav.id = 'nav-admin';
+        adminNav.innerHTML = '💰 Administración';
+        adminNav.onclick = function() { goTo('admin'); };
+        document.querySelector('.sidebar-nav').appendChild(adminNav);
+      }
+      if (!document.getElementById('nav-cobros')) {
+        var cobrosNav = document.createElement('div');
+        cobrosNav.className = 'nav-item'; cobrosNav.id = 'nav-cobros';
+        cobrosNav.innerHTML = '🧾 Cobros y Facturas';
+        cobrosNav.onclick = function() { goTo('cobros'); };
+        document.querySelector('.sidebar-nav').appendChild(cobrosNav);
+      }
+      if (!document.getElementById('nav-gastos')) {
+        var gastosNav = document.createElement('div');
+        gastosNav.className = 'nav-item'; gastosNav.id = 'nav-gastos';
+        gastosNav.innerHTML = '🧮 Gastos';
+        gastosNav.onclick = function() { goTo('gastos'); };
+        document.querySelector('.sidebar-nav').appendChild(gastosNav);
+      }
+      if (CU.rol === 'directora' && !document.getElementById('nav-resumen')) {
+        var resumenNav = document.createElement('div');
+        resumenNav.className = 'nav-item'; resumenNav.id = 'nav-resumen';
+        resumenNav.innerHTML = '📊 Resumen General';
+        resumenNav.onclick = function() { goTo('resumen'); };
+        document.querySelector('.sidebar-nav').appendChild(resumenNav);
+      }
+    }
+    if (CU.rol === 'recepcionista') {
+      if (!document.getElementById('nav-cobros')) {
+        var cobrosNavR = document.createElement('div');
+        cobrosNavR.className = 'nav-item'; cobrosNavR.id = 'nav-cobros';
+        cobrosNavR.innerHTML = '🧾 Cobros y Facturas';
+        cobrosNavR.onclick = function() { goTo('cobros'); };
+        document.querySelector('.sidebar-nav').appendChild(cobrosNavR);
+      }
+      if (!document.getElementById('nav-gastos')) {
+        var gastosNavR = document.createElement('div');
+        gastosNavR.className = 'nav-item'; gastosNavR.id = 'nav-gastos';
+        gastosNavR.innerHTML = '🧮 Gastos';
+        gastosNavR.onclick = function() { goTo('gastos'); };
+        document.querySelector('.sidebar-nav').appendChild(gastosNavR);
+      }
+      if (!document.getElementById('nav-resumen')) {
+        var resumenNavR = document.createElement('div');
+        resumenNavR.className = 'nav-item'; resumenNavR.id = 'nav-resumen';
+        resumenNavR.innerHTML = '📊 Resumen General';
+        resumenNavR.onclick = function() { goTo('resumen'); };
+        document.querySelector('.sidebar-nav').appendChild(resumenNavR);
+      }
+    }
+    if (CU.rol === 'administrador') {
+      document.getElementById('nav-dashboard').style.display = 'none';
+      document.getElementById('nav-profesionales').style.display = 'none';
+      document.getElementById('nav-pacientes').style.display = 'none';
+      document.getElementById('nav-agenda').style.display = 'none';
+      document.getElementById('nav-semanal').style.display = 'none';
+      document.getElementById('nav-perfil').style.display = 'none';
+      goTo('admin');
+    } else if (CU.rol === 'recepcionista') {
+      loadDashboard();
+    } else if (CU.rol === 'profesional') {
+      document.getElementById('nav-profesionales').style.display = 'none';
+      loadDashboard();
+    } else {
+      loadDashboard();
+    }
+  } catch(e) {
+    sessionStorage.removeItem('crea_token');
+    HDR['Authorization'] = 'Bearer ' + SUPA_KEY;
+  }
+})();
+
+
 </script>
 </body>
 </html>
