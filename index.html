@@ -868,6 +868,13 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 // DASHBOARD
 async function loadDashboard() {
+  // Ensure dashboard page is active
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var dp = document.getElementById('page-dashboard');
+  if (dp) dp.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
+  var dn = document.getElementById('nav-dashboard');
+  if (dn) dn.classList.add('active');
   var el = document.getElementById('dash-content');
   if (el) el.innerHTML = '<div class="loading">Cargando dashboard...</div>';
   try {
