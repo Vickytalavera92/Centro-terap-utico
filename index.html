@@ -747,6 +747,15 @@ async function login() {
     window._authToken = authData.access_token;
     HDR['Authorization'] = 'Bearer ' + authData.access_token;
     try { sessionStorage.setItem('crea_session', JSON.stringify({email: email, pass: pass})); } catch(e) {}
+    // Clean nav before building for new user
+    ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('sav').textContent = CU.avatar_iniciales || '??';
