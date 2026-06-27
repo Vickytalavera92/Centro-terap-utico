@@ -1397,7 +1397,7 @@ async function loadPacs() {
     profs.forEach(function(p) { profMap[p.id] = p.nombre; });
     // Add merge tool button for directora
     var headerEl = document.getElementById('pac-header-actions');
-    if (headerEl && CU.rol === 'directora') {
+    if (headerEl && (CU.rol === 'directora' || CU.rol === 'recepcionista')) {
       headerEl.innerHTML += '<button class="btn btn-secondary btn-sm" onclick="abrirMergeDuplicados()">🔄 Fusionar duplicados</button>';
     }
     var el = document.getElementById('pac-table-wrap');
