@@ -746,7 +746,10 @@ async function login() {
     CU = users[0];
     window._authToken = authData.access_token;
     HDR['Authorization'] = 'Bearer ' + authData.access_token;
-    try { sessionStorage.setItem('crea_token', authData.access_token); } catch(e) {}
+    try { 
+      sessionStorage.setItem('crea_token', authData.access_token);
+      sessionStorage.setItem('crea_refresh', authData.refresh_token || '');
+    } catch(e) {}
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('sav').textContent = CU.avatar_iniciales || '??';
@@ -3405,14 +3408,47 @@ document.getElementById('login-pass').addEventListener('keydown', function(e) { 
 (async function restoreSession() {
   try {
     var token = sessionStorage.getItem('crea_token');
-    if (!token) return;
-    // Set token in HDR
-    HDR['Authorization'] = 'Bearer ' + token;
-    window._authToken = token;
-    // Get user from Supabase
-    var userRes = await fetch(SUPA_URL + '/auth/v1/user', { headers: HDR });
-    if (!userRes.ok) throw new Error('Token inválido');
-    var authUser = await userRes.json();
+    var refreshToken = sessionStorage.getItem('crea_refresh');
+    if (!token && !refreshToken) return;
+    
+    // Try current token first
+    if (token) {
+      HDR['Authorization'] = 'Bearer ' + token;
+      window._authToken = token;
+    }
+    
+    // Try to get user - if fails, use refresh token
+    var authUser = null;
+    if (token) {
+      var userRes = await fetch(SUPA_URL + '/auth/v1/user', { headers: HDR });
+      if (userRes.ok) {
+        authUser = await userRes.json();
+      }
+    }
+    
+    // If token expired, use refresh token
+    if (!authUser && refreshToken) {
+      var refreshRes = await fetch(SUPA_URL + '/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      });
+      if (!refreshRes.ok) throw new Error('Sesión expirada');
+      var newSession = await refreshRes.json();
+      token = newSession.access_token;
+      HDR['Authorization'] = 'Bearer ' + token;
+      window._authToken = token;
+      try {
+        sessionStorage.setItem('crea_token', token);
+        sessionStorage.setItem('crea_refresh', newSession.refresh_token || refreshToken);
+      } catch(e) {}
+      // Get user with new token
+      var userRes2 = await fetch(SUPA_URL + '/auth/v1/user', { headers: HDR });
+      if (!userRes2.ok) throw new Error('Token inválido');
+      authUser = await userRes2.json();
+    }
+    
+    if (!authUser) throw new Error('Sin sesión');
     // Get profile
     var users = await api('GET', 'usuarios', null, '?email=eq.' + encodeURIComponent(authUser.email) + '&limit=1');
     if (!users || !users.length) throw new Error('Sin perfil');
