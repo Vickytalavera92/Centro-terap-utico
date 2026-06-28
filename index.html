@@ -2042,6 +2042,7 @@ async function loadPerfil() {
       '</div>' +
       '<div style="margin-top:8px;">' +
       '<button class="btn btn-primary" onclick="savePerfil()">Guardar cambios</button>' +
+      (CU.rol === 'profesional' ? '<button class="btn btn-secondary" onclick="verMisPacientes()" style="margin-top:12px;width:100%;">👥 Ver mis pacientes y legajos</button>' : '') +
       '</div>';
   } catch(e) { console.error(e); }
 }
