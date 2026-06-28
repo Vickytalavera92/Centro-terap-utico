@@ -116,62 +116,70 @@ input[type="time"] { -webkit-appearance: none; }
 
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 768px) {
-  .app { flex-direction: column; }
+  .app { flex-direction: column; height: 100vh; overflow: hidden; }
   .sidebar { 
-    width: 100%; 
-    min-width: unset; 
-    height: auto; 
+    width: 100% !important; 
+    min-width: unset !important; 
+    height: auto !important;
     flex-direction: row;
-    padding: 8px 12px;
+    padding: 6px 8px;
     border-right: none;
     border-bottom: 1px solid var(--border);
     overflow-x: auto;
     position: sticky;
     top: 0;
     z-index: 100;
+    flex-shrink: 0;
   }
-  .sidebar-header { display: none; }
+  .sidebar-header { display: none !important; }
+  .sidebar-footer { display: none !important; }
   .sidebar-nav { 
-    display: flex; 
-    flex-direction: row; 
-    gap: 4px;
-    flex: 1;
+    display: flex !important; 
+    flex-direction: row !important; 
+    gap: 2px;
     overflow-x: auto;
-    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
-  .sidebar-footer { display: none; }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
   .nav-item { 
-    white-space: nowrap; 
-    padding: 6px 10px; 
-    font-size: 11px;
+    white-space: nowrap !important; 
+    padding: 6px 10px !important; 
+    font-size: 11px !important;
     border-radius: 6px;
+    flex-shrink: 0;
   }
-  .main { padding: 12px; }
-  .grid-4 { grid-template-columns: repeat(2, 1fr); }
-  .grid-3 { grid-template-columns: repeat(2, 1fr); }
-  .grid-2 { grid-template-columns: 1fr; }
-  .modal { width: 95vw !important; max-width: 95vw !important; margin: 10px; }
-  .pac-table { font-size: 12px; }
-  .pac-table th, .pac-table td { padding: 6px 8px; }
-  .flex { flex-wrap: wrap; gap: 8px; }
+  .main { 
+    padding: 10px !important; 
+    overflow-y: auto;
+    flex: 1;
+    height: 0;
+  }
+  .grid-4 { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .grid-3 { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .grid-2 { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .modal { width: 92vw !important; max-width: 92vw !important; max-height: 85vh !important; overflow-y: auto; }
+  .pac-table { font-size: 11px !important; }
+  .pac-table th, .pac-table td { padding: 5px 6px !important; }
   .prof-cards { grid-template-columns: 1fr !important; }
-  .card { padding: 12px; }
-  .stat-card { padding: 12px; }
-  .stat-num { font-size: 20px !important; }
-  .agenda-slot { padding: 8px; }
-  .btn-sm { padding: 5px 8px; font-size: 11px; }
-  #agenda-view-dia .card { padding: 10px; }
-  .tabs { overflow-x: auto; white-space: nowrap; }
-  .tab { display: inline-block; }
-  /* Hide less important columns on mobile */
-  .pac-table .hide-mobile { display: none; }
-  /* Calendar grid smaller on mobile */
-  #agenda-mes-wrap > div:first-child { display: none; }
+  .card { padding: 10px !important; }
+  .stat-card { padding: 10px !important; }
+  .stat-num { font-size: 18px !important; }
+  .btn { padding: 6px 10px !important; font-size: 12px !important; }
+  .btn-sm { padding: 4px 8px !important; font-size: 11px !important; }
+  .section-title { font-size: 13px !important; }
+  .tabs { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  .tab { display: inline-block; font-size: 12px; padding: 8px 10px; }
+  .agenda-slot { padding: 8px 6px; }
+  .agenda-slot .slot-time { font-size: 11px; min-width: 38px; }
+  /* Hide some columns on mobile */
+  .pac-table td:nth-child(3), .pac-table th:nth-child(3) { display: none; }
+  .pac-table td:nth-child(5), .pac-table th:nth-child(5) { display: none; }
 }
-
 @media (max-width: 480px) {
-  .grid-4 { grid-template-columns: 1fr 1fr; }
-  .sidebar-nav .nav-item { font-size: 10px; padding: 5px 8px; }
+  .grid-4 { grid-template-columns: 1fr 1fr !important; }
+  .nav-item { font-size: 10px !important; padding: 5px 7px !important; }
+  .stat-num { font-size: 16px !important; }
 }
 </style>
 </head>
@@ -1481,7 +1489,7 @@ async function loadPacs() {
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
           '<td><span class="badge ' + (p.estado==='activo'?'b-green':p.estado==='alta'?'b-gray':'b-amber') + '">' + p.estado + '</span></td>' +
           '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td>' +
-          '<td><button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️ Editar</button></td>' +
+          '<td><button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️ Editar</button>' + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🗑</button>' : '') + '</td>' +
           '</tr>';
       }).join('') + '</tbody></table>';
     var sel = document.getElementById('pac-prof');
