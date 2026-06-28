@@ -2072,6 +2072,14 @@ async function uploadFoto(input) {
   } catch(e) { console.error(e); toast('Error al subir la foto'); }
 }
 
+async function verMisPacientes() {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('page-profesionales').classList.add('active');
+  document.getElementById('page-title').textContent = 'Mis pacientes';
+  if (!_profs || !_profs.length) await loadProfs();
+  await verProf(CU.id);
+}
+
 async function savePerfil() {
   try {
     var updates = {
