@@ -142,7 +142,13 @@ input[type="time"] { -webkit-appearance: none; }
   .pac-table-wrap, #semanal-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
   .pac-table { font-size: 11px !important; min-width: 480px; }
   .pac-table th, .pac-table td { padding: 5px 6px !important; }
-  #semanal-wrap table { min-width: 580px; font-size: 11px; }
+  #semanal-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; display: block; }
+  #semanal-wrap table { min-width: 620px; font-size: 11px; table-layout: fixed; }
+  #semanal-wrap td, #semanal-wrap th { min-width: 80px; max-width: 100px; word-break: break-word; }
+  .sem-nav { flex-wrap: wrap; gap: 4px !important; }
+  .sem-nav .btn { padding: 5px 10px !important; font-size: 11px !important; }
+  .sem-legend { display: flex; flex-wrap: wrap; gap: 4px; }
+  .sem-legend span { font-size: 10px !important; padding: 2px 6px !important; }
   .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
   .modal { width: 100% !important; max-width: 100% !important; max-height: 85vh !important; overflow-y: auto !important; border-radius: 16px 16px 0 0 !important; }
   .prof-cards { grid-template-columns: 1fr !important; }
@@ -286,11 +292,11 @@ input[type="time"] { -webkit-appearance: none; }
             <div class="section-title" style="margin-bottom:4px;">Vista semanal</div>
             <div id="semana-label" style="font-size:13px;color:var(--text-secondary);"></div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(-1)">← Anterior</button>
+          <div class="sem-nav" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(-1)">←</button>
             <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(0)">Hoy</button>
-            <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(1)">Siguiente →</button>
-            <button class="btn btn-primary btn-sm" onclick="copiarSemana()">📋 Copiar semana</button>
+            <button class="btn btn-secondary btn-sm" onclick="cambiarSemana(1)">→</button>
+            <button class="btn btn-primary btn-sm" onclick="copiarSemana()">📋 Copiar</button>
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
