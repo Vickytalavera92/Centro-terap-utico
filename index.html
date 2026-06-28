@@ -159,9 +159,11 @@ input[type="time"] { -webkit-appearance: none; }
 }
 @media (max-width: 768px) {
   #nav-logout { display: block !important; }
+  #nav-section-menu { display: none !important; }
 }
 @media (max-width: 768px) {
   #nav-logout { display: block !important; }
+  #nav-section-menu { display: none !important; }
   #dash-bottom-grid { grid-template-columns: 1fr !important; }
   .agenda-slot { font-size: 12px !important; padding: 8px 6px !important; }
   .slot-time { font-size: 11px !important; min-width: 40px !important; }
@@ -221,15 +223,15 @@ input[type="time"] { -webkit-appearance: none; }
       </div>
     </div>
     <div class="sidebar-nav">
-      <div class="nav-section">Menu</div>
+      <div class="nav-section" style="display:none;" id="nav-section-menu">Menu</div>
       <div class="nav-item active" id="nav-dashboard" onclick="goTo('dashboard')">📊 Dashboard</div>
       <div class="nav-item" id="nav-profesionales" onclick="goTo('profesionales')">👩‍⚕️ Profesionales</div>
       <div class="nav-item" id="nav-pacientes" onclick="goTo('pacientes')">📁 Pacientes</div>
       <div class="nav-item" id="nav-agenda" onclick="goTo('agenda')">📅 Agenda</div>
       <div class="nav-item" id="nav-semanal" onclick="goTo('semanal')">📆 Vista semanal</div>
       <div class="nav-item" id="nav-perfil" onclick="goTo('perfil')">👤 Mi perfil</div>
+      <div class="nav-item mobile-only" onclick="logout()" style="color:var(--red);display:none;" id="nav-logout">🚪 Salir</div>
     </div>
-    <div class="nav-item mobile-only" onclick="logout()" style="color:var(--red);display:none;" id="nav-logout">🚪 Salir</div>
     <div class="sidebar-footer">
       <div class="nav-item" onclick="openModal('modal-pass')">🔑 Cambiar contraseña</div>
       <div class="nav-item" onclick="logout()" style="color:var(--red)">🚪 Cerrar sesión</div>
