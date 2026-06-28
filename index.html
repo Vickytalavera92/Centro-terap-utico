@@ -39,7 +39,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .btn-ghost { background: transparent; color: var(--primary); padding: 6px 10px; }
 .btn-danger { background: var(--red-light); color: var(--red); }
 .error-msg { background: var(--red-light); color: var(--red); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 14px; display: none; }
-.app { display: flex; min-height: 100vh; }
+.app { display: flex; min-height: 100vh; height: 100vh; overflow: hidden; }
 .sidebar { width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
 .sidebar-header { padding: 18px 16px; border-bottom: 1px solid var(--border); }
 .sidebar-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -56,7 +56,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .nav-item:hover { background: var(--bg); color: var(--text); }
 .nav-item.active { background: var(--teal-light); color: var(--teal); }
 .sidebar-footer { padding: 10px 8px; border-top: 1px solid var(--border); }
-.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .topbar { padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: space-between; }
 .topbar h2 { font-size: 16px; font-weight: 600; }
 .page { flex: 1; padding: 24px; overflow-y: auto; display: none; }
@@ -116,70 +116,44 @@ input[type="time"] { -webkit-appearance: none; }
 
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 768px) {
-  .app { flex-direction: column; height: 100vh; overflow: hidden; }
-  .sidebar { 
-    width: 100% !important; 
-    min-width: unset !important; 
-    height: auto !important;
-    flex-direction: row;
-    padding: 6px 8px;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    overflow-x: auto;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    flex-shrink: 0;
+  body { overflow: hidden; }
+  .app { flex-direction: column !important; height: 100vh; }
+  .sidebar {
+    width: 100% !important; min-width: unset !important; height: auto !important;
+    flex-direction: row !important; padding: 6px 8px !important;
+    border-right: none !important; border-bottom: 1px solid var(--border) !important;
+    flex-shrink: 0 !important;
   }
-  .sidebar-header { display: none !important; }
-  .sidebar-footer { display: none !important; }
-  .sidebar-nav { 
-    display: flex !important; 
-    flex-direction: row !important; 
-    gap: 2px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+  .sidebar-header, .sidebar-footer { display: none !important; }
+  .sidebar-nav {
+    display: flex !important; flex-direction: row !important;
+    overflow-x: auto !important; overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none; width: 100%; gap: 2px !important;
   }
   .sidebar-nav::-webkit-scrollbar { display: none; }
-  .nav-item { 
-    white-space: nowrap !important; 
-    padding: 6px 10px !important; 
-    font-size: 11px !important;
-    border-radius: 6px;
-    flex-shrink: 0;
-  }
-  .main { 
-    padding: 10px !important; 
-    overflow-y: auto;
-    flex: 1;
-    height: 0;
-  }
-  .grid-4 { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
-  .grid-3 { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .nav-item { white-space: nowrap !important; padding: 6px 10px !important; font-size: 11px !important; flex-shrink: 0 !important; }
+  .main { flex: 1 !important; overflow-y: auto !important; padding: 10px !important; -webkit-overflow-scrolling: touch; }
+  .grid-4 { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .grid-3 { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
   .grid-2 { grid-template-columns: 1fr !important; gap: 8px !important; }
-  .modal { width: 92vw !important; max-width: 92vw !important; max-height: 85vh !important; overflow-y: auto; }
-  .pac-table { font-size: 11px !important; }
-  .pac-table th, .pac-table td { padding: 5px 6px !important; }
-  .prof-cards { grid-template-columns: 1fr !important; }
   .card { padding: 10px !important; }
   .stat-card { padding: 10px !important; }
   .stat-num { font-size: 18px !important; }
-  .btn { padding: 6px 10px !important; font-size: 12px !important; }
-  .btn-sm { padding: 4px 8px !important; font-size: 11px !important; }
-  .section-title { font-size: 13px !important; }
-  .tabs { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-  .tab { display: inline-block; font-size: 12px; padding: 8px 10px; }
-  .agenda-slot { padding: 8px 6px; }
-  .agenda-slot .slot-time { font-size: 11px; min-width: 38px; }
-  /* Hide some columns on mobile */
-  .pac-table td:nth-child(3), .pac-table th:nth-child(3) { display: none; }
-  .pac-table td:nth-child(5), .pac-table th:nth-child(5) { display: none; }
+  .pac-table-wrap, #semanal-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .pac-table { font-size: 11px !important; min-width: 480px; }
+  .pac-table th, .pac-table td { padding: 5px 6px !important; }
+  #semanal-wrap table { min-width: 580px; font-size: 11px; }
+  .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+  .modal { width: 100% !important; max-width: 100% !important; max-height: 85vh !important; overflow-y: auto !important; border-radius: 16px 16px 0 0 !important; }
+  .prof-cards { grid-template-columns: 1fr !important; }
+  .tabs { overflow-x: auto !important; white-space: nowrap; }
+  .tab { display: inline-block !important; font-size: 11px !important; padding: 7px 10px !important; }
+  .agenda-slot { padding: 6px !important; }
+  .flex { flex-wrap: wrap !important; gap: 6px !important; }
 }
 @media (max-width: 480px) {
-  .grid-4 { grid-template-columns: 1fr 1fr !important; }
   .nav-item { font-size: 10px !important; padding: 5px 7px !important; }
-  .stat-num { font-size: 16px !important; }
+  .stat-num { font-size: 15px !important; }
 }
 </style>
 </head>
@@ -1224,7 +1198,7 @@ async function verProf(idxOrId) {
     if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
         '<div class="dir-banner" style="margin-bottom:0;">' + (CU.rol === 'directora' ? '👁 Vista directora — acceso completo' : '📋 Vista recepción') + '</div>' +
-        (CU.rol === 'directora' ? '<button class="btn btn-secondary btn-sm" onclick="openEditProf(\'' + p.id + '\')">✏️ Editar datos</button>' : '') +
+        (CU.rol === 'directora' ? '<button class="btn btn-secondary btn-sm" onclick="openEditProf(\'' + p.id + '\')">✏️ Editar datos</button> <button class="btn btn-sm" onclick="eliminarProf(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;">🗑 Desactivar</button>' : '') +
         '</div>';
     }
     html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border);">' +
@@ -2886,7 +2860,7 @@ function renderCobrosTable(pacientes, turnosPorPac, cobrosMap, tarifaMap, mesKey
     return (p.nombre + ' ' + p.apellido + ' ' + (p.responsable_nombre||'')).toLowerCase().indexOf(search) > -1;
   });
   
-  var html = '<div class="card"><table class="pac-table"><thead><tr>' +
+  var html = '<div class="card"><div class="pac-table-wrap"><table class="pac-table"><thead><tr>' +
     '<th>Paciente / Responsable</th>' +
     '<th>RUC</th>' +
     '<th style="text-align:center;">Sesiones</th>' +
@@ -2926,7 +2900,7 @@ function renderCobrosTable(pacientes, turnosPorPac, cobrosMap, tarifaMap, mesKey
       '</tr>';
   });
   
-  html += '</tbody></table></div>';
+  html += '</tbody></table></div></div>';
   document.getElementById('cobros-table').innerHTML = html;
   window._cobrosCurrentMes = mesKey;
 }
@@ -3463,6 +3437,15 @@ async function guardarReprogramar() {
     closeModal('modal-reprogramar');
     toast('📅 Turno reprogramado');
     loadAgenda();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarProf(profId) {
+  if (!confirm('¿Desactivar esta profesional? Sus datos históricos se conservan.')) return;
+  try {
+    await api('PATCH', 'usuarios', { activo: false }, '?id=eq.' + profId);
+    toast('Profesional desactivada');
+    loadProfs();
   } catch(e) { alert('Error: ' + e.message); }
 }
 
