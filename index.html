@@ -1399,31 +1399,6 @@ async function verProf(idxOrId) {
           sel + '</div>';
       }).join('') : '<div class="empty-state">Sin turnos hoy</div>') + '</div>';
     if (CU.rol === 'directora') html += '<div id="tp-honorarios" class="tab-sec"><div class="loading" id="honorarios-loading">Cargando honorarios...</div></div>';
-    html += '<div id="tp-informes" class="tab-sec">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-      '<div class="section-title" style="margin-bottom:0;">📋 Informes</div>' +
-      '<button class="btn btn-primary btn-sm" onclick="abrirSubirInforme(\'' + pacId + '\')">+ Subir informe</button>' +
-      '</div>' +
-      '<div id="informes-list-' + pacId + '">Cargando...</div>' +
-      '</div>';
-    // Load informes
-    api('GET', 'informes', null, '?paciente_id=eq.' + pacId + '&order=fecha.desc').then(function(informes) {{
-      var el = document.getElementById('informes-list-' + pacId);
-      if (!el) return;
-      if (!informes || !informes.length) {{
-        el.innerHTML = '<div class="empty-state" style="padding:20px;">Sin informes cargados aún.</div>';
-        return;
-      }}
-      el.innerHTML = informes.map(function(inf) {{
-        return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;">' +
-          '<div style="font-size:13px;font-weight:600;">' + inf.titulo + '</div>' +
-          '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">' + fmt(inf.fecha) + '</div>' +
-          (inf.notas ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + inf.notas + '</div>' : '') +
-          '<div style="margin-top:8px;">' +
-          (inf.archivo_url ? '<a href="' + inf.archivo_url + '" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;font-size:11px;">⬇️ Descargar</a>' : '') +
-          '</div></div>';
-      }}).join('');
-    }}).catch(function() {{}});
     html += '<div id="tp-legajos" class="tab-sec">' +
       '<div class="flex justify-between items-center mb-12">' +
       '<span style="font-size:12px;color:var(--text-secondary);">' + pacs.length + ' legajos</span>' +
