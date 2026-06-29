@@ -1515,7 +1515,8 @@ async function verLegajo(pacId, profId) {
       '<div class="tab active" onclick="switchTab(this,\'lt-obs\')">Observaciones (' + obs.length + ')</div>' +
       '<div class="tab" onclick="switchTab(this,\'lt-obj\')">Objetivos (' + objs.length + ')</div>' +
       '<div class="tab" onclick="switchTab(this,\'lt-ses\')">Sesiones (' + sesiones.length + ')</div>' +
-      '<div class="tab" onclick="switchTab(this,\'lt-notas\')">Notas (' + notas.length + ')</div></div>';
+      '<div class="tab" onclick="switchTab(this,\'lt-notas\')">Notas (' + notas.length + ')</div>' +
+      '<div class="tab" onclick="switchTab(this,\'lt-informes\')">📋 Informes</div></div>';
 
     html += '<div id="lt-obs" class="tab-sec active">' + addBtn('observacion', 'Nueva observación') +
       (obs.length ? obs.map(function(o) {
@@ -1551,7 +1552,37 @@ async function verLegajo(pacId, profId) {
           '<span style="font-size:11px;color:var(--text-secondary);">' + fmt(n.fecha) + '</span></div>';
       }).join('') : '<div class="empty-state">Sin notas</div>') + '</div>';
 
+    html += '<div id="lt-informes" class="tab-sec">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<div style="font-size:13px;font-weight:600;">📋 Informes del paciente</div>' +
+      '<button class="btn btn-primary btn-sm" onclick="abrirSubirInforme(\'' + pacId + '\')">+ Subir informe</button>' +
+      '</div><div id="lt-informes-list">Cargando...</div></div>';
+    
     lv.innerHTML = html;
+    
+    // Load informes async after DOM is ready
+    var pacIdCopy = pacId;
+    api('GET', 'informes', null, '?paciente_id=eq.' + pacIdCopy + '&order=fecha.desc').then(function(informes) {
+      var el = document.getElementById('lt-informes-list');
+      if (!el) return;
+      if (!informes || !informes.length) {
+        el.innerHTML = '<div class="empty-state">Sin informes cargados aún.</div>';
+        return;
+      }
+      el.innerHTML = informes.map(function(inf) {
+        return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;">' +
+          '<div style="font-size:13px;font-weight:600;">' + inf.titulo + '</div>' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">' + fmt(inf.fecha) + '</div>' +
+          (inf.notas ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + inf.notas + '</div>' : '') +
+          '<div style="margin-top:8px;">' +
+          (inf.archivo_url ? '<a href="' + inf.archivo_url + '" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;font-size:11px;">⬇️ Descargar</a>' : '') +
+          '</div></div>';
+      }).join('');
+    }).catch(function(e) { 
+      var el = document.getElementById('lt-informes-list');
+      if (el) el.innerHTML = '<div class="empty-state">Error al cargar informes.</div>';
+    });
+    
   } catch(e) { console.error(e); lv.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
