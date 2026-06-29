@@ -292,6 +292,7 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="nav-item" id="nav-pacientes" onclick="goTo('pacientes')">📁 Pacientes</div>
       <div class="nav-item" id="nav-agenda" onclick="goTo('agenda')">📅 Agenda</div>
       <div class="nav-item" id="nav-semanal" onclick="goTo('semanal')">📆 Vista semanal</div>
+      <div class="nav-item" id="nav-instrumentos" onclick="goTo('instrumentos')">🗂 Instrumentos</div>
       <div class="nav-item" id="nav-perfil" onclick="goTo('perfil')">👤 Mi perfil</div>
       <div class="nav-item mobile-only" onclick="logout()" style="color:var(--red);display:none;" id="nav-logout">🚪 Salir</div>
     </div>
@@ -344,6 +345,11 @@ input[type="time"] { -webkit-appearance: none; }
     <!-- RESUMEN GENERAL -->
     <div class="page" id="page-resumen">
       <div id="resumen-content"></div>
+    </div>
+
+    <!-- INSTRUMENTOS -->
+    <div class="page" id="page-instrumentos">
+      <div id="instrumentos-content"></div>
     </div>
 
     <!-- GASTOS -->
@@ -558,6 +564,30 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL INFORME -->
+<div class="modal-overlay" id="modal-informe">
+  <div class="modal" style="width:480px;">
+    <div class="modal-header">
+      <h3 id="modal-informe-title">📋 Subir informe</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-informe')">✕</button>
+    </div>
+    <input type="hidden" id="informe-id">
+    <input type="hidden" id="informe-pac-id">
+    <div class="form-group"><label>Título del informe</label><input id="informe-titulo" placeholder="Ej: Informe psicopedagógico, Devolución evaluación..."></div>
+    <div class="form-group"><label>Fecha</label><input type="date" id="informe-fecha"></div>
+    <div class="form-group"><label>📎 Subir PDF</label>
+      <input type="file" id="informe-file" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <div id="informe-file-current" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div>
+    </div>
+    <div class="form-group"><label>🔗 O link de Drive</label><input id="informe-link" placeholder="https://drive.google.com/..."></div>
+    <div class="form-group"><label>Notas (opcional)</label><input id="informe-notas" placeholder="Observaciones sobre el informe..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-informe')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarInforme()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL MERGE DUPLICADOS -->
 <div class="modal-overlay" id="modal-merge">
   <div class="modal" style="width:560px;max-height:80vh;overflow-y:auto;">
@@ -642,6 +672,45 @@ input[type="time"] { -webkit-appearance: none; }
       <button class="btn btn-danger btn-sm" id="gasto-delete-btn" onclick="eliminarGasto()" style="display:none;">🗑 Eliminar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-gasto')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarGasto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INSTRUMENTO -->
+<div class="modal-overlay" id="modal-instrumento">
+  <div class="modal" style="width:500px;">
+    <div class="modal-header">
+      <h3 id="modal-instr-title">📄 Nuevo instrumento</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-instrumento')">✕</button>
+    </div>
+    <input type="hidden" id="instr-id">
+    <div class="form-group"><label>Nombre del instrumento</label><input id="instr-nombre" placeholder="Ej: WISC-V, Conners, ADOS-2..."></div>
+    <div class="form-group"><label>Categoría</label>
+      <select id="instr-categoria">
+        <option value="">Seleccionar...</option>
+        <option value="TDAH">TDAH</option>
+        <option value="Inteligencia">Inteligencia</option>
+        <option value="TEA">TEA</option>
+        <option value="Atención">Atención</option>
+        <option value="Lenguaje">Lenguaje</option>
+        <option value="Psicomotricidad">Psicomotricidad</option>
+        <option value="Madurez/Desarrollo">Madurez/Desarrollo</option>
+        <option value="Perfil sensorial">Perfil sensorial</option>
+        <option value="Perfil adaptativo">Perfil adaptativo</option>
+        <option value="Lectoescritura">Lectoescritura</option>
+        <option value="Otros">Otros</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Descripción (opcional)</label><textarea id="instr-desc" placeholder="Para quién aplica, cómo se usa..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:80px;"></textarea></div>
+    <div class="form-group"><label>📎 Subir PDF</label>
+      <input type="file" id="instr-file" accept="application/pdf" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <div id="instr-file-current" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div>
+    </div>
+    <div class="form-group"><label>🔗 O link de Drive (si ya está en Drive)</label><input id="instr-link" placeholder="https://drive.google.com/..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="instr-delete-btn" onclick="eliminarInstrumento()" style="display:none;">🗑 Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-instrumento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarInstrumento()" id="instr-save-btn">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -964,7 +1033,7 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
@@ -976,6 +1045,7 @@ function goTo(page) {
   if (page === 'cobros') loadCobros();
   if (page === 'gastos') loadGastos();
   if (page === 'resumen') loadResumen();
+  if (page === 'instrumentos') loadInstrumentos();
 }
 
 function switchTab(el, id) {
@@ -1329,6 +1399,31 @@ async function verProf(idxOrId) {
           sel + '</div>';
       }).join('') : '<div class="empty-state">Sin turnos hoy</div>') + '</div>';
     if (CU.rol === 'directora') html += '<div id="tp-honorarios" class="tab-sec"><div class="loading" id="honorarios-loading">Cargando honorarios...</div></div>';
+    html += '<div id="tp-informes" class="tab-sec">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<div class="section-title" style="margin-bottom:0;">📋 Informes</div>' +
+      '<button class="btn btn-primary btn-sm" onclick="abrirSubirInforme(\'' + pacId + '\')">+ Subir informe</button>' +
+      '</div>' +
+      '<div id="informes-list-' + pacId + '">Cargando...</div>' +
+      '</div>';
+    // Load informes
+    api('GET', 'informes', null, '?paciente_id=eq.' + pacId + '&order=fecha.desc').then(function(informes) {{
+      var el = document.getElementById('informes-list-' + pacId);
+      if (!el) return;
+      if (!informes || !informes.length) {{
+        el.innerHTML = '<div class="empty-state" style="padding:20px;">Sin informes cargados aún.</div>';
+        return;
+      }}
+      el.innerHTML = informes.map(function(inf) {{
+        return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;">' +
+          '<div style="font-size:13px;font-weight:600;">' + inf.titulo + '</div>' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">' + fmt(inf.fecha) + '</div>' +
+          (inf.notas ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + inf.notas + '</div>' : '') +
+          '<div style="margin-top:8px;">' +
+          (inf.archivo_url ? '<a href="' + inf.archivo_url + '" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;font-size:11px;">⬇️ Descargar</a>' : '') +
+          '</div></div>';
+      }}).join('');
+    }}).catch(function() {{}});
     html += '<div id="tp-legajos" class="tab-sec">' +
       '<div class="flex justify-between items-center mb-12">' +
       '<span style="font-size:12px;color:var(--text-secondary);">' + pacs.length + ' legajos</span>' +
@@ -3528,6 +3623,290 @@ async function eliminarProf(profId) {
     toast('Profesional desactivada');
     loadProfs();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+
+// ==================
+// MÓDULO INSTRUMENTOS
+// ==================
+var INSTR_CATEGORIAS = ['TDAH', 'Inteligencia', 'TEA', 'Atención', 'Lenguaje', 'Psicomotricidad', 'Madurez/Desarrollo', 'Perfil sensorial', 'Perfil adaptativo', 'Lectoescritura', 'Otros'];
+var INSTR_ICONS = {"TDAH": "🧠", "Inteligencia": "💡", "TEA": "🔵", "Atención": "👁", "Lenguaje": "💬", "Psicomotricidad": "🏃", "Madurez/Desarrollo": "🌱", "Perfil sensorial": "✋", "Perfil adaptativo": "🔄", "Lectoescritura": "📖", "Otros": "📋"};
+var _instrFiltroCategoria = '';
+var _instrSearch = '';
+
+async function loadInstrumentos() {
+  var el = document.getElementById('instrumentos-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var instrumentos = await api('GET', 'instrumentos', null, '?activo=eq.true&order=categoria.asc,nombre.asc');
+    var canEdit = CU.rol === 'directora' || CU.rol === 'profesional';
+    var canDelete = CU.rol === 'directora';
+    
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">' +
+      '<div style="font-size:15px;font-weight:600;">🗂 Biblioteca de Instrumentos</div>' +
+      (canEdit ? '<button class="btn btn-primary btn-sm" onclick="abrirNuevoInstrumento()">+ Agregar instrumento</button>' : '') +
+      '</div>';
+    
+    // Search and filter
+    html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' +
+      '<input id="instr-search-input" placeholder="🔍 Buscar instrumento..." value="' + _instrSearch + '" oninput="_instrSearch=this.value;filtrarInstrumentos()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1;min-width:150px;">' +
+      '<select id="instr-cat-filter" onchange="_instrFiltroCategoria=this.value;filtrarInstrumentos()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
+      '<option value="">Todas las categorías</option>' +
+      INSTR_CATEGORIAS.map(function(c) { return '<option value="' + c + '"' + (_instrFiltroCategoria===c?' selected':'') + '>' + (INSTR_ICONS[c]||'📋') + ' ' + c + '</option>'; }).join('') +
+      '</select></div>';
+    
+    // Group by category
+    var grouped = {};
+    instrumentos.forEach(function(i) {
+      if (!grouped[i.categoria]) grouped[i.categoria] = [];
+      grouped[i.categoria].push(i);
+    });
+    
+    html += '<div id="instr-list">';
+    INSTR_CATEGORIAS.forEach(function(cat) {
+      var items = grouped[cat] || [];
+      if (!items.length) return;
+      
+      html += '<div class="card mb-16" data-cat="' + cat + '">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+        '<span style="font-size:20px;">' + (INSTR_ICONS[cat]||'📋') + '</span>' +
+        '<div class="section-title" style="margin-bottom:0;">' + cat + '</div>' +
+        '<span style="font-size:11px;color:var(--text-secondary);background:var(--bg);padding:2px 8px;border-radius:10px;">' + items.length + '</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">';
+      
+      items.forEach(function(inst) {
+        html += '<div class="instr-card" data-nombre="' + (inst.nombre||'').toLowerCase() + '" style="border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--surface);">' +
+          '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">' + inst.nombre + '</div>' +
+          (inst.descripcion ? '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">' + inst.descripcion + '</div>' : '') +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+        
+        if (inst.archivo_url) {
+          html += '<a href="' + inst.archivo_url + '" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;font-size:11px;">⬇️ Descargar PDF</a>';
+        } else if (inst.drive_link || inst.archivo_nombre) {
+          html += '<a href="' + (inst.drive_link||inst.archivo_url||'#') + '" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none;font-size:11px;">🔗 Ver en Drive</a>';
+        }
+        
+        if (canEdit) {
+          html += '<button class="btn btn-secondary btn-sm" onclick="editarInstrumento(\'' + inst.id + '\')" style="font-size:11px;">✏️</button>';
+        }
+        if (canDelete) {
+          html += '<button onclick="confirmarEliminarInstrumento(\'' + inst.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;">🗑</button>';
+        }
+        html += '</div></div>';
+      });
+      
+      html += '</div></div>';
+    });
+    
+    if (!instrumentos.length) {
+      html += '<div class="card"><div class="empty-state">No hay instrumentos cargados aún.<br>' + (canEdit ? 'Hacé clic en "+ Agregar instrumento" para comenzar.' : '') + '</div></div>';
+    }
+    
+    html += '</div>';
+    el.innerHTML = html;
+    window._instrData = instrumentos;
+  } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+function filtrarInstrumentos() {
+  var search = _instrSearch.toLowerCase();
+  var cat = _instrFiltroCategoria;
+  document.querySelectorAll('#instr-list .card').forEach(function(card) {
+    var cardCat = card.getAttribute('data-cat');
+    var catMatch = !cat || cardCat === cat;
+    card.style.display = catMatch ? '' : 'none';
+    if (catMatch && search) {
+      card.querySelectorAll('.instr-card').forEach(function(ic) {
+        var nombre = ic.getAttribute('data-nombre') || '';
+        ic.style.display = nombre.indexOf(search) > -1 ? '' : 'none';
+      });
+    }
+  });
+}
+
+function abrirNuevoInstrumento() {
+  document.getElementById('modal-instr-title').textContent = '📄 Nuevo instrumento';
+  document.getElementById('instr-id').value = '';
+  document.getElementById('instr-nombre').value = '';
+  document.getElementById('instr-categoria').value = '';
+  document.getElementById('instr-desc').value = '';
+  document.getElementById('instr-file').value = '';
+  document.getElementById('instr-link').value = '';
+  document.getElementById('instr-file-current').textContent = '';
+  document.getElementById('instr-delete-btn').style.display = 'none';
+  openModal('modal-instrumento');
+}
+
+async function editarInstrumento(id) {
+  try {
+    var items = await api('GET', 'instrumentos', null, '?id=eq.' + id + '&limit=1');
+    var inst = items[0];
+    document.getElementById('modal-instr-title').textContent = '✏️ Editar instrumento';
+    document.getElementById('instr-id').value = inst.id;
+    document.getElementById('instr-nombre').value = inst.nombre || '';
+    document.getElementById('instr-categoria').value = inst.categoria || '';
+    document.getElementById('instr-desc').value = inst.descripcion || '';
+    document.getElementById('instr-file').value = '';
+    document.getElementById('instr-link').value = inst.drive_link || '';
+    document.getElementById('instr-file-current').textContent = inst.archivo_nombre ? '📄 Archivo actual: ' + inst.archivo_nombre : '';
+    document.getElementById('instr-delete-btn').style.display = CU.rol === 'directora' ? 'inline-block' : 'none';
+    openModal('modal-instrumento');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function guardarInstrumento() {
+  var id = document.getElementById('instr-id').value;
+  var nombre = document.getElementById('instr-nombre').value.trim();
+  var categoria = document.getElementById('instr-categoria').value;
+  var desc = document.getElementById('instr-desc').value.trim();
+  var link = document.getElementById('instr-link').value.trim();
+  var fileInput = document.getElementById('instr-file');
+  
+  if (!nombre) { alert('Ingresá el nombre del instrumento'); return; }
+  if (!categoria) { alert('Seleccioná una categoría'); return; }
+  
+  var btn = document.getElementById('instr-save-btn');
+  btn.textContent = '⏳ Guardando...';
+  btn.disabled = true;
+  
+  try {
+    var archivo_url = null;
+    var archivo_nombre = null;
+    
+    if (fileInput.files && fileInput.files[0]) {
+      var file = fileInput.files[0];
+      archivo_nombre = file.nombre || file.name;
+      var filePath = 'instrumentos/' + Date.now() + '_' + archivo_nombre.replace(/[^a-zA-Z0-9.]/g, '_');
+      var uploadRes = await fetch('https://umkcxapqznlndcdwdgoi.supabase.co/storage/v1/object/archivos/' + filePath, {
+        method: 'POST',
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVta2N4YXBxem5sbmRjZHdkZ29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzYzMDcsImV4cCI6MjA5NzgxMjMwN30.HepmR58e0ZQnFkVz1JFpQ-oWwxCWAjw6Q3kYlVsd3h0', 'Authorization': 'Bearer ' + window._authToken, 'Content-Type': file.type, 'x-upsert': 'true' },
+        body: file
+      });
+      if (uploadRes.ok) {
+        archivo_url = 'https://umkcxapqznlndcdwdgoi.supabase.co/storage/v1/object/public/archivos/' + filePath;
+      } else {
+        throw new Error('Error al subir archivo');
+      }
+    }
+    
+    var data = {
+      nombre: nombre, categoria: categoria,
+      descripcion: desc || null,
+      drive_link: link || null,
+      created_by: CU.id, activo: true
+    };
+    if (archivo_url) { data.archivo_url = archivo_url; data.archivo_nombre = archivo_nombre; }
+    
+    if (id) {
+      await api('PATCH', 'instrumentos', data, '?id=eq.' + id);
+    } else {
+      await api('POST', 'instrumentos', data);
+    }
+    
+    closeModal('modal-instrumento');
+    toast('✅ Instrumento guardado');
+    loadInstrumentos();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.textContent = '💾 Guardar';
+    btn.disabled = false;
+  }
+}
+
+async function confirmarEliminarInstrumento(id) {
+  if (CU.rol !== 'directora') { alert('Solo la directora puede eliminar instrumentos'); return; }
+  if (!confirm('¿Eliminar este instrumento? Esta acción no se puede deshacer.')) return;
+  try {
+    await api('PATCH', 'instrumentos', { activo: false }, '?id=eq.' + id);
+    toast('Instrumento eliminado');
+    loadInstrumentos();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarInstrumento() {
+  var id = document.getElementById('instr-id').value;
+  if (!id) return;
+  await confirmarEliminarInstrumento(id);
+  closeModal('modal-instrumento');
+}
+
+// ==================
+// INFORMES EN LEGAJO
+// ==================
+var _informePacId = null;
+
+async function abrirSubirInforme(pacId) {
+  _informePacId = pacId;
+  document.getElementById('modal-informe-title').textContent = '📋 Subir informe';
+  document.getElementById('informe-id').value = '';
+  document.getElementById('informe-pac-id').value = pacId;
+  document.getElementById('informe-titulo').value = '';
+  document.getElementById('informe-fecha').value = today();
+  document.getElementById('informe-file').value = '';
+  document.getElementById('informe-file-current').textContent = '';
+  document.getElementById('informe-link').value = '';
+  document.getElementById('informe-notas').value = '';
+  openModal('modal-informe');
+}
+
+async function guardarInforme() {
+  var pacId = document.getElementById('informe-pac-id').value;
+  var titulo = document.getElementById('informe-titulo').value.trim();
+  var fecha = document.getElementById('informe-fecha').value;
+  var link = document.getElementById('informe-link').value.trim();
+  var notas = document.getElementById('informe-notas').value.trim();
+  var fileInput = document.getElementById('informe-file');
+  
+  if (!titulo) { alert('Ingresá el título del informe'); return; }
+  
+  var btn = document.querySelector('#modal-informe .btn-primary');
+  btn.textContent = '⏳ Subiendo...';
+  btn.disabled = true;
+  
+  try {
+    var archivo_url = link || null;
+    var archivo_nombre = null;
+    
+    if (fileInput.files && fileInput.files[0]) {
+      var file = fileInput.files[0];
+      archivo_nombre = file.name;
+      var filePath = 'informes/' + pacId + '/' + Date.now() + '_' + archivo_nombre.replace(/[^a-zA-Z0-9.]/g, '_');
+      var uploadRes = await fetch('https://umkcxapqznlndcdwdgoi.supabase.co/storage/v1/object/archivos/' + filePath, {
+        method: 'POST',
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVta2N4YXBxem5sbmRjZHdkZ29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzYzMDcsImV4cCI6MjA5NzgxMjMwN30.HepmR58e0ZQnFkVz1JFpQ-oWwxCWAjw6Q3kYlVsd3h0', 'Authorization': 'Bearer ' + window._authToken, 'Content-Type': file.type, 'x-upsert': 'true' },
+        body: file
+      });
+      if (uploadRes.ok) {
+        archivo_url = 'https://umkcxapqznlndcdwdgoi.supabase.co/storage/v1/object/public/archivos/' + filePath;
+        archivo_nombre = file.name;
+      } else {
+        var err = await uploadRes.json();
+        throw new Error(err.message || 'Error al subir archivo');
+      }
+    }
+    
+    await api('POST', 'informes', {
+      paciente_id: pacId,
+      profesional_id: CU.id,
+      titulo: titulo,
+      fecha: fecha,
+      archivo_url: archivo_url,
+      archivo_nombre: archivo_nombre,
+      notas: notas || null
+    });
+    
+    closeModal('modal-informe');
+    toast('✅ Informe guardado');
+    // Reload legajo if open
+    if (curPacId === pacId) verLegajo(pacId, curProfId);
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.textContent = '💾 Guardar';
+    btn.disabled = false;
+  }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
