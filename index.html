@@ -292,7 +292,7 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="nav-item" id="nav-pacientes" onclick="goTo('pacientes')">📁 Pacientes</div>
       <div class="nav-item" id="nav-agenda" onclick="goTo('agenda')">📅 Agenda</div>
       <div class="nav-item" id="nav-semanal" onclick="goTo('semanal')">📆 Vista semanal</div>
-      <div class="nav-item" id="nav-instrumentos" onclick="goTo('instrumentos')">🗂 Instrumentos</div>
+      <div class="nav-item" id="nav-instrumentos" onclick="goTo('instrumentos')" style="display:none;">🗂 Instrumentos</div>
       <div class="nav-item" id="nav-perfil" onclick="goTo('perfil')">👤 Mi perfil</div>
       <div class="nav-item mobile-only" onclick="logout()" style="color:var(--red);display:none;" id="nav-logout">🚪 Salir</div>
     </div>
@@ -672,6 +672,99 @@ input[type="time"] { -webkit-appearance: none; }
       <button class="btn btn-danger btn-sm" id="gasto-delete-btn" onclick="eliminarGasto()" style="display:none;">🗑 Eliminar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-gasto')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarGasto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SESION CLINICA -->
+<div class="modal-overlay" id="modal-sesion">
+  <div class="modal" style="width:560px;max-height:85vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3 id="modal-sesion-title">📋 Registrar sesión</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-sesion')">✕</button>
+    </div>
+    <input type="hidden" id="sesion-id">
+    <div class="grid-2">
+      <div class="form-group"><label>Fecha</label><input type="date" id="sesion-fecha"></div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="sesion-tipo">
+          <option value="sesion">Sesión</option>
+          <option value="evaluacion">Evaluación</option>
+          <option value="devolucion">Devolución</option>
+          <option value="reunion_colegio">Reunión con colegio</option>
+          <option value="reunion_padres">Reunión con padres</option>
+          <option value="reunion_profesional">Reunión con profesional</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>🎯 Objetivo de la sesión</label><textarea id="sesion-objetivo" placeholder="¿Qué se planificó trabajar en esta sesión?" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>✅ Logros</label><textarea id="sesion-logros" placeholder="¿Qué se logró? ¿Qué objetivos se alcanzaron?" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>⚡ Desafíos</label><textarea id="sesion-desafios" placeholder="¿Qué dificultades se presentaron?" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>📝 Observaciones varias</label><textarea id="sesion-observaciones" placeholder="Comportamiento, estado emocional, otras observaciones..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group" style="background:#E8F6F4;border-radius:8px;padding:12px;">
+      <label style="color:#1B8A7A;">📋 Planificación próxima sesión</label>
+      <textarea id="sesion-planificacion" placeholder="¿Qué se planifica trabajar en la próxima sesión?" style="width:100%;padding:8px;border:1px solid #1B8A7A33;border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;background:white;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-sesion')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarSesionClinica()">💾 Guardar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ANAMNESIS -->
+<div class="modal-overlay" id="modal-anamnesis">
+  <div class="modal" style="width:600px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3>📝 Anamnesis clínica</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-anamnesis')">✕</button>
+    </div>
+    <input type="hidden" id="anam-id">
+    <input type="hidden" id="anam-pac-id">
+    <input type="hidden" id="anam-prof-id">
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;background:#FEF6E0;padding:10px;border-radius:6px;">
+      💡 Completá los campos disponibles. Podés guardar parcialmente y continuar después.
+    </div>
+    <div class="form-group"><label>🎯 Motivo de consulta</label><textarea id="anam-motivo" placeholder="¿Por qué consultan? ¿Qué preocupaciones tienen los padres/cuidadores?" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:80px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>🌱 Historia del desarrollo</label><textarea id="anam-desarrollo" placeholder="Embarazo, parto, hitos del desarrollo motor, lenguaje, social..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:80px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>🏥 Antecedentes médicos</label><textarea id="anam-medicos" placeholder="Diagnósticos previos, medicación, cirugías, hospitalizaciones..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>👨‍👩‍👧 Antecedentes familiares</label><textarea id="anam-familiares" placeholder="¿Hay antecedentes familiares relevantes? ¿Composición familiar?" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>🏫 Situación escolar</label><textarea id="anam-escolar" placeholder="Institución, grado, adaptaciones, relación con pares y docentes..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>🏠 Situación familiar y vincular</label><textarea id="anam-familiar" placeholder="Dinámica familiar, vínculos, rutinas, crianza..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>🔄 Tratamientos previos</label><textarea id="anam-tratamientos" placeholder="¿Tuvo tratamientos anteriores? ¿Con quién? ¿Por cuánto tiempo? ¿Resultados?" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>📋 Observaciones generales</label><textarea id="anam-observaciones" placeholder="Otros aspectos relevantes a tener en cuenta..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;resize:vertical;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-anamnesis')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarAnamnesis()">💾 Guardar anamnesis</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ARCHIVO PACIENTE -->
+<div class="modal-overlay" id="modal-archivo-pac">
+  <div class="modal" style="width:460px;">
+    <div class="modal-header">
+      <h3>📁 Subir archivo</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-archivo-pac')">✕</button>
+    </div>
+    <input type="hidden" id="arch-pac-id">
+    <div class="form-group"><label>Nombre del archivo</label><input id="arch-nombre" placeholder="Ej: Entrevista inicial, Informe anterior..."></div>
+    <div class="form-group"><label>Tipo</label>
+      <select id="arch-tipo">
+        <option value="entrevista_inicial">Entrevista inicial</option>
+        <option value="informe">Informe</option>
+        <option value="evaluacion">Evaluación</option>
+        <option value="documento">Documento</option>
+        <option value="otro">Otro</option>
+      </select>
+    </div>
+    <div class="form-group"><label>📎 Subir archivo (PDF, imagen)</label>
+      <input type="file" id="arch-file" accept="application/pdf,image/png,image/jpeg,image/gif,image/webp" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+    </div>
+    <div class="form-group"><label>🔗 O link de Drive</label><input id="arch-link" placeholder="https://drive.google.com/..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-archivo-pac')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarArchivoPac()" id="arch-save-btn">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -1516,7 +1609,10 @@ async function verLegajo(pacId, profId) {
       '<div class="tab" onclick="switchTab(this,\'lt-obj\')">Objetivos (' + objs.length + ')</div>' +
       '<div class="tab" onclick="switchTab(this,\'lt-ses\')">Sesiones (' + sesiones.length + ')</div>' +
       '<div class="tab" onclick="switchTab(this,\'lt-notas\')">Notas (' + notas.length + ')</div>' +
-      '<div class="tab" onclick="switchTab(this,\'lt-informes\')">📋 Informes</div></div>';
+      '<div class="tab" onclick="switchTab(this,\'lt-informes\')">📋 Informes</div>' +
+      '<div class="tab" onclick="switchTab(this,\'lt-anamnesis\')">📝 Anamnesis</div>' +
+      '<div class="tab" onclick="switchTab(this,\'lt-archivos\')">📁 Archivos</div>' +
+      '</div>';
 
     html += '<div id="lt-obs" class="tab-sec active">' + addBtn('observacion', 'Nueva observación') +
       (obs.length ? obs.map(function(o) {
@@ -1538,11 +1634,29 @@ async function verLegajo(pacId, profId) {
         estr.map(function(e) { return '<div class="obs-card" style="border-left-color:#0F6E56;">' + e.contenido + '</div>'; }).join('') : '') + '</div>';
 
     html += '<div id="lt-ses" class="tab-sec">' +
-      (canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="regSesion()">+ Registrar sesión</button>' : '') +
-      (sesiones.length ? '<table class="pac-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Nota</th></tr></thead><tbody>' +
-        sesiones.map(function(s) {
-          return '<tr><td>' + fmt(s.fecha) + '</td><td><span class="badge b-green">' + s.tipo + '</span></td><td>' + (s.nota||'—') + '</td></tr>';
-        }).join('') + '</tbody></table>' : '<div class="empty-state">Sin sesiones</div>') + '</div>';
+      (canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="abrirNuevaSesion()">+ Registrar sesión</button>' : '') +
+      (sesiones.length ? sesiones.map(function(s) {
+        var tipoLabel = { sesion:'Sesión', evaluacion:'Evaluación', reunion_colegio:'Reunión colegio', reunion_padres:'Reunión padres', reunion_profesional:'Reunión profesional', devolucion:'Devolución' };
+        var tipoColor = { sesion:'b-green', evaluacion:'b-amber', reunion_colegio:'b-blue', reunion_padres:'b-purple', reunion_profesional:'b-gray', devolucion:'b-red' };
+        return '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<span style="font-size:13px;font-weight:600;">' + fmt(s.fecha) + '</span>' +
+          '<span class="badge ' + (tipoColor[s.tipo_reunion||s.tipo]||'b-green') + '">' + (tipoLabel[s.tipo_reunion||s.tipo]||s.tipo) + '</span>' +
+          '</div>' +
+          (canEdit ? '<div style="display:flex;gap:4px;">' +
+            '<button onclick="editarSesion(\'' + s.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;">✏️</button>' +
+            '<button onclick="eliminarSesion(\'' + s.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;">🗑</button>' +
+            '</div>' : '') +
+          '</div>' +
+          (s.objetivo_sesion ? '<div style="margin-bottom:6px;"><span style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;">Objetivo</span><div style="font-size:12px;margin-top:2px;">' + s.objetivo_sesion + '</div></div>' : '') +
+          (s.logros ? '<div style="margin-bottom:6px;"><span style="font-size:10px;font-weight:600;color:#1B8A7A;text-transform:uppercase;">Logros</span><div style="font-size:12px;margin-top:2px;">' + s.logros + '</div></div>' : '') +
+          (s.desafios ? '<div style="margin-bottom:6px;"><span style="font-size:10px;font-weight:600;color:#F0A500;text-transform:uppercase;">Desafíos</span><div style="font-size:12px;margin-top:2px;">' + s.desafios + '</div></div>' : '') +
+          (s.observaciones ? '<div style="margin-bottom:6px;"><span style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;">Observaciones</span><div style="font-size:12px;margin-top:2px;">' + s.observaciones + '</div></div>' : '') +
+          (s.planificacion ? '<div style="background:#E8F6F4;border-radius:6px;padding:8px;margin-top:6px;"><span style="font-size:10px;font-weight:600;color:#1B8A7A;text-transform:uppercase;">📋 Planificación próxima sesión</span><div style="font-size:12px;margin-top:2px;">' + s.planificacion + '</div></div>' : '') +
+          (s.nota && !s.objetivo_sesion ? '<div style="font-size:12px;color:var(--text-secondary);">' + s.nota + '</div>' : '') +
+          '</div>';
+      }).join('') : '<div class="empty-state">Sin sesiones</div>') + '</div>';
 
     html += '<div id="lt-notas" class="tab-sec">' + addBtn('informe', 'Nueva nota') +
       (notas.length ? notas.map(function(n) {
@@ -1551,6 +1665,15 @@ async function verLegajo(pacId, profId) {
           '<span style="flex:1;font-size:13px;">' + n.contenido.slice(0,80) + (n.contenido.length > 80 ? '...' : '') + '</span>' +
           '<span style="font-size:11px;color:var(--text-secondary);">' + fmt(n.fecha) + '</span></div>';
       }).join('') : '<div class="empty-state">Sin notas</div>') + '</div>';
+
+    // ANAMNESIS TAB
+    html += '<div id="lt-anamnesis" class="tab-sec"><div id="lt-anamnesis-content">Cargando...</div></div>';
+    // ARCHIVOS TAB  
+    html += '<div id="lt-archivos" class="tab-sec">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<div style="font-size:13px;font-weight:600;">📁 Archivos del paciente</div>' +
+      (canEdit ? '<button class="btn btn-primary btn-sm" onclick="abrirSubirArchivoPac(\'' + pacId + '\')">+ Subir archivo</button>' : '') +
+      '</div><div id="lt-archivos-list">Cargando...</div></div>';
 
     html += '<div id="lt-informes" class="tab-sec">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
@@ -1562,6 +1685,46 @@ async function verLegajo(pacId, profId) {
     
     // Load informes async after DOM is ready
     var pacIdCopy = pacId;
+    var profIdCopy = profId;
+    
+    // Load anamnesis
+    api('GET', 'anamnesis', null, '?paciente_id=eq.' + pacIdCopy + '&profesional_id=eq.' + profIdCopy + '&limit=1').then(function(anamList) {
+      var el = document.getElementById('lt-anamnesis-content');
+      if (!el) return;
+      var anam = anamList && anamList.length ? anamList[0] : null;
+      el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+        '<div style="font-size:13px;font-weight:600;">📝 Anamnesis clínica</div>' +
+        (canEdit ? '<button class="btn btn-primary btn-sm" onclick="abrirAnamnesis(\'' + pacIdCopy + '\',\'' + profIdCopy + '\')">' + (anam ? '✏️ Editar' : '+ Crear anamnesis') + '</button>' : '') +
+        '</div>' +
+        (anam ? 
+          '<div style="display:grid;gap:12px;">' +
+          (anam.motivo_consulta ? '<div class="obs-card"><div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px;">Motivo de consulta</div><div style="font-size:13px;">' + anam.motivo_consulta + '</div></div>' : '') +
+          (anam.historia_desarrollo ? '<div class="obs-card"><div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px;">Historia del desarrollo</div><div style="font-size:13px;">' + anam.historia_desarrollo + '</div></div>' : '') +
+          (anam.antecedentes_medicos ? '<div class="obs-card"><div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px;">Antecedentes médicos</div><div style="font-size:13px;">' + anam.antecedentes_medicos + '</div></div>' : '') +
+          (anam.antecedentes_familiares ? '<div class="obs-card"><div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px;">Antecedentes familiares</div><div style="font-size:13px;">' + anam.antecedentes_familiares + '</div></div>' : '') +
+          (anam.situacion_escolar ? '<div class="obs-card"><div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px;">Situación escolar</div><div style="font-size:13px;">' + anam.situacion_escolar + '</div></div>' : '') +
+          (anam.situacion_familiar ? '<div class="obs-card"><div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px;">Situación familiar</div><div style="font-size:13px;">' + anam.situacion_familiar + '</div></div>' : '') +
+          (anam.tratamientos_previos ? '<div class="obs-card"><div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px;">Tratamientos previos</div><div style="font-size:13px;">' + anam.tratamientos_previos + '</div></div>' : '') +
+          (anam.observaciones_generales ? '<div class="obs-card"><div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px;">Observaciones generales</div><div style="font-size:13px;">' + anam.observaciones_generales + '</div></div>' : '') +
+          '</div>' :
+          '<div class="empty-state">Sin anamnesis cargada aún.' + (canEdit ? ' Hacé clic en "+ Crear anamnesis" para comenzar.' : '') + '</div>');
+    }).catch(function() {});
+
+    // Load archivos
+    api('GET', 'archivos_paciente', null, '?paciente_id=eq.' + pacIdCopy + '&order=created_at.desc').then(function(archivos) {
+      var el = document.getElementById('lt-archivos-list');
+      if (!el) return;
+      if (!archivos || !archivos.length) { el.innerHTML = '<div class="empty-state">Sin archivos cargados.</div>'; return; }
+      el.innerHTML = archivos.map(function(a) {
+        return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">' +
+          '<span style="font-size:20px;">📄</span>' +
+          '<div style="flex:1;"><div style="font-size:13px;font-weight:500;">' + a.nombre + '</div>' +
+          '<div style="font-size:11px;color:var(--text-secondary);">' + (a.tipo||'') + ' · ' + fmt(a.created_at ? a.created_at.slice(0,10) : '') + '</div></div>' +
+          (a.archivo_url ? '<a href="' + a.archivo_url + '" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none;font-size:11px;">⬇️</a>' : '') +
+          '</div>';
+      }).join('');
+    }).catch(function() {});
+
     api('GET', 'informes', null, '?paciente_id=eq.' + pacIdCopy + '&order=fecha.desc').then(function(informes) {
       var el = document.getElementById('lt-informes-list');
       if (!el) return;
@@ -1616,7 +1779,8 @@ async function loadPacs() {
   try {
     var pacs;
     if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
-      pacs = await api('GET', 'pacientes', null, '?order=nombre.asc');
+      var estadoQ = showInactivos ? '?estado=not.eq.activo&order=nombre.asc' : '?estado=eq.activo&order=nombre.asc';
+      pacs = await api('GET', 'pacientes', null, estadoQ);
     } else {
       // Get asignaciones for this professional
       var asig = await api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id);
@@ -1630,9 +1794,14 @@ async function loadPacs() {
     var profMap = {};
     profs.forEach(function(p) { profMap[p.id] = p.nombre; });
     // Add merge tool button for directora
+    // Show/hide inactive toggle
+    var showInactivos = window._showInactivos || false;
     var headerEl = document.getElementById('pac-header-actions');
     if (headerEl && (CU.rol === 'directora' || CU.rol === 'recepcionista')) {
-      headerEl.innerHTML += '<button class="btn btn-secondary btn-sm" onclick="abrirMergeDuplicados()">🔄 Fusionar duplicados</button>';
+      headerEl.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+        '<button class="btn btn-secondary btn-sm" onclick="abrirMergeDuplicados()">🔄 Fusionar duplicados</button>' +
+        '<button class="btn ' + (showInactivos ? 'btn-primary' : 'btn-secondary') + ' btn-sm" onclick="toggleInactivos()">' + (showInactivos ? '👁 Viendo inactivos' : '📁 Ver inactivos') + '</button>' +
+        '</div>';
     }
     var el = document.getElementById('pac-table-wrap');
     if (!pacs.length) { el.innerHTML = '<div class="empty-state">Sin pacientes</div>'; return; }
@@ -2294,6 +2463,11 @@ async function uploadFoto(input) {
     toast('✅ Foto actualizada');
     loadPerfil();
   } catch(e) { console.error(e); toast('Error al subir la foto'); }
+}
+
+function toggleInactivos() {
+  window._showInactivos = !window._showInactivos;
+  loadPacs();
 }
 
 async function verMisPacientes() {
@@ -3913,6 +4087,180 @@ async function guardarInforme() {
     btn.textContent = '💾 Guardar';
     btn.disabled = false;
   }
+}
+
+
+// ==================
+// SESION CLINICA
+// ==================
+var _sesionPacId = null;
+var _sesionProfId = null;
+
+function abrirNuevaSesion() {
+  _sesionPacId = curPacId;
+  _sesionProfId = curProfId;
+  document.getElementById('modal-sesion-title').textContent = '📋 Registrar sesión';
+  document.getElementById('sesion-id').value = '';
+  document.getElementById('sesion-fecha').value = today();
+  document.getElementById('sesion-tipo').value = 'sesion';
+  document.getElementById('sesion-objetivo').value = '';
+  document.getElementById('sesion-logros').value = '';
+  document.getElementById('sesion-desafios').value = '';
+  document.getElementById('sesion-observaciones').value = '';
+  document.getElementById('sesion-planificacion').value = '';
+  openModal('modal-sesion');
+}
+
+async function editarSesion(id) {
+  try {
+    var ses = await api('GET', 'sesiones', null, '?id=eq.' + id + '&limit=1');
+    var s = ses[0];
+    document.getElementById('modal-sesion-title').textContent = '✏️ Editar sesión';
+    document.getElementById('sesion-id').value = s.id;
+    document.getElementById('sesion-fecha').value = s.fecha || today();
+    document.getElementById('sesion-tipo').value = s.tipo_reunion || s.tipo || 'sesion';
+    document.getElementById('sesion-objetivo').value = s.objetivo_sesion || '';
+    document.getElementById('sesion-logros').value = s.logros || '';
+    document.getElementById('sesion-desafios').value = s.desafios || '';
+    document.getElementById('sesion-observaciones').value = s.observaciones || (s.nota||'');
+    document.getElementById('sesion-planificacion').value = s.planificacion || '';
+    openModal('modal-sesion');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function guardarSesionClinica() {
+  var id = document.getElementById('sesion-id').value;
+  var data = {
+    paciente_id: _sesionPacId || curPacId,
+    profesional_id: _sesionProfId || curProfId,
+    fecha: document.getElementById('sesion-fecha').value,
+    tipo: document.getElementById('sesion-tipo').value,
+    tipo_reunion: document.getElementById('sesion-tipo').value,
+    objetivo_sesion: document.getElementById('sesion-objetivo').value || null,
+    logros: document.getElementById('sesion-logros').value || null,
+    desafios: document.getElementById('sesion-desafios').value || null,
+    observaciones: document.getElementById('sesion-observaciones').value || null,
+    planificacion: document.getElementById('sesion-planificacion').value || null,
+    nota: document.getElementById('sesion-observaciones').value || null
+  };
+  try {
+    if (id) {
+      await api('PATCH', 'sesiones', data, '?id=eq.' + id);
+    } else {
+      await api('POST', 'sesiones', data);
+    }
+    closeModal('modal-sesion');
+    toast('✅ Sesión guardada');
+    verLegajo(curPacId, curProfId);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarSesion(id) {
+  if (!confirm('¿Eliminar esta sesión? Esta acción no se puede deshacer.')) return;
+  try {
+    await api('DELETE', 'sesiones', null, '?id=eq.' + id);
+    toast('Sesión eliminada');
+    verLegajo(curPacId, curProfId);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================
+// ANAMNESIS
+// ==================
+async function abrirAnamnesis(pacId, profId) {
+  document.getElementById('anam-pac-id').value = pacId;
+  document.getElementById('anam-prof-id').value = profId;
+  try {
+    var list = await api('GET', 'anamnesis', null, '?paciente_id=eq.' + pacId + '&profesional_id=eq.' + profId + '&limit=1');
+    var a = list && list.length ? list[0] : null;
+    document.getElementById('anam-id').value = a ? a.id : '';
+    document.getElementById('anam-motivo').value = a ? (a.motivo_consulta||'') : '';
+    document.getElementById('anam-desarrollo').value = a ? (a.historia_desarrollo||'') : '';
+    document.getElementById('anam-medicos').value = a ? (a.antecedentes_medicos||'') : '';
+    document.getElementById('anam-familiares').value = a ? (a.antecedentes_familiares||'') : '';
+    document.getElementById('anam-escolar').value = a ? (a.situacion_escolar||'') : '';
+    document.getElementById('anam-familiar').value = a ? (a.situacion_familiar||'') : '';
+    document.getElementById('anam-tratamientos').value = a ? (a.tratamientos_previos||'') : '';
+    document.getElementById('anam-observaciones').value = a ? (a.observaciones_generales||'') : '';
+    openModal('modal-anamnesis');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function guardarAnamnesis() {
+  var id = document.getElementById('anam-id').value;
+  var pacId = document.getElementById('anam-pac-id').value;
+  var profId = document.getElementById('anam-prof-id').value;
+  var data = {
+    paciente_id: pacId, profesional_id: profId,
+    motivo_consulta: document.getElementById('anam-motivo').value || null,
+    historia_desarrollo: document.getElementById('anam-desarrollo').value || null,
+    antecedentes_medicos: document.getElementById('anam-medicos').value || null,
+    antecedentes_familiares: document.getElementById('anam-familiares').value || null,
+    situacion_escolar: document.getElementById('anam-escolar').value || null,
+    situacion_familiar: document.getElementById('anam-familiar').value || null,
+    tratamientos_previos: document.getElementById('anam-tratamientos').value || null,
+    observaciones_generales: document.getElementById('anam-observaciones').value || null,
+    updated_at: new Date().toISOString()
+  };
+  try {
+    if (id) {
+      await api('PATCH', 'anamnesis', data, '?id=eq.' + id);
+    } else {
+      await api('POST', 'anamnesis', data);
+    }
+    closeModal('modal-anamnesis');
+    toast('✅ Anamnesis guardada');
+    verLegajo(pacId, profId);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================
+// ARCHIVOS PACIENTE
+// ==================
+function abrirSubirArchivoPac(pacId) {
+  document.getElementById('arch-pac-id').value = pacId;
+  document.getElementById('arch-nombre').value = '';
+  document.getElementById('arch-tipo').value = 'documento';
+  document.getElementById('arch-file').value = '';
+  document.getElementById('arch-link').value = '';
+  openModal('modal-archivo-pac');
+}
+
+async function guardarArchivoPac() {
+  var pacId = document.getElementById('arch-pac-id').value;
+  var nombre = document.getElementById('arch-nombre').value.trim();
+  var tipo = document.getElementById('arch-tipo').value;
+  var link = document.getElementById('arch-link').value.trim();
+  var fileInput = document.getElementById('arch-file');
+  if (!nombre) { alert('Ingresá el nombre del archivo'); return; }
+  var btn = document.getElementById('arch-save-btn');
+  btn.textContent = '⏳ Subiendo...'; btn.disabled = true;
+  try {
+    var archivo_url = link || null;
+    var archivo_nombre = null;
+    if (fileInput.files && fileInput.files[0]) {
+      var file = fileInput.files[0];
+      archivo_nombre = file.name;
+      var filePath = 'pacientes/' + pacId + '/' + Date.now() + '_' + archivo_nombre.replace(/[^a-zA-Z0-9.]/g, '_');
+      var uploadRes = await fetch('https://umkcxapqznlndcdwdgoi.supabase.co/storage/v1/object/archivos/' + filePath, {
+        method: 'POST',
+        headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVta2N4YXBxem5sbmRjZHdkZ29pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzYzMDcsImV4cCI6MjA5NzgxMjMwN30.HepmR58e0ZQnFkVz1JFpQ-oWwxCWAjw6Q3kYlVsd3h0', 'Authorization': 'Bearer ' + window._authToken, 'Content-Type': file.type, 'x-upsert': 'true' },
+        body: file
+      });
+      if (uploadRes.ok) {
+        archivo_url = 'https://umkcxapqznlndcdwdgoi.supabase.co/storage/v1/object/public/archivos/' + filePath;
+      } else { throw new Error('Error al subir archivo'); }
+    }
+    await api('POST', 'archivos_paciente', {
+      paciente_id: pacId, profesional_id: CU.id,
+      nombre: nombre, tipo: tipo,
+      archivo_url: archivo_url, archivo_nombre: archivo_nombre || nombre
+    });
+    closeModal('modal-archivo-pac');
+    toast('✅ Archivo guardado');
+    verLegajo(pacId, curProfId);
+  } catch(e) { alert('Error: ' + e.message); }
+  finally { btn.textContent = '💾 Guardar'; btn.disabled = false; }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
