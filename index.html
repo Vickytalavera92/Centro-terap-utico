@@ -1517,6 +1517,7 @@ async function verProf(idxOrId) {
     if (CU.rol === 'recepcionista') {
       html += '<div class="tabs">' +
         '<div class="tab active" onclick="switchTab(this,\'tp-agenda\')">🗓 Agenda hoy</div>' +
+        '<div class="tab" onclick="switchTab(this,\'tp-horarios\');loadHorariosFijos(\'' + profId + '\');">📅 Horarios fijos</div>' +
         '</div>';
     } else {
       var showHonorarios = CU.rol === 'directora';
@@ -1534,6 +1535,9 @@ async function verProf(idxOrId) {
       '<div class="form-group"><label>Teléfono</label><div style="padding:8px 0;font-size:13px;">' + (p.telefono||'—') + '</div></div>' +
       '<div class="form-group"><label>Matrícula</label><div style="padding:8px 0;font-size:13px;">' + (p.matricula||'—') + '</div></div>' +
       '<div class="form-group"><label>Horario</label><div style="padding:8px 0;font-size:13px;">' + (p.horario||'—') + '</div></div></div></div>';
+    if (CU.rol === 'recepcionista') {
+      html += '<div id="tp-horarios" class="tab-sec"><div id="horarios-content"><div class="loading">Cargando horarios...</div></div></div>';
+    }
     html += '<div id="tp-agenda" class="tab-sec' + (CU.rol === 'recepcionista' ? ' active' : '') + '">' +
       (ag.length ? ag.map(function(a) {
         var ECOLORS = { pendiente: '#F0A500', confirmado: '#1B8A7A', cancelado: '#C0392B', cancelado_hora: '#E8683A' };
@@ -1590,7 +1594,7 @@ async function verProf(idxOrId) {
 async function verLegajo(pacId, profId) {
   curPacId = pacId;
   curProfId = profId;
-  var canEdit = CU.rol === 'directora' || CU.id === profId;
+  var canEdit = CU.rol === 'directora' || CU.id === profId || CU.rol === 'recepcionista';
   document.getElementById('view-prof-detail').style.display = 'none';
   document.getElementById('view-legajo').style.display = 'block';
   var lv = document.getElementById('view-legajo');
