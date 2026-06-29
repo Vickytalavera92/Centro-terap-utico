@@ -676,6 +676,64 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL HORARIO FIJO -->
+<div class="modal-overlay" id="modal-horario">
+  <div class="modal" style="width:440px;">
+    <div class="modal-header">
+      <h3>📅 Horario fijo</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-horario')">✕</button>
+    </div>
+    <input type="hidden" id="hor-id">
+    <div class="form-group"><label>Paciente</label>
+      <select id="hor-pac" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+        <option value="">Turno libre (sin paciente)</option>
+      </select>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Día</label>
+        <select id="hor-dia">
+          <option value="1">Lunes</option>
+          <option value="2">Martes</option>
+          <option value="3">Miércoles</option>
+          <option value="4">Jueves</option>
+          <option value="5">Viernes</option>
+          <option value="6">Sábado</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Hora</label>
+        <input type="time" id="hor-hora" step="300">
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Tipo</label>
+        <select id="hor-tipo">
+          <option value="sesion">Sesión</option>
+          <option value="evaluacion">Evaluación</option>
+          <option value="preferencial">Preferencial</option>
+          <option value="devolucion">Devolución</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Frecuencia</label>
+        <select id="hor-frecuencia" onchange="document.getElementById('hor-semana-wrap').style.display=this.value==='quincenal'?'block':'none'">
+          <option value="semanal">Semanal</option>
+          <option value="quincenal">Quincenal</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" id="hor-semana-wrap" style="display:none;">
+      <label>¿Qué semana? (para quincenales)</label>
+      <select id="hor-semana">
+        <option value="1">Semanas 1 y 3 del mes</option>
+        <option value="2">Semanas 2 y 4 del mes</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-horario')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarHorario()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL SESION CLINICA -->
 <div class="modal-overlay" id="modal-sesion">
   <div class="modal" style="width:560px;max-height:85vh;overflow-y:auto;">
@@ -1466,6 +1524,7 @@ async function verProf(idxOrId) {
         '<div class="tab active" onclick="switchTab(this,\'tp-datos\')">Datos</div>' +
         '<div class="tab" onclick="switchTab(this,\'tp-agenda\')">Agenda hoy</div>' +
         (CU.rol !== 'profesional' || CU.id === profId ? '<div class="tab" onclick="switchTab(this,\'tp-legajos\')">Legajos (' + pacs.length + ')</div>' : '') +
+        '<div class="tab" onclick="switchTab(this,\'tp-horarios\');loadHorariosFijos(\'' + profId + '\');">📅 Horarios fijos</div>' +
         (showHonorarios ? '<div class="tab" onclick="switchTab(this,\'tp-honorarios\');loadHonorariosProfTab(\'' + profId + '\');">💰 Honorarios</div>' : '') +
         '</div>';
     }
@@ -1491,14 +1550,16 @@ async function verProf(idxOrId) {
           '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre||'Turno libre') + '</span>' +
           sel + '</div>';
       }).join('') : '<div class="empty-state">Sin turnos hoy</div>') + '</div>';
+    html += '<div id="tp-horarios" class="tab-sec"><div id="horarios-content"><div class="loading">Cargando horarios...</div></div></div>';
     if (CU.rol === 'directora') html += '<div id="tp-honorarios" class="tab-sec"><div class="loading" id="honorarios-loading">Cargando honorarios...</div></div>';
     html += '<div id="tp-legajos" class="tab-sec">' +
-      '<div class="flex justify-between items-center mb-12">' +
-      '<span style="font-size:12px;color:var(--text-secondary);">' + pacs.length + ' legajos</span>' +
+      '<div style="margin-bottom:12px;">' +
+      '<input id="legajo-search" placeholder="🔍 Buscar paciente..." oninput="filtrarLegajos(this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
+      '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">' + pacs.length + ' pacientes asignados</div>' +
       '</div>' +
       '<div class="grid-2">' +
       (pacs.length ? pacs.map(function(pac) {
-        return '<div class="prof-card" data-pac="' + pac.id + '" data-prof="' + curProfId + '" style="cursor:pointer;">' +
+        return '<div class="prof-card" data-pac="' + pac.id + '" data-prof="' + curProfId + '" data-search="' + (pac.nombre + ' ' + pac.apellido).toLowerCase() + '" style="cursor:pointer;">' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
           '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + ini(pac.nombre, pac.apellido) + '</div>' +
           '<div><div style="font-size:13px;font-weight:600;">' + pac.nombre + ' ' + pac.apellido + '</div>' +
@@ -3270,9 +3331,6 @@ async function abrirCobroModal(pacId) {
     var cobros = await api('GET', 'cobros', null, '?paciente_id=eq.' + pacId + '&mes=eq.' + mesKey);
     var p = pacs[0];
     var c = cobros[0];
-    
-    document.getElementById('cobro-pac-nombre').textContent = p.nombre + ' ' + p.apellido + ' — ' + getCobrosLabel();
-    document.getElementById('cobro-monto').value = c ? c.monto : '';
     document.getElementById('cobro-metodo').value = c ? (c.metodo||'efectivo') : 'efectivo';
     document.getElementById('cobro-obs').value = c ? (c.observacion||'') : '';
     document.getElementById('cobro-facturado').checked = c ? (c.facturado||false) : false;
@@ -3296,7 +3354,6 @@ async function guardarCobro() {
     if (cobroId) {
       await api('PATCH', 'cobros', { monto: monto, metodo: metodo, observacion: obs, facturado: facturado, nro_factura: nroFac || null }, '?id=eq.' + cobroId);
     } else {
-      await api('POST', 'cobros', { paciente_id: pacId, monto: monto, metodo: metodo, observacion: obs, facturado: facturado, nro_factura: nroFac || null, mes: mesKey, fecha: today() });
     }
     closeModal('modal-cobro');
     toast('✅ Cobro guardado');
@@ -4261,6 +4318,207 @@ async function guardarArchivoPac() {
     verLegajo(pacId, curProfId);
   } catch(e) { alert('Error: ' + e.message); }
   finally { btn.textContent = '💾 Guardar'; btn.disabled = false; }
+}
+
+
+// ==================
+// BUSCADOR LEGAJOS
+// ==================
+function filtrarLegajos(query) {
+  var q = query.toLowerCase();
+  document.querySelectorAll('#tp-legajos .prof-card').forEach(function(card) {
+    var search = card.getAttribute('data-search') || '';
+    card.style.display = !q || search.indexOf(q) > -1 ? '' : 'none';
+  });
+}
+
+// ==================
+// HORARIOS FIJOS
+// ==================
+var DIAS_SEMANA = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+async function loadHorariosFijos(profId) {
+  var el = document.getElementById('horarios-content');
+  if (!el) return;
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var results = await Promise.all([
+      api('GET', 'horarios_fijos', null, '?profesional_id=eq.' + profId + '&activo=eq.true&order=dia_semana.asc,hora.asc'),
+      api('GET', 'asignaciones', null, '?profesional_id=eq.' + profId),
+    ]);
+    var horarios = results[0];
+    var asig = results[1];
+    var pacIds = asig.map(function(a) { return a.paciente_id; });
+    var pacs = pacIds.length ? await api('GET', 'pacientes', null, '?id=in.(' + pacIds.join(',') + ')&estado=eq.activo&order=nombre.asc') : [];
+    var pacMap = {};
+    pacs.forEach(function(p) { pacMap[p.id] = p; });
+
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+      '<div style="font-size:14px;font-weight:600;">📅 Horarios fijos configurados</div>' +
+      '<div style="display:flex;gap:8px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="abrirNuevoHorario(\'' + profId + '\')\">+ Agregar horario</button>' +
+      '<button class="btn btn-primary btn-sm" onclick="generarAgendaMes(\'' + profId + '\')\">🗓 Generar agenda del mes</button>' +
+      '</div></div>';
+
+    if (!horarios.length) {
+      html += '<div class="empty-state">Sin horarios fijos configurados.<br>Agregá los horarios habituales de tus pacientes.</div>';
+    } else {
+      // Group by day
+      var byDay = {};
+      horarios.forEach(function(h) {
+        if (!byDay[h.dia_semana]) byDay[h.dia_semana] = [];
+        byDay[h.dia_semana].push(h);
+      });
+      [1,2,3,4,5,6].forEach(function(dia) {
+        if (!byDay[dia]) return;
+        html += '<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:700;color:var(--teal);margin-bottom:6px;text-transform:uppercase;">' + DIAS_SEMANA[dia] + '</div>';
+        byDay[dia].forEach(function(h) {
+          var pac = pacMap[h.paciente_id];
+          html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface);">' +
+            '<span style="font-size:13px;font-weight:600;min-width:50px;color:var(--teal);">' + h.hora.slice(0,5) + '</span>' +
+            '<div style="flex:1;">' +
+            '<div style="font-size:13px;font-weight:500;">' + (pac ? pac.nombre + ' ' + pac.apellido : 'Paciente no encontrado') + '</div>' +
+            '<div style="font-size:11px;color:var(--text-secondary);">' + (h.frecuencia === 'quincenal' ? '📆 Quincenal (semana ' + h.semana_quincenal + ')' : '📅 Semanal') + ' · ' + (h.tipo||'sesion') + '</div>' +
+            '</div>' +
+            '<button onclick="editarHorario(\'' + h.id + '\')\" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">✏️</button>' +
+            '<button onclick="eliminarHorario(\'' + h.id + '\',\'' + profId + '\')\" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">🗑</button>' +
+            '</div>';
+        });
+        html += '</div>';
+      });
+    }
+    el.innerHTML = html;
+    window._horariosProfId = profId;
+    window._horariosPacs = pacs;
+  } catch(e) { el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+function abrirNuevoHorario(profId) {
+  window._horariosProfId = profId;
+  document.getElementById('hor-id').value = '';
+  document.getElementById('hor-pac').innerHTML = '<option value="">Seleccionar paciente...</option>' +
+    (window._horariosPacs||[]).map(function(p) { return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + '</option>'; }).join('');
+  document.getElementById('hor-pac').value = '';
+  document.getElementById('hor-dia').value = '1';
+  document.getElementById('hor-hora').value = '';
+  document.getElementById('hor-tipo').value = 'sesion';
+  document.getElementById('hor-frecuencia').value = 'semanal';
+  document.getElementById('hor-semana').value = '1';
+  document.getElementById('hor-semana-wrap').style.display = 'none';
+  openModal('modal-horario');
+}
+
+async function editarHorario(id) {
+  try {
+    var hs = await api('GET', 'horarios_fijos', null, '?id=eq.' + id + '&limit=1');
+    var h = hs[0];
+    document.getElementById('hor-id').value = h.id;
+    document.getElementById('hor-pac').innerHTML = '<option value="">Seleccionar paciente...</option>' +
+      (window._horariosPacs||[]).map(function(p) { return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + '</option>'; }).join('');
+    document.getElementById('hor-pac').value = h.paciente_id || '';
+    document.getElementById('hor-dia').value = h.dia_semana;
+    document.getElementById('hor-hora').value = h.hora ? h.hora.slice(0,5) : '';
+    document.getElementById('hor-tipo').value = h.tipo || 'sesion';
+    document.getElementById('hor-frecuencia').value = h.frecuencia || 'semanal';
+    document.getElementById('hor-semana').value = h.semana_quincenal || 1;
+    document.getElementById('hor-semana-wrap').style.display = h.frecuencia === 'quincenal' ? 'block' : 'none';
+    openModal('modal-horario');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function guardarHorario() {
+  var id = document.getElementById('hor-id').value;
+  var profId = window._horariosProfId;
+  var data = {
+    profesional_id: profId,
+    paciente_id: document.getElementById('hor-pac').value || null,
+    dia_semana: parseInt(document.getElementById('hor-dia').value),
+    hora: document.getElementById('hor-hora').value,
+    tipo: document.getElementById('hor-tipo').value,
+    frecuencia: document.getElementById('hor-frecuencia').value,
+    semana_quincenal: parseInt(document.getElementById('hor-semana').value),
+    activo: true
+  };
+  if (!data.hora) { alert('Ingresá la hora'); return; }
+  try {
+    if (id) {
+      await api('PATCH', 'horarios_fijos', data, '?id=eq.' + id);
+    } else {
+      await api('POST', 'horarios_fijos', data);
+    }
+    closeModal('modal-horario');
+    toast('✅ Horario guardado');
+    loadHorariosFijos(profId);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarHorario(id, profId) {
+  if (!confirm('¿Eliminar este horario fijo?')) return;
+  try {
+    await api('PATCH', 'horarios_fijos', { activo: false }, '?id=eq.' + id);
+    toast('Horario eliminado');
+    loadHorariosFijos(profId);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function generarAgendaMes(profId) {
+  // Generate next month's agenda based on fixed schedules
+  var now = new Date();
+  var nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  var lastDay = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  var mesNombre = nextMonth.toLocaleDateString('es-PY', { month: 'long', year: 'numeric' });
+  
+  if (!confirm('¿Generar agenda para ' + mesNombre + '? Se crearán turnos automáticos basados en los horarios fijos. Los turnos existentes no se modificarán.')) return;
+  
+  try {
+    var horarios = await api('GET', 'horarios_fijos', null, '?profesional_id=eq.' + profId + '&activo=eq.true');
+    if (!horarios.length) { alert('No hay horarios fijos configurados'); return; }
+    
+    // Get existing agenda for next month to avoid duplicates
+    var fFirst = nextMonth.getFullYear() + '-' + String(nextMonth.getMonth()+1).padStart(2,'0') + '-01';
+    var fLast = lastDay.getFullYear() + '-' + String(lastDay.getMonth()+1).padStart(2,'0') + '-' + String(lastDay.getDate()).padStart(2,'0');
+    var existing = await api('GET', 'agenda', null, '?profesional_id=eq.' + profId + '&fecha=gte.' + fFirst + '&fecha=lte.' + fLast);
+    var existingKeys = {};
+    existing.forEach(function(t) { existingKeys[t.fecha + '_' + t.hora.slice(0,5)] = true; });
+    
+    // Calculate week number of month for quincenal
+    var creados = 0;
+    var promesas = [];
+    
+    for (var d = new Date(nextMonth); d <= lastDay; d.setDate(d.getDate() + 1)) {
+      var dow = d.getDay() === 0 ? 7 : d.getDay(); // 1=Mon...6=Sat
+      var weekOfMonth = Math.ceil(d.getDate() / 7);
+      var dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      
+      horarios.forEach(function(h) {
+        if (h.dia_semana !== dow) return;
+        if (h.frecuencia === 'quincenal' && (weekOfMonth % 2) !== (h.semana_quincenal % 2)) return;
+        var key = dateStr + '_' + h.hora.slice(0,5);
+        if (existingKeys[key]) return;
+        
+        var paciente_nombre = '';
+        if (window._horariosPacs) {
+          var pac = window._horariosPacs.find(function(p) { return p.id === h.paciente_id; });
+          if (pac) paciente_nombre = pac.nombre + ' ' + pac.apellido;
+        }
+        
+        promesas.push(api('POST', 'agenda', {
+          profesional_id: profId,
+          paciente_id: h.paciente_id || null,
+          paciente_nombre: paciente_nombre || null,
+          fecha: dateStr,
+          hora: h.hora,
+          tipo: h.tipo || 'sesion',
+          estado: 'pendiente'
+        }));
+        creados++;
+      });
+    }
+    
+    await Promise.all(promesas);
+    toast('✅ ' + creados + ' turnos generados para ' + mesNombre);
+    loadHorariosFijos(profId);
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
