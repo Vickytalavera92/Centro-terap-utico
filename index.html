@@ -2104,6 +2104,12 @@ async function loadAgendaMes() {
         contTipos[tipo] = (contTipos[tipo]||0) + 1;
       });
       
+      var isAdminView = CU.rol === 'directora' || CU.rol === 'administrador';
+      var montoTotal = 0;
+      if (isAdminView) {
+        pagables.forEach(function(t) { montoTotal += (tarifaMap[t.tipo || 'sesion'] || 220000); });
+      }
+      
       var breakdownHtml = '<div style="margin-top:10px;padding:12px 14px;background:#E8F6F4;border-radius:8px;">' +
         '<div style="font-size:13px;font-weight:700;color:#1B8A7A;margin-bottom:8px;">📊 Desglose por tipo (sesiones que se cobran)</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
@@ -2113,8 +2119,9 @@ async function loadAgendaMes() {
       });
       
       breakdownHtml += '</div>' +
-        '<div style="font-size:14px;font-weight:700;color:#1B8A7A;padding-top:8px;border-top:1px solid #1B8A7A33;">💰 Total sesiones a pagar: ' + pagables.length + '</div>' +
-        '</div>';
+        '<div style="font-size:14px;font-weight:700;color:#1B8A7A;padding-top:8px;border-top:1px solid #1B8A7A33;">' +
+        (isAdminView ? '💰 Total a pagar: ' + fmtGs(montoTotal) + ' (' + pagables.length + ' sesiones)' : '📋 Total de atenciones: ' + pagables.length) +
+        '</div></div>';
       
       html += breakdownHtml;
     }
