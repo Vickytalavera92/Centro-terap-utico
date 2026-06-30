@@ -1490,7 +1490,7 @@ async function verProf(idxOrId) {
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?id=eq.' + profId + '&limit=1'),
       api('GET', 'asignaciones', null, '?profesional_id=eq.' + profId),
-      api('GET', 'agenda', null, '?estado=eq.confirmado&profesional_id=eq.' + profId + '&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay()),
+      api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&profesional_id=eq.' + profId + '&fecha=gte.' + firstDay() + '&fecha=lte.' + lastDay()),
       api('GET', 'agenda', null, '?profesional_id=eq.' + profId + '&fecha=eq.' + today() + '&order=hora.asc')
     ]);
     var p = results[0][0], asig = results[1], ses = results[2], ag = results[3];
@@ -2909,7 +2909,7 @@ async function loadAdmin() {
     var mesKey = _adminAnio + '_' + String(_adminMes).padStart(2,'0');
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?activo=eq.true&order=nombre.asc'),
-      api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
+      api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
       api('GET', 'tarifas', null, ''),
       api('GET', 'profesional_tarifas', null, ''),
       api('GET', 'pacientes', null, ''),
@@ -3259,7 +3259,7 @@ async function loadCobros() {
     
     var results = await Promise.all([
       api('GET', 'pacientes', null, '?order=nombre.asc'),
-      api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
+      api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&fecha=gte.' + rng.first + '&fecha=lte.' + rng.last),
       api('GET', 'cobros', null, '?mes=eq.' + mesKey),
       api('GET', 'tarifas', null, '')
     ]);
@@ -3638,7 +3638,7 @@ async function loadResumen() {
 
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc'),
-      api('GET', 'agenda', null, '?estado=eq.confirmado&fecha=gte.' + firstDay + '&fecha=lte.' + lastDay),
+      api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&fecha=gte.' + firstDay + '&fecha=lte.' + lastDay),
       api('GET', 'agenda', null, '?fecha=gte.' + mondayStr + '&fecha=lte.' + saturdayStr)
     ]);
 
@@ -3782,7 +3782,7 @@ async function loadHonorariosProfStat(profId) {
     var fLast = lastDay();
     
     var results = await Promise.all([
-      api('GET', 'agenda', null, '?estado=eq.confirmado&profesional_id=eq.' + profId + '&fecha=gte.' + fFirst + '&fecha=lte.' + fLast),
+      api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&profesional_id=eq.' + profId + '&fecha=gte.' + fFirst + '&fecha=lte.' + fLast),
       api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId),
       api('GET', 'tarifas', null, ''),
       api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey).catch(function(){return[];})
@@ -3853,7 +3853,7 @@ async function loadHonorariosProfTab(profId) {
     
     // Load turnos for each month in parallel
     var turnoPromises = promises.map(function(m) {
-      return api('GET', 'agenda', null, '?estado=eq.confirmado&profesional_id=eq.' + profId + '&fecha=gte.' + m.fFirst + '&fecha=lte.' + m.fLast);
+      return api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&profesional_id=eq.' + profId + '&fecha=gte.' + m.fFirst + '&fecha=lte.' + m.fLast);
     });
     var allTurnos = await Promise.all(turnoPromises);
     
