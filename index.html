@@ -2094,34 +2094,27 @@ async function loadAgendaMes() {
       '</div>';
 
     // Breakdown by tipo (only turnos that count for payment: confirmado + cancelado_hora)
+    // Solo cantidades, sin montos - visible para directora, recepcionista y la propia profesional
     var pagables = turnos.filter(function(t) { return t.estado === 'confirmado' || t.estado === 'cancelado_hora'; });
-    if (pagables.length && (isDir || CU.rol === 'profesional')) {
-      var TIPO_LABELS_MES = { sesion:'Sesión', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Colegio', compartida:'Compartida', evaluacion:'Evaluación', libre:'Libre' };
+    if (pagables.length) {
+      var TIPO_LABELS_MES = { sesion:'Sesión', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación', libre:'Libre' };
       var contTipos = {};
-      var montoTipos = {};
       pagables.forEach(function(t) {
         var tipo = t.tipo || 'sesion';
         contTipos[tipo] = (contTipos[tipo]||0) + 1;
-        montoTipos[tipo] = (montoTipos[tipo]||0) + (tarifaMap[tipo] || 220000);
       });
       
-      var totalGeneral = 0;
       var breakdownHtml = '<div style="margin-top:10px;padding:12px 14px;background:#E8F6F4;border-radius:8px;">' +
-        '<div style="font-size:13px;font-weight:700;color:#1B8A7A;margin-bottom:8px;">💰 Resumen para facturación (sesiones que se cobran)</div>' +
-        '<table style="width:100%;border-collapse:collapse;">' +
-        '<thead><tr><th style="text-align:left;font-size:11px;color:var(--text-secondary);padding:4px 0;">Tipo</th><th style="text-align:center;font-size:11px;color:var(--text-secondary);padding:4px 0;">Cant.</th><th style="text-align:right;font-size:11px;color:var(--text-secondary);padding:4px 0;">Total facturado</th></tr></thead><tbody>';
+        '<div style="font-size:13px;font-weight:700;color:#1B8A7A;margin-bottom:8px;">📊 Desglose por tipo (sesiones que se cobran)</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
       
       Object.keys(contTipos).sort().forEach(function(tipo) {
-        totalGeneral += montoTipos[tipo];
-        breakdownHtml += '<tr><td style="font-size:12px;padding:3px 0;">' + (TIPO_LABELS_MES[tipo]||tipo) + '</td>' +
-          '<td style="font-size:12px;text-align:center;padding:3px 0;">' + contTipos[tipo] + '</td>' +
-          '<td style="font-size:12px;text-align:right;padding:3px 0;font-weight:500;">' + fmtGs(montoTipos[tipo]) + '</td></tr>';
+        breakdownHtml += '<span style="font-size:12px;background:white;padding:4px 10px;border-radius:6px;border:1px solid #1B8A7A33;">' + (TIPO_LABELS_MES[tipo]||tipo) + ': <strong>' + contTipos[tipo] + '</strong></span>';
       });
       
-      breakdownHtml += '</tbody><tfoot><tr style="border-top:1px solid #1B8A7A33;"><td style="font-size:13px;font-weight:700;padding:6px 0;">TOTAL</td>' +
-        '<td style="font-size:13px;font-weight:700;text-align:center;padding:6px 0;">' + pagables.length + '</td>' +
-        '<td style="font-size:13px;font-weight:700;text-align:right;padding:6px 0;color:#1B8A7A;">' + fmtGs(totalGeneral) + '</td></tr></tfoot>' +
-        '</table></div>';
+      breakdownHtml += '</div>' +
+        '<div style="font-size:14px;font-weight:700;color:#1B8A7A;padding-top:8px;border-top:1px solid #1B8A7A33;">💰 Total sesiones a pagar: ' + pagables.length + '</div>' +
+        '</div>';
       
       html += breakdownHtml;
     }
