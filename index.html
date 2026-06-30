@@ -3029,7 +3029,17 @@ async function loadAdmin() {
 
     // Per prof breakdown
     var profBreakdown = {};
-    profs.forEach(function(p) { profBreakdown[p.id] = { nombre: p.nombre, especialidad: p.especialidad, iniciales: p.avatar_iniciales, tipos: {}, totalGen: 0, totalProf: 0, totalCrea: 0, descuento: profDescMap[p.id] || 0, adelanto: 0, observacion: '', pagado: false }; });
+    profs.forEach(function(p) {
+      var pm = pagosMesMap[p.id];
+      profBreakdown[p.id] = { 
+        nombre: p.nombre, especialidad: p.especialidad, iniciales: p.avatar_iniciales, 
+        tipos: {}, totalGen: 0, totalProf: 0, totalCrea: 0, 
+        descuento: profDescMap[p.id] || 0, 
+        adelanto: pm ? (pm.adelanto || 0) : 0,
+        observacion: pm ? (pm.observacion || '') : '',
+        pagado: pm ? (pm.pagado || false) : false
+      }; 
+    });
 
     turnos.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
@@ -3172,7 +3182,7 @@ async function loadAdmin() {
       html += '<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
         '<div style="display:flex;gap:8px;">' +
         '<input placeholder="Observación..." value="' + (pb.observacion||'') + '" id="obs_' + p.id + '" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:200px;">' +
-        '<input type="number" placeholder="Adelanto Gs." value="' + (pb.adelanto||'') + '" id="adel_' + p.id + '" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:130px;">' +
+        '<input type="text" placeholder="Ej: 500000" value="' + (pb.adelanto || '') + '" id="adel_' + p.id + '" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:150px;">' +
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
         (pb.pagado ? 
@@ -3270,7 +3280,8 @@ async function saveProfTarifas() {
 async function guardarPagoMes(el) {
   var profId = el.getAttribute('data-pid');
   var mesKey = _adminAnio + '_' + String(_adminMes).padStart(2,'0');
-  var adelanto = parseInt(document.getElementById('adel_' + profId).value) || 0;
+  var adelantoRaw = (document.getElementById('adel_' + profId).value || '0').replace(/[^0-9]/g,'');
+  var adelanto = parseInt(adelantoRaw) || 0;
   var observacion = document.getElementById('obs_' + profId).value || '';
   try {
     var existing = await api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
