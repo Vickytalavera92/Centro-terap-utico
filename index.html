@@ -424,7 +424,7 @@ input[type="time"] { -webkit-appearance: none; }
         <!-- FILTROS -->
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
           <input id="agenda-search" placeholder="🔍 Buscar paciente..." oninput="loadAgenda()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:180px;">
-          <select id="agenda-filter-prof" onchange="loadAgenda()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <select id="agenda-filter-prof" onchange="loadAgenda()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;display:none;">
             <option value="">Todas las profesionales</option>
           </select>
           <select id="agenda-filter-tipo" onchange="loadAgenda()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
@@ -460,7 +460,7 @@ input[type="time"] { -webkit-appearance: none; }
             <button class="btn btn-secondary btn-sm" onclick="cambiarMesAgenda(1)">→</button>
             <button class="btn btn-secondary btn-sm" onclick="cambiarMesAgenda(0)">Hoy</button>
           </div>
-          <select id="agenda-mes-filter-prof" onchange="loadAgendaMes()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+          <select id="agenda-mes-filter-prof" onchange="loadAgendaMes()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;display:none;">
             <option value="">Todas las profesionales</option>
           </select>
         </div>
@@ -2004,13 +2004,20 @@ async function loadAgendaMes() {
     
     // Fill prof filter
     var profFilter = document.getElementById('agenda-mes-filter-prof');
-    if (profFilter && profs.length && profFilter.options.length === 1) {
-      profs.forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.nombre;
-        profFilter.appendChild(opt);
-      });
+    if (profFilter) {
+      if (isDir) {
+        profFilter.style.display = '';
+        if (profs.length && profFilter.options.length === 1) {
+          profs.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.nombre;
+            profFilter.appendChild(opt);
+          });
+        }
+      } else {
+        profFilter.style.display = 'none';
+      }
     }
     
     var filterProf = profFilter ? profFilter.value : '';
@@ -2123,13 +2130,20 @@ async function loadAgenda() {
     
     // Populate prof filter dropdown
     var profFilterEl = document.getElementById('agenda-filter-prof');
-    if (profFilterEl && isDir && profFilterEl.options.length === 1) {
-      profs.forEach(function(p) {
-        var opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.nombre;
-        profFilterEl.appendChild(opt);
-      });
+    if (profFilterEl) {
+      if (isDir) {
+        profFilterEl.style.display = '';
+        if (profFilterEl.options.length === 1) {
+          profs.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.nombre;
+            profFilterEl.appendChild(opt);
+          });
+        }
+      } else {
+        profFilterEl.style.display = 'none';
+      }
     }
     
     // Apply filters
