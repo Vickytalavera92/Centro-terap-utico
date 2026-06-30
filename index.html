@@ -1879,7 +1879,7 @@ async function loadPacs() {
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
           '<td><span class="badge ' + (p.estado==='activo'?'b-green':p.estado==='alta'?'b-gray':'b-amber') + '">' + p.estado + '</span></td>' +
           '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td>' +
-          '<td><button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️ Editar</button>' + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🗑</button>' : '') + '</td>' +
+          '<td><button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️ Editar</button>' + ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirMergeDesdeFila(\'' + p.id + '\',\'' + (p.nombre + ' ' + p.apellido).replace(/'/g,'') + '\')" title="Fusionar con duplicado" style="background:none;border:1px solid #2196F3;color:#2196F3;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🔄</button>' : '') + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🗑</button>' : '') + '</td>' +
           '</tr>';
       }).join('') + '</tbody></table>';
     var sel = document.getElementById('pac-prof');
@@ -4523,6 +4523,24 @@ async function generarAgendaMes(profId) {
     toast('✅ ' + creados + ' turnos generados para ' + mesNombre);
     loadHorariosFijos(profId);
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function abrirMergeDesdeFila(pacId, pacNombre) {
+  _mergeId1 = pacId;
+  document.getElementById('merge-search-1').value = pacNombre;
+  document.getElementById('merge-search-2').value = '';
+  document.getElementById('merge-results-1').innerHTML = '';
+  document.getElementById('merge-results-2').innerHTML = '';
+  var sel1 = document.getElementById('merge-selected-1');
+  sel1.style.display = 'block';
+  sel1.textContent = '✅ Conservar: ' + pacNombre;
+  document.getElementById('merge-selected-2').style.display = 'none';
+  _mergeId2 = null;
+  if (!_allPacsCache || !_allPacsCache.length) {
+    _allPacsCache = await api('GET', 'pacientes', null, '?order=nombre.asc');
+  }
+  openModal('modal-merge');
+  setTimeout(function() { document.getElementById('merge-search-2').focus(); }, 200);
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
