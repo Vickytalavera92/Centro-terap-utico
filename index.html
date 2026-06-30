@@ -436,6 +436,7 @@ input[type="time"] { -webkit-appearance: none; }
             <option value="preferencial">Preferencial</option>
             <option value="compartida">Compartida</option>
             <option value="colegio">Colegio</option>
+            <option value="entrevista_plus">Entrevista plus</option>
             <option value="libre">Libre</option>
           </select>
           <button class="btn btn-secondary btn-sm" onclick="limpiarFiltrosAgenda()">✕ Limpiar</button>
@@ -983,6 +984,7 @@ input[type="time"] { -webkit-appearance: none; }
         <option value="nueva">⬜ Normal nueva</option>
         <option value="colegio">🩵 Reunión de colegio</option>
         <option value="compartida">🩷 Reunión compartida</option>
+        <option value="entrevista_plus">⭐ Entrevista plus</option>
         <option value="evaluacion">🟤 Evaluación</option>
         <option value="libre">⬛ Libre</option>
       </select>
@@ -1016,6 +1018,7 @@ input[type="time"] { -webkit-appearance: none; }
         <option value="nueva">⬜ Normal nueva</option>
         <option value="colegio">🩵 Reunión de colegio</option>
         <option value="compartida">🩷 Reunión compartida</option>
+        <option value="entrevista_plus">⭐ Entrevista plus</option>
         <option value="libre">⬛ Libre</option>
       </select>
     </div>
@@ -1305,7 +1308,7 @@ async function loadDashboard() {
       facturacionMes += valorTotal;
       // Find prof tarifa
       var profTar = profTarifas.find(function(pt) { return pt.profesional_id === t.profesional_id && pt.tipo === tipo; });
-      var DEFAULT_PAGO_DASH = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+      var DEFAULT_PAGO_DASH = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
       var pago = profTar ? profTar.pago_profesional : (DEFAULT_PAGO_DASH[tipo] || 130000);
       honorariosMes += pago;
     });
@@ -2097,7 +2100,7 @@ async function loadAgendaMes() {
     // Solo cantidades, sin montos - visible para directora, recepcionista y la propia profesional
     var pagables = turnos.filter(function(t) { return t.estado === 'confirmado' || t.estado === 'cancelado_hora'; });
     if (pagables.length) {
-      var TIPO_LABELS_MES = { sesion:'Sesión', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación', libre:'Libre' };
+      var TIPO_LABELS_MES = { sesion:'Sesión', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación', libre:'Libre', entrevista_plus:'Entrevista plus' };
       var contTipos = {};
       pagables.forEach(function(t) {
         var tipo = t.tipo || 'sesion';
@@ -3122,7 +3125,7 @@ async function loadAdminTarifas() {
       '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago prof. estándar</th>' +
       '</tr></thead><tbody>';
     
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
     
     tarifas.forEach(function(t) {
       html += '<tr><td style="padding:8px;border-bottom:1px solid var(--border);">' + t.nombre + '</td>' +
@@ -3144,7 +3147,7 @@ async function configProfTarifas(el) {
     var profTarifas = await api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
     var profMap = {};
     profTarifas.forEach(function(pt) { profMap[pt.tipo] = pt.pago_profesional; });
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
     var TIPO_LABELS = { sesion:'Sesión normal', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación' };
     
     var tipos = Object.keys(DEFAULT_PAGO);
@@ -3794,7 +3797,7 @@ async function loadHonorariosProfStat(profId) {
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
     var profTarMap = {};
     profTarifas.forEach(function(pt) { profTarMap[pt.tipo] = pt.pago_profesional; });
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
     
     var totalHonorarios = turnos.reduce(function(sum, t) {
       var tipo = t.tipo || 'sesion';
@@ -3842,7 +3845,7 @@ async function loadHonorariosProfTab(profId) {
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
     var profTarMap = {};
     profTarifas.forEach(function(pt) { profTarMap[pt.tipo] = pt.pago_profesional; });
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000 };
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
     var pagosMesMap = {};
     pagosMes.forEach(function(pm) { pagosMesMap[pm.mes] = pm; });
     
