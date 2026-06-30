@@ -2071,9 +2071,11 @@ async function loadAgendaMes() {
         '<div style="font-size:11px;font-weight:' + (isToday?'700':'500') + ';color:' + (isToday?'#1B8A7A':'var(--text-primary)') + ';margin-bottom:3px;">' + day + '</div>';
       
       dayTurnos.forEach(function(t) {
-        var color = ESTADO_COLORS[t.estado] || '#F0A500';
+        var estadoColor = ESTADO_COLORS[t.estado] || '#F0A500';
+        var tipoColor = TIPO_COLORS[t.tipo] || '#4CAF50';
         var isCancelado = t.estado === 'cancelado';
-        html += '<div style="font-size:10px;background:' + color + '20;border-left:2px solid ' + color + ';padding:2px 4px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (isCancelado ? 'text-decoration:line-through;opacity:0.6;' : '') + '">' +
+        // Left border = tipo color, background = estado color tint
+        html += '<div style="font-size:10px;background:' + estadoColor + '15;border-left:3px solid ' + tipoColor + ';padding:2px 4px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' + (isCancelado ? 'text-decoration:line-through;opacity:0.55;' : '') + '">' +
           (t.hora ? t.hora.slice(0,5) + ' ' : '') + (t.paciente_nombre || 'Libre') + '</div>';
       });
       
@@ -2108,24 +2110,86 @@ async function loadAgendaMes() {
       });
       
       var isAdminView = CU.rol === 'directora' || CU.rol === 'administrador';
-      var montoTotal = 0;
-      if (isAdminView) {
-        pagables.forEach(function(t) { montoTotal += (tarifaMap[t.tipo || 'sesion'] || 220000); });
+      
+      // Get prof tarifas if filtering by a specific prof
+      var filterProfId = document.getElementById('agenda-mes-filter-prof') ? document.getElementById('agenda-mes-filter-prof').value : '';
+      var profTarifasLocal = [];
+      if (isAdminView && filterProfId) {
+        try { profTarifasLocal = await api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + filterProfId); } catch(e) {}
       }
-      
-      var breakdownHtml = '<div style="margin-top:10px;padding:12px 14px;background:#E8F6F4;border-radius:8px;">' +
-        '<div style="font-size:13px;font-weight:700;color:#1B8A7A;margin-bottom:8px;">📊 Desglose por tipo (sesiones que se cobran)</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
-      
-      Object.keys(contTipos).sort().forEach(function(tipo) {
-        breakdownHtml += '<span style="font-size:12px;background:white;padding:4px 10px;border-radius:6px;border:1px solid #1B8A7A33;">' + (TIPO_LABELS_MES[tipo]||tipo) + ': <strong>' + contTipos[tipo] + '</strong></span>';
+      var profTarLocalMap = {};
+      profTarifasLocal.forEach(function(pt) { profTarLocalMap[pt.tipo] = pt.pago_profesional; });
+      var DEFAULT_PAGO_MES = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
+
+      // Build per-tipo data with amounts
+      var tipoData = {};
+      pagables.forEach(function(t) {
+        var tipo = t.tipo || 'sesion';
+        if (!tipoData[tipo]) tipoData[tipo] = { cant: 0, totalGen: 0, totalProf: 0 };
+        var unitGen = tarifaMap[tipo] || 220000;
+        var unitProf = profTarLocalMap[tipo] !== undefined ? profTarLocalMap[tipo] : (DEFAULT_PAGO_MES[tipo] || 130000);
+        tipoData[tipo].cant++;
+        tipoData[tipo].totalGen += unitGen;
+        tipoData[tipo].totalProf += unitProf;
       });
-      
-      breakdownHtml += '</div>' +
-        '<div style="font-size:14px;font-weight:700;color:#1B8A7A;padding-top:8px;border-top:1px solid #1B8A7A33;">' +
-        (isAdminView ? '💰 Total a pagar: ' + fmtGs(montoTotal) + ' (' + pagables.length + ' sesiones)' : '📋 Total de atenciones: ' + pagables.length) +
-        '</div></div>';
-      
+
+      var breakdownHtml = '<div style="margin-top:10px;padding:12px 14px;background:#E8F6F4;border-radius:8px;">' +
+        '<div style="font-size:13px;font-weight:700;color:#1B8A7A;margin-bottom:10px;">📊 Desglose por tipo (sesiones que se cobran)</div>';
+
+      if (isAdminView) {
+        // Full table with unit prices for directora/admin
+        breakdownHtml += '<table style="width:100%;border-collapse:collapse;">' +
+          '<thead><tr>' +
+          '<th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--text-secondary);border-bottom:1px solid #1B8A7A33;">Tipo</th>' +
+          '<th style="padding:5px 8px;text-align:center;font-size:11px;color:var(--text-secondary);border-bottom:1px solid #1B8A7A33;">Cant.</th>' +
+          '<th style="padding:5px 8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid #1B8A7A33;">Precio unit.</th>' +
+          '<th style="padding:5px 8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid #1B8A7A33;">Total pac.</th>' +
+          (filterProfId ? '<th style="padding:5px 8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid #1B8A7A33;">Pago prof. unit.</th>' +
+          '<th style="padding:5px 8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid #1B8A7A33;">Total prof.</th>' : '') +
+          '</tr></thead><tbody>';
+
+        var grandTotalGen = 0;
+        var grandTotalProf = 0;
+        Object.keys(tipoData).sort().forEach(function(tipo) {
+          var td = tipoData[tipo];
+          var unitGen = td.cant > 0 ? Math.round(td.totalGen / td.cant) : 0;
+          var unitProf = td.cant > 0 ? Math.round(td.totalProf / td.cant) : 0;
+          var tipoColor = TIPO_COLORS[tipo] || '#4CAF50';
+          grandTotalGen += td.totalGen;
+          grandTotalProf += td.totalProf;
+          breakdownHtml += '<tr>' +
+            '<td style="padding:5px 8px;font-size:12px;border-bottom:1px solid #1B8A7A22;">' +
+            '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + tipoColor + ';margin-right:5px;"></span>' +
+            (TIPO_LABELS_MES[tipo]||tipo) + '</td>' +
+            '<td style="padding:5px 8px;text-align:center;font-size:12px;font-weight:600;border-bottom:1px solid #1B8A7A22;">' + td.cant + '</td>' +
+            '<td style="padding:5px 8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid #1B8A7A22;">' + fmtGs(unitGen) + '/u</td>' +
+            '<td style="padding:5px 8px;text-align:right;font-size:12px;border-bottom:1px solid #1B8A7A22;">' + fmtGs(td.totalGen) + '</td>' +
+            (filterProfId ? '<td style="padding:5px 8px;text-align:right;font-size:11px;color:#C0392B;border-bottom:1px solid #1B8A7A22;">' + fmtGs(unitProf) + '/u</td>' +
+            '<td style="padding:5px 8px;text-align:right;font-size:12px;font-weight:500;color:#C0392B;border-bottom:1px solid #1B8A7A22;">' + fmtGs(td.totalProf) + '</td>' : '') +
+            '</tr>';
+        });
+
+        breakdownHtml += '<tr style="background:white;">' +
+          '<td style="padding:6px 8px;font-weight:700;font-size:12px;">TOTAL</td>' +
+          '<td style="padding:6px 8px;text-align:center;font-weight:700;font-size:12px;">' + pagables.length + '</td>' +
+          '<td style="padding:6px 8px;"></td>' +
+          '<td style="padding:6px 8px;text-align:right;font-weight:700;font-size:13px;color:#1B8A7A;">' + fmtGs(grandTotalGen) + '</td>' +
+          (filterProfId ? '<td style="padding:6px 8px;"></td>' +
+          '<td style="padding:6px 8px;text-align:right;font-weight:700;font-size:13px;color:#C0392B;">' + fmtGs(grandTotalProf) + '</td>' : '') +
+          '</tr>';
+
+        breakdownHtml += '</tbody></table>';
+      } else {
+        // Simple chips for profesional
+        breakdownHtml += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">';
+        Object.keys(tipoData).sort().forEach(function(tipo) {
+          breakdownHtml += '<span style="font-size:12px;background:white;padding:4px 10px;border-radius:6px;border:1px solid #1B8A7A33;">' + (TIPO_LABELS_MES[tipo]||tipo) + ': <strong>' + tipoData[tipo].cant + '</strong></span>';
+        });
+        breakdownHtml += '</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#1B8A7A;padding-top:8px;border-top:1px solid #1B8A7A33;">📋 Total de atenciones: ' + pagables.length + '</div>';
+      }
+
+      breakdownHtml += '</div>';
       html += breakdownHtml;
     }
     
@@ -3033,8 +3097,10 @@ async function loadAdmin() {
         '<thead><tr>' +
         '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Tipo</th>' +
         '<th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Cant.</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Precio unitario</th>' +
         '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Total pac.</th>' +
-        '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago prof.</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago prof. unit.</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Total prof.</th>' +
         '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">CREA</th>' +
         '</tr></thead><tbody>';
 
@@ -3042,12 +3108,16 @@ async function loadAdmin() {
         var t = pb.tipos[tipo];
         var color = TIPO_COLORS[tipo] || '#4CAF50';
         var ganCrea = t.totalGen - t.totalProf;
+        var unitGen = t.cant > 0 ? Math.round(t.totalGen / t.cant) : 0;
+        var unitProf = t.cant > 0 ? Math.round(t.totalProf / t.cant) : 0;
         html += '<tr>' +
           '<td style="padding:8px 10px;border-bottom:1px solid var(--border);">' +
           '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:6px;"></span>' +
           (TIPO_LABELS[tipo]||tipo) + '</td>' +
           '<td style="padding:8px 10px;text-align:center;font-weight:600;border-bottom:1px solid var(--border);">' + t.cant + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:11px;">' + fmtGs(unitGen) + ' / u.</td>' +
           '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.totalGen) + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);font-size:11px;">' + fmtGs(unitProf) + ' / u.</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);">' + fmtGs(t.totalProf) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#1B8A7A;border-bottom:1px solid var(--border);">' + fmtGs(ganCrea) + '</td>' +
           '</tr>';
@@ -3056,7 +3126,8 @@ async function loadAdmin() {
       html += '<tr style="background:var(--bg);">' +
         '<td style="padding:8px 10px;font-weight:600;">TOTAL</td>' +
         '<td style="padding:8px 10px;text-align:center;font-weight:600;">' + Object.values(pb.tipos).reduce(function(a,b){return a+b.cant;},0) + '</td>' +
-        '<td style="padding:8px 10px;text-align:right;font-weight:600;">' + fmtGs(pb.totalGen) + '</td>' +
+        '<td colspan="2" style="padding:8px 10px;text-align:right;font-weight:600;">' + fmtGs(pb.totalGen) + '</td>' +
+        '<td style="padding:8px 10px;"></td>' +
         '<td style="padding:8px 10px;text-align:right;font-weight:600;color:#C0392B;">' + fmtGs(pb.totalProf) + '</td>' +
         '<td style="padding:8px 10px;text-align:right;font-weight:600;color:#1B8A7A;">' + fmtGs(pb.totalCrea) + '</td>' +
         '</tr>';
