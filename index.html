@@ -3058,8 +3058,9 @@ async function loadAdmin() {
       totalCrea += ganCrea;
 
       if (profBreakdown[t.profesional_id]) {
-        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, totalGen: 0, totalProf: 0 };
+        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0 };
         profBreakdown[t.profesional_id].tipos[tipo].cant++;
+        if (t.estado === 'cancelado_hora') profBreakdown[t.profesional_id].tipos[tipo].cancHora++;
         profBreakdown[t.profesional_id].tipos[tipo].totalGen += valorTotal;
         profBreakdown[t.profesional_id].tipos[tipo].totalProf += pagoProf;
         profBreakdown[t.profesional_id].totalGen += valorTotal;
@@ -3114,7 +3115,9 @@ async function loadAdmin() {
           '<td style="padding:8px 10px;border-bottom:1px solid var(--border);">' +
           '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:6px;"></span>' +
           (TIPO_LABELS[tipo]||tipo) + '</td>' +
-          '<td style="padding:8px 10px;text-align:center;font-weight:600;border-bottom:1px solid var(--border);">' + t.cant + '</td>' +
+          '<td style="padding:8px 10px;text-align:center;font-weight:600;border-bottom:1px solid var(--border);">' + t.cant + 
+          (t.cancHora > 0 ? '<span style="font-size:10px;background:#FF8C0020;color:#FF8C00;border:1px solid #FF8C00;border-radius:4px;padding:1px 5px;margin-left:4px;">🟠 ' + t.cancHora + '</span>' : '') +
+          '</td>' +
           '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:11px;">' + fmtGs(unitGen) + ' / u.</td>' +
           '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.totalGen) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);font-size:11px;">' + fmtGs(unitProf) + ' / u.</td>' +
