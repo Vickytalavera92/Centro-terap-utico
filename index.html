@@ -1890,14 +1890,18 @@ async function loadPacs() {
     } else if (headerEl && CU.rol === 'administrador') {
       headerEl.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="verPreferenciales()">💲 Preferenciales</button>';
     }
+    // Load standard price for comparison
+    var tarifasStd = await api('GET', 'tarifas', null, '?tipo=eq.sesion&limit=1').catch(function(){return[];});
+    var precioStd = tarifasStd.length ? tarifasStd[0].valor_total : 220000;
+    
     var el = document.getElementById('pac-table-wrap');
     if (!pacs.length) { el.innerHTML = '<div class="empty-state">Sin pacientes</div>'; return; }
     el.innerHTML = '<table class="pac-table"><thead><tr><th>Paciente</th><th>Responsable / RUC</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th><th></th></tr></thead><tbody>' +
       pacs.map(function(p) {
-        var isPref = p.valor_sesion && p.valor_sesion > 0;
+        var isPref = p.valor_sesion && p.valor_sesion > 0 && p.valor_sesion < precioStd;
         var canSeeMonto = CU.rol === 'directora' || CU.rol === 'administrador' || CU.rol === 'recepcionista';
-        return '<tr' + (isPref ? ' style="background:#E3F2FD08;"' : '') + '>' +
-          '<td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;">' + ini(p.nombre, p.apellido) + '</div><div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span>' + (p.fecha_nacimiento ? '<div style="font-size:11px;color:var(--text-secondary);">' + calcAge(p.fecha_nacimiento) + ' años</div>' : '') + (isPref ? '<div style="font-size:11px;color:#1565C0;font-weight:600;">💲 Preferencial' + (canSeeMonto ? ' · ' + fmtGs(p.valor_sesion) : '') + '</div>' : '') + '</div></div></td>' +
+        return '<tr' + (isPref ? ' style="border-left:3px solid #1565C0;"' : '') + '>' +
+          '<td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;background:' + (isPref ? '#1565C0' : '') + ';">' + ini(p.nombre, p.apellido) + '</div><div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span>' + (p.fecha_nacimiento ? '<div style="font-size:11px;color:var(--text-secondary);">' + calcAge(p.fecha_nacimiento) + ' años</div>' : '') + (isPref ? '<div style="font-size:11px;color:#1565C0;font-weight:600;">💲 Preferencial' + (canSeeMonto ? ': ' + fmtGs(p.valor_sesion) : '') + '</div>' : '') + '</div></div></td>' +
           '<td style="color:var(--text-secondary);font-size:12px;"><div>' + (p.responsable_nombre||'—') + '</div><div style="font-size:11px;color:var(--text-tertiary);">' + (p.ruc||'') + '</div></td>' +
           '<td>' + (p.profesional_id && profMap[p.profesional_id] ? profMap[p.profesional_id].replace('Dra. ','').replace('Lic. ','') : '—') + '</td>' +
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
