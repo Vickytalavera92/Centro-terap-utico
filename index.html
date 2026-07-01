@@ -1246,10 +1246,10 @@ async function loadDashboard() {
     var fFirst = firstDay();
     var fLast = lastDay();
 
-    // Previous month range
-    var now = new Date();
-    var prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
-    var prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    // Previous month range (relative to dashboard offset)
+    var prevDate2 = new Date(targetDate.getFullYear(), targetDate.getMonth() - 1, 1);
+    var prevMonth = prevDate2.getMonth() + 1;
+    var prevYear = prevDate2.getFullYear();
     var prevFirst = prevYear + '-' + String(prevMonth).padStart(2,'0') + '-01';
     var prevLast = new Date(prevYear, prevMonth, 0);
     var prevLastStr = prevYear + '-' + String(prevMonth).padStart(2,'0') + '-' + String(prevLast.getDate()).padStart(2,'0');
@@ -1441,8 +1441,9 @@ async function loadDashboard() {
     }).join('');
 
   } catch(e) {
+    console.error('Dashboard error:', e);
     var el3 = document.getElementById('dash-content');
-    if (el3) el3.innerHTML = '<div class="empty-state">Error cargando. <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">↻ Reintentar</button></div>';
+    if (el3) el3.innerHTML = '<div class="empty-state">Error: ' + e.message + '<br><button class="btn btn-secondary btn-sm" onclick="loadDashboard()" style="margin-top:8px;">↻ Reintentar</button></div>';
   }
 }
 
