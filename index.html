@@ -1229,8 +1229,10 @@ function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // DASHBOARD
+var _dashMesOffset = 0;
+function cambiarMesDash(dir) { _dashMesOffset = dir === 0 ? 0 : _dashMesOffset + dir; loadDashboard(); }
+
 async function loadDashboard() {
-  // Ensure dashboard page is active
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   var dp = document.getElementById('page-dashboard');
   if (dp) dp.classList.add('active');
@@ -1243,8 +1245,13 @@ async function loadDashboard() {
     var isDir = CU.rol === 'directora' || CU.rol === 'recepcionista';
     var isProf = CU.rol === 'profesional';
     var hoy = today();
-    var fFirst = firstDay();
-    var fLast = lastDay();
+    var now = new Date();
+    var targetDate = new Date(now.getFullYear(), now.getMonth() + _dashMesOffset, 1);
+    var lastOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+    var fFirst = targetDate.getFullYear() + '-' + String(targetDate.getMonth()+1).padStart(2,'0') + '-01';
+    var fLast = lastOfMonth.getFullYear() + '-' + String(lastOfMonth.getMonth()+1).padStart(2,'0') + '-' + String(lastOfMonth.getDate()).padStart(2,'0');
+    var mesNombreActual = targetDate.toLocaleDateString('es-PY', {month:'long', year:'numeric'});
+    mesNombreActual = mesNombreActual.charAt(0).toUpperCase() + mesNombreActual.slice(1);
 
     // Previous month range (relative to dashboard offset)
     var prevDate2 = new Date(targetDate.getFullYear(), targetDate.getMonth() - 1, 1);
@@ -1342,7 +1349,7 @@ async function loadDashboard() {
     var diffSes = confirmadosMes.length - confirmadosAnt;
 
     var el = document.getElementById('dash-content');
-    var mesNombre = mesNombreActual;
+    var mesNombre = mesNombreActual; // use offset month name
 
     var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">' +
       '<div style="display:flex;align-items:center;gap:8px;">' +
