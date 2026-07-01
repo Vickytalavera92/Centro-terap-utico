@@ -2185,8 +2185,11 @@ async function loadAgendaMes() {
       pagables.forEach(function(t) {
         var tipo = t.tipo || 'sesion';
         if (!tipoData[tipo]) tipoData[tipo] = { cant: 0, totalGen: 0, totalProf: 0 };
-        var unitGen = tarifaMap[tipo] || 220000;
-        var unitProf = profTarLocalMap[tipo] !== undefined ? profTarLocalMap[tipo] : (DEFAULT_PAGO_MES[tipo] || 130000);
+        // Use custom patient price if set
+        var cp = pacMapMes[t.paciente_id];
+        var unitGen = (cp && cp.valor_sesion) ? cp.valor_sesion : (tarifaMap[tipo] || 220000);
+        var unitProf = (cp && cp.pago_profesional_custom) ? cp.pago_profesional_custom : 
+                       (profTarLocalMap[tipo] !== undefined ? profTarLocalMap[tipo] : (DEFAULT_PAGO_MES[tipo] || 130000));
         tipoData[tipo].cant++;
         tipoData[tipo].totalGen += unitGen;
         tipoData[tipo].totalProf += unitProf;
