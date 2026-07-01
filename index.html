@@ -1296,7 +1296,7 @@ async function loadDashboard() {
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
 
     // Calculos mes actual
-    var confirmadosMes = turnosMes.filter(function(t) { return t.estado === 'confirmado'; });
+    var confirmadosMes = turnosMes.filter(function(t) { return t.estado === 'confirmado' || t.estado === 'cancelado_hora'; });
     var canceladosMes = turnosMes.filter(function(t) { return t.estado === 'cancelado'; });
     var canceladosHora = turnosMes.filter(function(t) { return t.estado === 'cancelado_hora'; });
     var pendientesMes = turnosMes.filter(function(t) { return t.estado === 'pendiente'; });
@@ -1332,7 +1332,7 @@ async function loadDashboard() {
     var pendienteCobrar = facturacionMes - totalCobrado;
 
     // Mes anterior
-    var confirmadosAnt = turnosMesAnt.length;
+    var confirmadosAnt = turnosMesAnt.filter(function(t) { return t.estado === 'confirmado' || t.estado === 'cancelado_hora'; }).length;
     var diffSes = confirmadosMes.length - confirmadosAnt;
 
     var el = document.getElementById('dash-content');
@@ -2963,7 +2963,7 @@ async function loadSemanal() {
     // Resumen
     var resumen = {};
     turnos.forEach(function(t) {
-      if (t.estado === 'confirmado') {
+      if (t.estado === 'confirmado' || t.estado === 'cancelado_hora') {
         var tipo = t.tipo || 'sesion';
         resumen[tipo] = (resumen[tipo] || 0) + 1;
       }
@@ -3789,7 +3789,7 @@ async function loadResumen() {
       '</div></div>';
 
     var totalMes = turnosMes.length;
-    var totalSemana = turnosSemana.filter(function(t) { return t.estado === 'confirmado'; }).length;
+    var totalSemana = turnosSemana.filter(function(t) { return t.estado === 'confirmado' || t.estado === 'cancelado_hora'; }).length;
     var totalPendSemana = turnosSemana.filter(function(t) { return t.estado === 'pendiente'; }).length;
 
     html += '<div class="grid-4 mb-20">' +
@@ -3812,7 +3812,7 @@ async function loadResumen() {
 
     profs.forEach(function(p) {
       var sesMes = turnosMes.filter(function(t) { return t.profesional_id === p.id; }).length;
-      var sesSemConf = turnosSemana.filter(function(t) { return t.profesional_id === p.id && t.estado === 'confirmado'; }).length;
+      var sesSemConf = turnosSemana.filter(function(t) { return t.profesional_id === p.id && (t.estado === 'confirmado' || t.estado === 'cancelado_hora'); }).length;
       var totalTurnosMesTodos = turnosSemana.filter(function(t) { return t.profesional_id === p.id; }).length;
       var pendMes = turnosSemana.filter(function(t) { return t.profesional_id === p.id && t.estado === 'pendiente'; }).length;
 
