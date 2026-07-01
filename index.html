@@ -1278,7 +1278,8 @@ async function loadDashboard() {
       api('GET', 'agenda', null, agendaAntQ).catch(function(){return [];}),
       api('GET', 'cobros', null, '?mes=eq.' + fFirst.slice(0,4) + '_' + fFirst.slice(5,7)).catch(function(){return [];}),
       api('GET', 'profesional_tarifas', null, '').catch(function(){return [];}),
-      api('GET', 'tarifas', null, '').catch(function(){return [];})
+      api('GET', 'tarifas', null, '').catch(function(){return [];}),
+      api('GET', 'pacientes', null, '?select=id,valor_sesion,pago_profesional_custom').catch(function(){return [];})
     ]);
 
     var profs = results[0];
@@ -1291,6 +1292,9 @@ async function loadDashboard() {
     var cobros = results[6];
     var profTarifas = results[7];
     var tarifas = results[8];
+    var pacientesDash = results[9] || [];
+    var pacMapDash = {};
+    pacientesDash.forEach(function(p) { pacMapDash[p.id] = p; });
 
     var tarifaMap = {};
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
@@ -1315,16 +1319,18 @@ async function loadDashboard() {
     var pendientesHoy = turnosHoy.filter(function(t) { return t.estado === 'pendiente'; });
 
     // Financiero proyectado
+    var DEFAULT_PAGO_DASH = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
     var facturacionMes = 0;
     var honorariosMes = 0;
     confirmadosMes.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
       var valorTotal = tarifaMap[tipo] || 220000;
+      var cp = pacMapDash[t.paciente_id];
+      if (cp && cp.valor_sesion) valorTotal = cp.valor_sesion;
       facturacionMes += valorTotal;
-      // Find prof tarifa
       var profTar = profTarifas.find(function(pt) { return pt.profesional_id === t.profesional_id && pt.tipo === tipo; });
-      var DEFAULT_PAGO_DASH = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
       var pago = profTar ? profTar.pago_profesional : (DEFAULT_PAGO_DASH[tipo] || 130000);
+      if (cp && cp.pago_profesional_custom) pago = cp.pago_profesional_custom;
       honorariosMes += pago;
     });
     var gananciaMes = facturacionMes - honorariosMes;
@@ -1336,11 +1342,15 @@ async function loadDashboard() {
     var diffSes = confirmadosMes.length - confirmadosAnt;
 
     var el = document.getElementById('dash-content');
-    var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    var mesNombre = meses[now.getMonth()];
+    var mesNombre = mesNombreActual;
 
-    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
-      '<div style="font-size:15px;font-weight:600;color:var(--text-secondary);">📅 ' + mesNombre + ' ' + now.getFullYear() + '</div>' +
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesDash(-1)">←</button>' +
+      '<div style="font-size:15px;font-weight:600;">📅 ' + mesNombreActual + '</div>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesDash(1)">→</button>' +
+      (_dashMesOffset !== 0 ? '<button class="btn btn-secondary btn-sm" onclick="cambiarMesDash(0)">Hoy</button>' : '') +
+      '</div>' +
       '<button class="btn btn-secondary btn-sm" onclick="loadDashboard()">↻ Actualizar</button></div>';
 
     // ROW 1: Indicadores principales
