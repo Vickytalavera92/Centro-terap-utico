@@ -2948,9 +2948,12 @@ async function loadSemanal() {
 
     var table = '<table style="width:100%;border-collapse:collapse;min-width:700px;">';
     table += '<thead><tr><th style="padding:8px;background:var(--bg);border:1px solid var(--border);font-size:11px;width:50px;">Hora</th>';
+    var midWeek = new Date(dias[2]);
+    var viewMonth = midWeek.getMonth();
     dias.forEach(function(d, i) {
       var isToday = dateStr(d) === today();
-      table += '<th style="padding:8px;background:' + (isToday?'var(--teal-light)':'var(--bg)') + ';border:1px solid var(--border);font-size:11px;text-align:center;">' +
+      var isDiffMonth = d.getMonth() !== viewMonth;
+      table += '<th style="padding:8px;background:' + (isToday?'var(--teal-light)':isDiffMonth?'#F0F0F0':'var(--bg)') + ';border:1px solid var(--border);font-size:11px;text-align:center;' + (isDiffMonth?'color:var(--text-tertiary);':'') + '">' +
         diasLabels[i] + ' ' + d.getDate() + '</th>';
     });
     table += '</tr></thead><tbody>';
@@ -2958,7 +2961,7 @@ async function loadSemanal() {
     horas.forEach(function(hora) {
       table += '<tr>';
       table += '<td style="padding:6px 8px;border:1px solid var(--border);font-size:11px;color:var(--text-secondary);white-space:nowrap;">' + hora + '</td>';
-      dias.forEach(function(d) {
+      dias.forEach(function(d, dIdx) {
         var dStr = dateStr(d);
         var horaCorta = hora.replace(':00','');
         var horaCortaP = hora.split(':')[0].padStart(2,'0');
@@ -2979,7 +2982,8 @@ async function loadSemanal() {
               (s.paciente_nombre || 'Turno') + estadoIcon + profName + '</div>';
           });
         }
-        table += '<td style="padding:3px;border:1px solid var(--border);vertical-align:top;min-width:100px;min-height:30px;">' + cell + '</td>';
+        var isDiffMonthCell = d.getMonth() !== viewMonth;
+        table += '<td style="padding:3px;border:1px solid var(--border);vertical-align:top;min-width:100px;min-height:30px;' + (isDiffMonthCell ? 'background:#F5F5F5;' : '') + '">' + cell + '</td>';
       });
       table += '</tr>';
     });
@@ -3855,7 +3859,7 @@ async function loadResumen() {
     });
 
     // Sort by sesiones (confirmados + cancHora)
-    var profList = profs.map(function(p) { return stats[p.id]; }).filter(function(s) { return s; });
+    var profList = profs.map(function(p) { return stats[p.id] || { nombre: p.nombre, nombreCorto: p.nombre.split(' ')[0], confirmados:0, cancelados:0, cancHora:0, pendientes:0, ingresos:0, honorarios:0, pacientes: pacsPorProf[p.id]||0 }; });
     profList.sort(function(a,b) { return (b.confirmados+b.cancHora) - (a.confirmados+a.cancHora); });
 
     var labels = profList.map(function(s) { return s.nombreCorto; });
