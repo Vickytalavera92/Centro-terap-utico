@@ -2990,16 +2990,27 @@ async function loadSemanal() {
     table += '</tbody></table>';
     document.getElementById('semanal-wrap').innerHTML = table;
 
-    // Resumen
+    // Resumen - only count days from the main month (Wednesday's month)
     var resumen = {};
-    turnos.forEach(function(t) {
-      if (t.estado === 'confirmado' || t.estado === 'cancelado_hora') {
+    var resumenMesAnt = {};
+    dias.forEach(function(d) {
+      var dStr = dateStr(d);
+      var isThisMonth = d.getMonth() === viewMonth;
+      turnos.filter(function(t) { return t.fecha === dStr && (t.estado === 'confirmado' || t.estado === 'cancelado_hora'); }).forEach(function(t) {
         var tipo = t.tipo || 'sesion';
-        resumen[tipo] = (resumen[tipo] || 0) + 1;
-      }
+        if (isThisMonth) {
+          resumen[tipo] = (resumen[tipo] || 0) + 1;
+        } else {
+          resumenMesAnt[tipo] = (resumenMesAnt[tipo] || 0) + 1;
+        }
+      });
     });
     var total = Object.values(resumen).reduce(function(a,b) { return a+b; }, 0);
+    var totalMesAnt = Object.values(resumenMesAnt).reduce(function(a,b) { return a+b; }, 0);
     var resHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
+    if (totalMesAnt > 0) {
+      resHtml += '<span style="font-size:11px;color:var(--text-tertiary);background:#F0F0F0;padding:2px 8px;border-radius:4px;">📅 Mes anterior: ' + totalMesAnt + ' sesiones (no contadas)</span>';
+    }
     Object.keys(resumen).forEach(function(tipo) {
       var color = TIPO_COLORS[tipo] || '#4CAF50';
       resHtml += '<span style="background:' + color + ';color:white;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:500;">' +
@@ -3016,8 +3027,9 @@ async function loadSemanal() {
 // MÓDULO ADMINISTRATIVO
 // ==================
 
-var _adminMes = new Date().getMonth() + 1;
-var _adminAnio = new Date().getFullYear();
+var _adminNow = new Date();
+var _adminMes = _adminNow.getDate() <= 5 ? (_adminNow.getMonth() === 0 ? 12 : _adminNow.getMonth()) : _adminNow.getMonth() + 1;
+var _adminAnio = _adminNow.getDate() <= 5 && _adminNow.getMonth() === 0 ? _adminNow.getFullYear() - 1 : _adminNow.getFullYear();
 
 function getMesLabel() {
   var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -3769,8 +3781,9 @@ async function eliminarGasto() {
 // ==================
 // RESUMEN GENERAL
 // ==================
-var _resumenMes = new Date().getMonth() + 1;
-var _resumenAnio = new Date().getFullYear();
+var _now = new Date();
+var _resumenMes = _now.getDate() <= 5 ? (_now.getMonth() === 0 ? 12 : _now.getMonth()) : _now.getMonth() + 1;
+var _resumenAnio = _now.getDate() <= 5 && _now.getMonth() === 0 ? _now.getFullYear() - 1 : _now.getFullYear();
 
 function getResumenLabel() {
   var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
