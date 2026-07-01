@@ -1262,8 +1262,8 @@ async function loadDashboard() {
       ? '?fecha=eq.' + hoy + '&profesional_id=eq.' + CU.id + '&order=hora.asc'
       : '?fecha=eq.' + hoy + '&order=hora.asc';
     var agendaAntQ = isProf
-      ? '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=eq.confirmado&profesional_id=eq.' + CU.id
-      : '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=eq.confirmado';
+      ? '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=in.(confirmado,cancelado_hora)&profesional_id=eq.' + CU.id
+      : '?fecha=gte.' + prevFirst + '&fecha=lte.' + prevLastStr + '&estado=in.(confirmado,cancelado_hora)';
 
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc').catch(function(){return [];}),
@@ -2070,7 +2070,7 @@ async function loadAgendaMes() {
       turnosByDate[key].push(t);
     });
     
-    var TIPO_COLORS = { sesion:'#4CAF50', preferencial:'#1565C0', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548', entrevista_plus:'#FFD700' };
+    var TIPO_COLORS = { sesion:'#4CAF50', preferencial:'#1B5E20', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548', entrevista_plus:'#FFD700' };
     var ESTADO_COLORS = { pendiente:'#F0A500', confirmado:'#1B8A7A', cancelado:'#C0392B', cancelado_hora:'#FF8C00' };
     
     var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">';
