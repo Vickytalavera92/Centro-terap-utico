@@ -236,6 +236,7 @@ input[type="time"] { -webkit-appearance: none; }
   .grid-4 { grid-template-columns: 1fr 1fr !important; }
 }
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -3780,90 +3781,246 @@ function cambiarMesResumen(dir) {
 
 async function loadResumen() {
   var el = document.getElementById('resumen-content');
-  el.innerHTML = '<div class="loading">Cargando...</div>';
+  el.innerHTML = '<div class="loading">Cargando estadísticas...</div>';
+  
+  // Only directora and admin
+  if (CU.rol !== 'directora' && CU.rol !== 'administrador') {
+    el.innerHTML = '<div class="empty-state">Acceso restringido</div>';
+    return;
+  }
+  
   try {
     var firstDay = _resumenAnio + '-' + String(_resumenMes).padStart(2,'0') + '-01';
     var lastDate = new Date(_resumenAnio, _resumenMes, 0);
     var lastDay = _resumenAnio + '-' + String(_resumenMes).padStart(2,'0') + '-' + String(lastDate.getDate()).padStart(2,'0');
-    
-    // Get week range for semanal
-    var now = new Date();
-    var dayOfWeek = now.getDay() || 7;
-    var mondayOffset = -(dayOfWeek - 1);
-    var monday = new Date(now); monday.setDate(now.getDate() + mondayOffset);
-    var saturday = new Date(monday); saturday.setDate(monday.getDate() + 5);
-    var mondayStr = monday.toISOString().slice(0,10);
-    var saturdayStr = saturday.toISOString().slice(0,10);
 
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc'),
-      api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&fecha=gte.' + firstDay + '&fecha=lte.' + lastDay),
-      api('GET', 'agenda', null, '?fecha=gte.' + mondayStr + '&fecha=lte.' + saturdayStr)
+      api('GET', 'agenda', null, '?fecha=gte.' + firstDay + '&fecha=lte.' + lastDay),
+      api('GET', 'asignaciones', null, ''),
+      api('GET', 'profesional_tarifas', null, ''),
+      api('GET', 'tarifas', null, ''),
+      api('GET', 'pacientes', null, '?select=id,valor_sesion,pago_profesional_custom').catch(function(){return[];})
     ]);
 
     var profs = results[0];
-    var turnosMes = results[1];
-    var turnosSemana = results[2];
+    var turnos = results[1];
+    var asigs = results[2];
+    var profTarifas = results[3];
+    var tarifasBase = results[4];
+    var pacientes = results[5];
+    
+    var tarifaMap = {};
+    tarifasBase.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    var pacMap = {};
+    pacientes.forEach(function(p) { pacMap[p.id] = p; });
+    var profTarMap = {};
+    profTarifas.forEach(function(pt) {
+      if (!profTarMap[pt.profesional_id]) profTarMap[pt.profesional_id] = {};
+      profTarMap[pt.profesional_id][pt.tipo] = pt.pago_profesional;
+    });
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
 
-    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
-      '<div style="display:flex;align-items:center;gap:10px;">' +
+    // Count pacientes per prof
+    var pacsPorProf = {};
+    asigs.forEach(function(a) {
+      pacsPorProf[a.profesional_id] = (pacsPorProf[a.profesional_id] || 0) + 1;
+    });
+
+    // Calculate stats per prof
+    var stats = {};
+    profs.forEach(function(p) {
+      stats[p.id] = {
+        nombre: p.nombre.split(' ')[0] + ' ' + (p.apellido || p.nombre.split(' ')[1] || ''),
+        nombreCorto: p.nombre.split(' ')[0],
+        confirmados: 0, cancelados: 0, cancHora: 0, pendientes: 0,
+        ingresos: 0, honorarios: 0, pacientes: pacsPorProf[p.id] || 0
+      };
+    });
+
+    turnos.forEach(function(t) {
+      if (!stats[t.profesional_id]) return;
+      var s = stats[t.profesional_id];
+      var tipo = t.tipo || 'sesion';
+      var cp = pacMap[t.paciente_id];
+      var valorTotal = (cp && cp.valor_sesion) ? cp.valor_sesion : (tarifaMap[tipo] || 220000);
+      var ptMap = profTarMap[t.profesional_id] || {};
+      var pago = ptMap[tipo] !== undefined ? ptMap[tipo] : (DEFAULT_PAGO[tipo] || 130000);
+      if (cp && cp.pago_profesional_custom) pago = cp.pago_profesional_custom;
+
+      if (t.estado === 'confirmado') { s.confirmados++; s.ingresos += valorTotal; s.honorarios += pago; }
+      else if (t.estado === 'cancelado_hora') { s.cancHora++; s.ingresos += valorTotal; s.honorarios += pago; }
+      else if (t.estado === 'cancelado') { s.cancelados++; }
+      else if (t.estado === 'pendiente') { s.pendientes++; }
+    });
+
+    // Sort by sesiones (confirmados + cancHora)
+    var profList = profs.map(function(p) { return stats[p.id]; }).filter(function(s) { return s; });
+    profList.sort(function(a,b) { return (b.confirmados+b.cancHora) - (a.confirmados+a.cancHora); });
+
+    var labels = profList.map(function(s) { return s.nombreCorto; });
+    var sesiones = profList.map(function(s) { return s.confirmados + s.cancHora; });
+    var ingresos = profList.map(function(s) { return s.ingresos; });
+    var honorarios = profList.map(function(s) { return s.honorarios; });
+    var pacCount = profList.map(function(s) { return s.pacientes; });
+    var cancRate = profList.map(function(s) {
+      var total = s.confirmados + s.cancHora + s.cancelados + s.pendientes;
+      return total > 0 ? Math.round((s.cancelados / total) * 100) : 0;
+    });
+
+    var CHART_COLORS = ['#2E7D32','#1565C0','#6A1B9A','#00838F','#E65100','#F57F17','#AD1457','#455A64','#4E342E','#00695C'];
+
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesResumen(-1)">← Anterior</button>' +
-      '<span style="font-size:16px;font-weight:600;">' + getResumenLabel() + '</span>' +
+      '<span style="font-size:16px;font-weight:600;">📊 ' + getResumenLabel() + '</span>' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesResumen(1)">Siguiente →</button>' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesResumen(0)">Este mes</button>' +
       '</div></div>';
 
-    var totalMes = turnosMes.length;
-    var totalSemana = turnosSemana.filter(function(t) { return t.estado === 'confirmado' || t.estado === 'cancelado_hora'; }).length;
-    var totalPendSemana = turnosSemana.filter(function(t) { return t.estado === 'pendiente'; }).length;
-
-    html += '<div class="grid-4 mb-20">' +
-      '<div class="stat-card"><div class="stat-num">' + profs.length + '</div><div class="stat-label">Profesionales activas</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + totalMes + '</div><div class="stat-label">Sesiones mes (' + getResumenLabel() + ')</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + totalSemana + '</div><div class="stat-label">✅ Confirmadas esta semana</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="color:#FF9800;">' + totalPendSemana + '</div><div class="stat-label">⏳ Pendientes esta semana</div></div>' +
-      '</div>';
-
-    // Table by profesional
-    html += '<div class="card mb-20"><div class="section-title mb-12">📅 Sesiones por profesional — ' + getResumenLabel() + '</div>' +
-      '<table class="pac-table"><thead><tr>' +
-      '<th>Profesional</th><th>Especialidad</th>' +
-      '<th style="text-align:center;">Esta semana</th>' +
-      '<th style="text-align:center;">Confirmadas mes</th>' +
-      '<th style="text-align:center;">Pendientes mes</th>' +
-      '<th style="text-align:center;">Total mes</th>' +
-      '<th></th>' +
+    // === RANKING TABLE ===
+    html += '<div class="card mb-16"><div class="section-title mb-12">🏆 Ranking de profesionales</div>' +
+      '<table style="width:100%;border-collapse:collapse;">' +
+      '<thead><tr style="background:var(--bg);">' +
+      '<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--text-secondary);">#</th>' +
+      '<th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--text-secondary);">Profesional</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text-secondary);">Sesiones</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text-secondary);">Pacientes</th>' +
+      '<th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-secondary);">Ingresos</th>' +
+      '<th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-secondary);">Honorarios</th>' +
+      '<th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-secondary);">CREA</th>' +
+      '<th style="padding:8px 12px;text-align:center;font-size:11px;color:var(--text-secondary);">% Cancelados</th>' +
       '</tr></thead><tbody>';
 
-    profs.forEach(function(p) {
-      var sesMes = turnosMes.filter(function(t) { return t.profesional_id === p.id; }).length;
-      var sesSemConf = turnosSemana.filter(function(t) { return t.profesional_id === p.id && (t.estado === 'confirmado' || t.estado === 'cancelado_hora'); }).length;
-      var totalTurnosMesTodos = turnosSemana.filter(function(t) { return t.profesional_id === p.id; }).length;
-      var pendMes = turnosSemana.filter(function(t) { return t.profesional_id === p.id && t.estado === 'pendiente'; }).length;
-
-      html += '<tr>' +
-        '<td><div style="display:flex;align-items:center;gap:8px;">' +
-        '<div class="av" style="width:32px;height:32px;font-size:11px;margin-bottom:0;">' + (p.avatar_iniciales||'??') + '</div>' +
-        '<span style="font-weight:500;">' + p.nombre + '</span></div></td>' +
-        '<td style="font-size:12px;color:var(--text-secondary);">' + (p.especialidad||'—') + '</td>' +
-        '<td style="text-align:center;font-weight:600;color:#2196F3;">' + sesSemConf + '</td>' +
-        '<td style="text-align:center;font-weight:600;color:#1B8A7A;">' + sesMes + '</td>' +
-        '<td style="text-align:center;color:#FF9800;">' + pendMes + '</td>' +
-        '<td style="text-align:center;font-weight:700;">' + (sesMes + pendMes) + '</td>' +
-        '<td><button class="btn btn-secondary btn-sm" onclick="verProf(\'' + p.id + '\')">Ver agenda</button></td>' +
+    profList.forEach(function(s, i) {
+      var ses = s.confirmados + s.cancHora;
+      var crea = s.ingresos - s.honorarios;
+      var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.';
+      var cancPct = cancRate[i];
+      html += '<tr style="border-bottom:1px solid var(--border);">' +
+        '<td style="padding:10px 12px;font-size:14px;">' + medal + '</td>' +
+        '<td style="padding:10px 12px;font-weight:600;">' + s.nombre + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;"><strong>' + ses + '</strong>' +
+        (s.cancHora > 0 ? ' <span style="font-size:10px;background:#FF8C0020;color:#FF8C00;border:1px solid #FF8C00;border-radius:4px;padding:1px 4px;">🟠'+s.cancHora+'</span>' : '') + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;">' + s.pacientes + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;">' + fmtGs(s.ingresos) + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;color:#C0392B;">' + fmtGs(s.honorarios) + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;color:#1B8A7A;font-weight:600;">' + fmtGs(crea) + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;"><span style="background:' + (cancPct>20?'#FAEEDA':cancPct>10?'#FEF6E0':'#E8F6F4') + ';color:' + (cancPct>20?'#C0392B':cancPct>10?'#F0A500':'#1B8A7A') + ';padding:2px 8px;border-radius:4px;font-size:12px;">' + cancPct + '%</span></td>' +
         '</tr>';
     });
-
     html += '</tbody></table></div>';
+
+    // === CHARTS ===
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">';
+    
+    // Chart 1: Sesiones bar
+    html += '<div class="card"><div class="section-title mb-12">📅 Sesiones por profesional</div>' +
+      '<canvas id="chart-sesiones" height="200"></canvas></div>';
+    
+    // Chart 2: Ingresos bar
+    html += '<div class="card"><div class="section-title mb-12">💰 Ingresos generados</div>' +
+      '<canvas id="chart-ingresos" height="200"></canvas></div>';
+    
+    html += '</div>';
+    
+    // Chart 3: Tasa cancelacion
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">';
+    html += '<div class="card"><div class="section-title mb-12">❌ Tasa de cancelación (%)</div>' +
+      '<canvas id="chart-canc" height="200"></canvas></div>';
+    
+    // Chart 4: Pacientes
+    html += '<div class="card"><div class="section-title mb-12">👥 Pacientes por profesional</div>' +
+      '<canvas id="chart-pacs" height="200"></canvas></div>';
+    
+    html += '</div>';
+
     el.innerHTML = html;
-  } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+
+    // Destroy existing charts
+    ['chart-sesiones','chart-ingresos','chart-canc','chart-pacs'].forEach(function(id) {
+      var existing = Chart.getChart(id);
+      if (existing) existing.destroy();
+    });
+
+    var chartDefaults = {
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } }
+    };
+
+    // Chart 1: Sesiones
+    new Chart(document.getElementById('chart-sesiones'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: sesiones,
+          backgroundColor: CHART_COLORS.slice(0, labels.length),
+          borderRadius: 6
+        }]
+      },
+      options: Object.assign({}, chartDefaults, {
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return c.raw + ' sesiones'; } } } }
+      })
+    });
+
+    // Chart 2: Ingresos
+    new Chart(document.getElementById('chart-ingresos'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: ingresos,
+          backgroundColor: '#1B8A7A',
+          borderRadius: 6
+        }]
+      },
+      options: Object.assign({}, chartDefaults, {
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return 'Gs. ' + c.raw.toLocaleString(); } } } },
+        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return 'Gs.' + (v/1000000).toFixed(1) + 'M'; } }, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } }
+      })
+    });
+
+    // Chart 3: Cancelacion
+    new Chart(document.getElementById('chart-canc'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: cancRate,
+          backgroundColor: cancRate.map(function(r) { return r > 20 ? '#C0392B' : r > 10 ? '#F0A500' : '#1B8A7A'; }),
+          borderRadius: 6
+        }]
+      },
+      options: Object.assign({}, chartDefaults, {
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return c.raw + '% cancelados'; } } } },
+        scales: { y: { beginAtZero: true, max: 100, ticks: { callback: function(v) { return v + '%'; } }, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } }
+      })
+    });
+
+    // Chart 4: Pacientes - donut
+    new Chart(document.getElementById('chart-pacs'), {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: pacCount,
+          backgroundColor: CHART_COLORS.slice(0, labels.length),
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { position: 'right', labels: { font: { size: 11 }, padding: 8 } },
+          tooltip: { callbacks: { label: function(c) { return c.label + ': ' + c.raw + ' pacientes'; } } }
+        }
+      }
+    });
+
+  } catch(e) { el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
-// ==================
-// MERGE DUPLICADOS
-// ==================
-var _mergeId1 = null, _mergeId2 = null;
-var _allPacsCache = [];
 
 async function abrirMergeDuplicados() {
   _mergeId1 = null; _mergeId2 = null;
