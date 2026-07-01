@@ -799,6 +799,20 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL PREFERENCIALES -->
+<div class="modal-overlay" id="modal-preferenciales">
+  <div class="modal" style="width:580px;max-height:85vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3>💲 Pacientes con precio preferencial</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-preferenciales')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;background:#FEF6E0;padding:8px 12px;border-radius:6px;">
+      Pacientes con precio de sesión diferente al estándar. Hacé clic en el monto para editarlo.
+    </div>
+    <div id="pref-list"><div class="loading">Cargando...</div></div>
+  </div>
+</div>
+
 <!-- MODAL ARCHIVO PACIENTE -->
 <div class="modal-overlay" id="modal-archivo-pac">
   <div class="modal" style="width:460px;">
@@ -1870,7 +1884,10 @@ async function loadPacs() {
       headerEl.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
         '<button class="btn btn-secondary btn-sm" onclick="abrirMergeDuplicados()">🔄 Fusionar duplicados</button>' +
         '<button class="btn ' + (showInactivos ? 'btn-primary' : 'btn-secondary') + ' btn-sm" onclick="toggleInactivos()">' + (showInactivos ? '👁 Viendo inactivos' : '📁 Ver inactivos') + '</button>' +
+        (CU.rol === 'directora' ? '<button class="btn btn-secondary btn-sm" onclick="verPreferenciales()">💲 Preferenciales</button>' : '') +
         '</div>';
+    } else if (headerEl && CU.rol === 'administrador') {
+      headerEl.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="verPreferenciales()">💲 Preferenciales</button>';
     }
     var el = document.getElementById('pac-table-wrap');
     if (!pacs.length) { el.innerHTML = '<div class="empty-state">Sin pacientes</div>'; return; }
@@ -4871,6 +4888,74 @@ function profMesCambiar(dir, profId) {
   if (dir === 0) { _profMesOffset = 0; }
   else { _profMesOffset += dir; }
   loadProfAgendaMes(profId);
+}
+
+// ==================
+// PREFERENCIALES
+// ==================
+async function verPreferenciales() {
+  openModal('modal-preferenciales');
+  var el = document.getElementById('pref-list');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    // Get all patients with valor_sesion set
+    var pacs = await api('GET', 'pacientes', null, '?valor_sesion=not.is.null&order=nombre.asc');
+    // Also get standard tarifas for comparison
+    var tarifas = await api('GET', 'tarifas', null, '').catch(function(){return[];});
+    var tarifaMap = {};
+    tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    var stdSesion = tarifaMap['sesion'] || 220000;
+    
+    if (!pacs.length) {
+      el.innerHTML = '<div class="empty-state">No hay pacientes con precio preferencial configurado.</div>';
+      return;
+    }
+    
+    var html = '<table style="width:100%;border-collapse:collapse;">' +
+      '<thead><tr style="background:var(--bg);">' +
+      '<th style="padding:10px 12px;text-align:left;font-size:12px;color:var(--text-secondary);">Paciente</th>' +
+      '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Precio estándar</th>' +
+      '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Precio preferencial</th>' +
+      '<th style="padding:10px 12px;text-align:center;font-size:12px;color:var(--text-secondary);">Acciones</th>' +
+      '</tr></thead><tbody>';
+    
+    pacs.forEach(function(p) {
+      var diff = stdSesion - p.valor_sesion;
+      html += '<tr style="border-bottom:1px solid var(--border);">' +
+        '<td style="padding:10px 12px;">' +
+        '<div style="font-size:13px;font-weight:500;">' + p.nombre + ' ' + p.apellido + '</div>' +
+        (p.diagnostico ? '<div style="font-size:11px;color:var(--text-secondary);">' + p.diagnostico + '</div>' : '') +
+        '</td>' +
+        '<td style="padding:10px 12px;text-align:right;font-size:13px;color:var(--text-secondary);">' + fmtGs(stdSesion) + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;">' +
+        '<span style="font-size:14px;font-weight:700;color:#1B8A7A;">' + fmtGs(p.valor_sesion) + '</span>' +
+        '<div style="font-size:10px;color:#C0392B;">- ' + fmtGs(diff) + ' descuento</div>' +
+        '</td>' +
+        '<td style="padding:10px 12px;text-align:center;">' +
+        '<button data-pacid="' + p.id + '" data-nombre="' + (p.nombre + ' ' + p.apellido).replace(/"/g,'') + '" data-valor="' + p.valor_sesion + '" onclick="editarPrecioPreferencial(this.getAttribute(\'data-pacid\'),this.getAttribute(\'data-nombre\'),parseInt(this.getAttribute(\'data-valor\')))" class="btn btn-secondary btn-sm">✏️ Editar</button>' +
+        '</td>' +
+        '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+function editarPrecioPreferencial(pacId, pacNombre, valorActual) {
+  var nuevoValor = prompt('Precio preferencial para ' + pacNombre + ' (actual: ' + fmtGs(valorActual) + '):\nIngresá el nuevo monto en Gs. (o dejá vacío para quitar el precio preferencial):');
+  if (nuevoValor === null) return; // cancelled
+  var monto = nuevoValor.trim() === '' ? null : parseInt(nuevoValor.replace(/[^0-9]/g,''));
+  if (nuevoValor.trim() !== '' && (!monto || monto < 1000)) {
+    alert('Ingresá un monto válido');
+    return;
+  }
+  api('PATCH', 'pacientes', { valor_sesion: monto }, '?id=eq.' + pacId)
+    .then(function() {
+      toast(monto ? '✅ Precio actualizado: ' + fmtGs(monto) : '✅ Precio preferencial eliminado');
+      verPreferenciales();
+    })
+    .catch(function(e) { alert('Error: ' + e.message); });
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
