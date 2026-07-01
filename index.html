@@ -2045,12 +2045,16 @@ async function loadAgendaMes() {
       api('GET', 'agenda', null, agQ),
       isDir ? api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc') : Promise.resolve([]),
       api('GET', 'tarifas', null, '').catch(function(){return [];}),
+      api('GET', 'pacientes', null, '?select=id,valor_sesion,pago_profesional_custom').catch(function(){return[];})
     ]);
     var turnos = results[0];
     var profs = results[1];
     var tarifasBase = results[2];
     var tarifaMap = {};
     tarifasBase.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    var pacsMes = results[3] || [];
+    var pacMapMes = {};
+    pacsMes.forEach(function(p) { if(p.valor_sesion || p.pago_profesional_custom) pacMapMes[p.id] = p; });
     
     // Fill prof filter
     var profFilter = document.getElementById('agenda-mes-filter-prof');
