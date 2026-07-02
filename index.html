@@ -3849,7 +3849,11 @@ async function loadResumen() {
     profs.forEach(function(p) {
       stats[p.id] = {
         nombre: p.nombre.split(' ')[0] + ' ' + (p.apellido || p.nombre.split(' ')[1] || ''),
-        nombreCorto: p.nombre.split(' ')[0],
+        nombreCorto: (function() {
+          var partes = p.nombre.trim().split(' ');
+          var apellido = p.apellido ? p.apellido.trim() : (partes.length > 1 ? partes.slice(1).join(' ') : '');
+          return partes[0] + (apellido ? ' ' + apellido.charAt(0) + '.' : '');
+        })(),
         confirmados: 0, cancelados: 0, cancHora: 0, pendientes: 0,
         ingresos: 0, honorarios: 0, pacientes: pacsPorProf[p.id] || 0
       };
