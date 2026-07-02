@@ -2580,10 +2580,13 @@ async function eliminarPac(pacId) {
 
 async function saveEditPac() {
   var id = document.getElementById('edit-pac-id').value;
+  if (!id) { alert('Error: no se encontró el ID del paciente'); return; }
   try {
+    var valorSesion = document.getElementById('edit-pac-valor') ? document.getElementById('edit-pac-valor').value : '';
+    var pagoProfCustom = document.getElementById('edit-pac-pago-prof') ? document.getElementById('edit-pac-pago-prof').value : '';
     await api('PATCH', 'pacientes', {
-      nombre: document.getElementById('edit-pac-nombre').value,
-      apellido: document.getElementById('edit-pac-apellido').value,
+      nombre: document.getElementById('edit-pac-nombre').value.trim(),
+      apellido: document.getElementById('edit-pac-apellido').value.trim(),
       dni: document.getElementById('edit-pac-dni').value || null,
       fecha_nacimiento: document.getElementById('edit-pac-fnac').value || null,
       telefono: document.getElementById('edit-pac-tel').value || null,
@@ -2594,9 +2597,8 @@ async function saveEditPac() {
       drive_link: document.getElementById('edit-pac-drive').value || null,
       responsable_nombre: document.getElementById('edit-pac-responsable').value || null,
       ruc: document.getElementById('edit-pac-ruc').value || null,
-      fecha_nacimiento: document.getElementById('edit-pac-fnac').value || null,
-      valor_sesion: document.getElementById('edit-pac-valor').value ? parseInt(document.getElementById('edit-pac-valor').value) : null,
-      pago_profesional_custom: document.getElementById('edit-pac-pago-prof').value ? parseInt(document.getElementById('edit-pac-pago-prof').value) : null
+      valor_sesion: valorSesion ? parseInt(valorSesion.replace(/[^0-9]/g,'')) : null,
+      pago_profesional_custom: pagoProfCustom ? parseInt(pagoProfCustom.replace(/[^0-9]/g,'')) : null
     }, '?id=eq.' + id);
     // Update asignaciones - delete all and re-insert
     await api('DELETE', 'asignaciones', null, '?paciente_id=eq.' + id);
@@ -2609,9 +2611,12 @@ async function saveEditPac() {
       await api('PATCH', 'pacientes', { profesional_id: checks[0].value }, '?id=eq.' + id);
     }
     closeModal('modal-edit-pac');
-    toast('Paciente actualizado');
+    toast('✅ Paciente actualizado');
     loadPacs();
-  } catch(e) { console.error(e); }
+  } catch(e) { 
+    console.error(e); 
+    alert('Error al guardar: ' + e.message);
+  }
 }
 
 async function darAlta(pacId) {
