@@ -1903,7 +1903,7 @@ async function loadPacs() {
     if (headerEl && (CU.rol === 'directora' || CU.rol === 'recepcionista')) {
       headerEl.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
         '<button class="btn btn-secondary btn-sm" onclick="abrirMergeDuplicados()">🔄 Fusionar duplicados</button>' +
-        '<button class="btn ' + (showInactivos ? 'btn-primary' : 'btn-secondary') + ' btn-sm" onclick="toggleInactivos()">' + (showInactivos ? '👁 Viendo inactivos' : '📁 Ver inactivos') + '</button>' +
+        '<button class="btn ' + (showInactivos ? 'btn-primary' : 'btn-secondary') + ' btn-sm" onclick="toggleInactivos()">' + (showInactivos ? '← Volver a activos' : '📁 Pacientes inactivos') + '</button>' +
         '<button class="btn btn-secondary btn-sm" onclick="verPreferenciales()">💲 Preferenciales</button>' +
         '</div>';
     } else if (headerEl && CU.rol === 'administrador') {
@@ -1913,8 +1913,17 @@ async function loadPacs() {
     var tarifasStd = await api('GET', 'tarifas', null, '?tipo=eq.sesion&limit=1').catch(function(){return[];});
     var precioStd = tarifasStd.length ? tarifasStd[0].valor_total : 220000;
     
+    // Load count of inactive patients separately for display
+    var inactivosCount = 0;
+    if (!showInactivos) {
+      var inactivosQ = await api('GET', 'pacientes', null, '?estado=not.eq.activo&select=id').catch(function(){return[];});
+      inactivosCount = inactivosQ.length;
+    }
     var el = document.getElementById('pac-table-wrap');
-    if (!pacs.length) { el.innerHTML = '<div class="empty-state">Sin pacientes</div>'; return; }
+    if (!pacs.length) { 
+      el.innerHTML = '<div class="empty-state">' + (showInactivos ? 'Sin pacientes inactivos' : 'Sin pacientes activos') + '</div>'; 
+      return; 
+    }
     el.innerHTML = '<table class="pac-table"><thead><tr><th>Paciente</th><th>Responsable / RUC</th><th>Profesional</th><th>Cobertura</th><th>Estado</th><th>Ingreso</th><th></th></tr></thead><tbody>' +
       pacs.map(function(p) {
         var isPref = p.valor_sesion && p.valor_sesion > 0 && p.valor_sesion < precioStd;
@@ -1926,7 +1935,9 @@ async function loadPacs() {
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
           '<td><span class="badge ' + (p.estado==='activo'?'b-green':p.estado==='alta'?'b-gray':'b-amber') + '">' + p.estado + '</span></td>' +
           '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td>' +
-          '<td><button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️ Editar</button>' + ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirMergeDesdeFila(\'' + p.id + '\',\'' + (p.nombre + ' ' + p.apellido).replace(/'/g,'') + '\')" title="Fusionar con duplicado" style="background:none;border:1px solid #2196F3;color:#2196F3;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🔄</button>' : '') + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🗑</button>' : '') + '</td>' +
+          '<td style="display:flex;gap:4px;flex-wrap:wrap;">' +
+          '<button onclick="verLegajoDesdePacs(\'' + p.id + '\')" style="background:#E8F6F4;border:1px solid #1B8A7A;color:#1B8A7A;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">📋 Legajo</button>' +
+          '<button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️</button>' + ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirMergeDesdeFila(\'' + p.id + '\',\'' + (p.nombre + ' ' + p.apellido).replace(/'/g,'') + '\')" title="Fusionar con duplicado" style="background:none;border:1px solid #2196F3;color:#2196F3;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🔄</button>' : '') + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🗑</button>' : '') + '</td>' +
           '</tr>';
       }).join('') + '</tbody></table>';
     var sel = document.getElementById('pac-prof');
@@ -1977,7 +1988,8 @@ async function savePac() {
       diagnostico: document.getElementById('pac-diag').value || null,
       profesional_id: null,
       fecha_ingreso: document.getElementById('pac-ingreso').value || today(),
-      drive_link: document.getElementById('pac-drive').value || null
+      drive_link: document.getElementById('pac-drive').value || null,
+      estado: 'activo'
     });
     var newPac = result[0];
     // Create asignaciones
@@ -2729,6 +2741,30 @@ async function uploadFoto(input) {
 function toggleInactivos() {
   window._showInactivos = !window._showInactivos;
   loadPacs();
+}
+
+async function verLegajoDesdePacs(pacId) {
+  try {
+    // Get first assigned profesional for this patient
+    var asig = await api('GET', 'asignaciones', null, '?paciente_id=eq.' + pacId + '&limit=1');
+    var profId = asig.length ? asig[0].profesional_id : (CU.rol === 'profesional' ? CU.id : null);
+    if (!profId) {
+      // Use directora's prof profile as fallback
+      var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&limit=1');
+      profId = profs.length ? profs[0].id : null;
+    }
+    if (!profId) { alert('No hay profesional asignada a este paciente'); return; }
+    // Navigate to legajo
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.getElementById('page-profesionales').classList.add('active');
+    document.getElementById('page-title').textContent = 'Legajo del paciente';
+    if (!_profs || !_profs.length) await loadProfs();
+    await verProf(profId);
+    // Wait for DOM then click legajos tab and open this patient
+    setTimeout(async function() {
+      await verLegajo(pacId, profId);
+    }, 300);
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 function filtrarPacientes(query) {
