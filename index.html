@@ -335,7 +335,6 @@ input[type="time"] { -webkit-appearance: none; }
         </div>
       </div>
       <div id="pac-legajo-view" style="display:none;">
-        <button class="back-btn" onclick="volverAListaPacientes()">← Volver a Pacientes</button>
         <div id="pac-legajo-content"></div>
       </div>
     </div>
@@ -1680,11 +1679,9 @@ async function _renderLegajo(pacId, profId, canEdit, lv) {
       return '<button class="btn btn-primary btn-sm mb-12" onclick="openObs(\'' + tipo + '\')">+ ' + label + '</button>';
     };
 
-    var backAction = window._legajoDesde === 'pacientes' 
-      ? 'window._legajoDesde=null;document.getElementById(\'page-pacientes\').style.display=\'\';goTo(\'pacientes\')'
-      : 'verProf(\'' + profId + '\')';
     var backLabel = window._legajoDesde === 'pacientes' ? '← Volver a Pacientes' : '← Volver al perfil';
-    var html = '<button class="back-btn" onclick="' + backAction + '">' + backLabel + '</button>';
+    var backFn = window._legajoDesde === 'pacientes' ? 'volverAListaPacientes()' : ('verProf(\'' + profId + '\')');
+    var html = '<button class="back-btn" onclick="' + backFn + '">' + backLabel + '</button>';
     html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;">' +
       (canEdit ? '<button class="btn btn-secondary btn-sm" onclick="openEditPac(\'' + pacId + '\')">✏️ Editar datos</button>' : '') +
       (canEdit && pac.estado === 'activo' ? '<button class="btn btn-sm" style="background:#FAEEDA;color:#633806;" onclick="darAlta(\'' + pacId + '\')">✅ Dar de alta</button>' : '') +
@@ -1914,7 +1911,10 @@ async function loadPacs() {
       if (!asig.length) { pacs = []; }
       else {
         var pacIds = asig.map(function(a) { return a.paciente_id; }).join(',');
-        pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds + ')&order=created_at.desc');
+        var profEstadoQ = showInactivos 
+          ? '?id=in.(' + pacIds + ')&estado=not.eq.activo&order=nombre.asc'
+          : '?id=in.(' + pacIds + ')&estado=eq.activo&order=nombre.asc';
+        pacs = await api('GET', 'pacientes', null, profEstadoQ);
       }
     }
     var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional');
@@ -1959,9 +1959,11 @@ async function loadPacs() {
           '<td>' + (p.cobertura ? '<span class="badge b-gray">' + p.cobertura + '</span>' : '—') + '</td>' +
           '<td><span class="badge ' + (p.estado==='activo'?'b-green':p.estado==='alta'?'b-gray':'b-amber') + '">' + p.estado + '</span></td>' +
           '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td>' +
-          '<td style="display:flex;gap:4px;flex-wrap:wrap;">' +
+          '<td>' +
+          '<div style="display:flex;gap:4px;">' +
           '<button onclick="verLegajoDesdePacs(\'' + p.id + '\')" style="background:#E8F6F4;border:1px solid #1B8A7A;color:#1B8A7A;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">📋 Legajo</button>' +
-          '<button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);">✏️</button>' + ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirMergeDesdeFila(\'' + p.id + '\',\'' + (p.nombre + ' ' + p.apellido).replace(/'/g,'') + '\')" title="Fusionar con duplicado" style="background:none;border:1px solid #2196F3;color:#2196F3;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🔄</button>' : '') + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;margin-left:4px;">🗑</button>' : '') + '</td>' +
+          '<button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">✏️</button>' +
+          '</div>' + ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirMergeDesdeFila(\'' + p.id + '\',\'' + (p.nombre + ' ' + p.apellido).replace(/'/g,'') + '\')" title="Fusionar" style="background:none;border:1px solid #2196F3;color:#2196F3;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">🔄</button>' : '') + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">🗑</button>' : '') + '</div></td>' +
           '</tr>';
       }).join('') + '</tbody></table>';
     var sel = document.getElementById('pac-prof');
@@ -2586,6 +2588,8 @@ async function openEditPac(pacId) {
     document.getElementById('edit-pac-diag').value = p.diagnostico || '';
     document.getElementById('edit-pac-ingreso').value = p.fecha_ingreso || '';
     document.getElementById('edit-pac-estado').value = p.estado || 'activo';
+    var estadoWrap = document.getElementById('edit-pac-estado-wrap');
+    if (estadoWrap) estadoWrap.style.display = canSeeFinancial ? '' : 'none';
     document.getElementById('edit-pac-fnac').value = p.fecha_nacimiento || '';
     document.getElementById('edit-pac-drive').value = p.drive_link || '';
     document.getElementById('edit-pac-valor').value = p.valor_sesion || '';
