@@ -2767,29 +2767,7 @@ function toggleInactivos() {
   loadPacs();
 }
 
-async function verLegajoDesdePacs(pacId) {
-  try {
-    // Get first assigned profesional for this patient
-    var asig = await api('GET', 'asignaciones', null, '?paciente_id=eq.' + pacId + '&limit=1');
-    var profId = asig.length ? asig[0].profesional_id : (CU.rol === 'profesional' ? CU.id : null);
-    if (!profId) {
-      // Use directora's prof profile as fallback
-      var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&limit=1');
-      profId = profs.length ? profs[0].id : null;
-    }
-    if (!profId) { alert('No hay profesional asignada a este paciente'); return; }
-    // Navigate to legajo
-    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-    document.getElementById('page-profesionales').classList.add('active');
-    document.getElementById('page-title').textContent = 'Legajo del paciente';
-    if (!_profs || !_profs.length) await loadProfs();
-    await verProf(profId);
-    // Wait for DOM then click legajos tab and open this patient
-    setTimeout(async function() {
-      await verLegajo(pacId, profId);
-    }, 300);
-  } catch(e) { alert('Error: ' + e.message); }
-}
+
 
 function filtrarPacientes(query) {
   var q = query.toLowerCase();
@@ -5239,6 +5217,42 @@ function editarPrecioPreferencial(pacId, pacNombre, valorActual) {
       verPreferenciales();
     })
     .catch(function(e) { alert('Error: ' + e.message); });
+}
+
+var _legajoDesde = null;
+
+function volverAListaPacientes() {
+  _legajoDesde = null;
+  document.getElementById('pac-list-view').style.display = '';
+  document.getElementById('pac-legajo-view').style.display = 'none';
+  document.getElementById('page-title').textContent = 'Pacientes';
+}
+
+async function verLegajoDesdePacs(pacId) {
+  try {
+    // Get assigned profesional
+    var asig = await api('GET', 'asignaciones', null, '?paciente_id=eq.' + pacId + '&limit=1');
+    var profId = asig.length ? asig[0].profesional_id : (CU.rol === 'profesional' ? CU.id : null);
+    if (!profId) {
+      var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&limit=1');
+      profId = profs.length ? profs[0].id : null;
+    }
+    if (!profId) { alert('No hay profesional asignada a este paciente'); return; }
+    
+    // Show legajo INSIDE pacientes page - no profile flash
+    _legajoDesde = 'pacientes';
+    document.getElementById('pac-list-view').style.display = 'none';
+    document.getElementById('pac-legajo-view').style.display = 'block';
+    document.getElementById('page-title').textContent = 'Legajo del paciente';
+    
+    // Render legajo directly into pac-legajo-content
+    var container = document.getElementById('pac-legajo-content');
+    container.innerHTML = '<div class="loading">Cargando legajo...</div>';
+    await verLegajoEnContenedor(pacId, profId, container);
+  } catch(e) { 
+    alert('Error: ' + e.message);
+    volverAListaPacientes();
+  }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
