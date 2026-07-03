@@ -943,15 +943,17 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="form-group"><label>Fecha de ingreso</label><input type="date" id="edit-pac-ingreso"></div>
     <div id="edit-pac-prof-wrap" style="margin-bottom:16px;"></div>
     <!-- Campos administrativos - SOLO directora/admin/recepcionista -->
+    <!-- Estado visible para todos -->
+    <div class="form-group"><label>Estado del paciente</label>
+      <select id="edit-pac-estado">
+        <option value="activo">Activo</option>
+        <option value="inactivo">Inactivo</option>
+        <option value="alta">Alta</option>
+      </select>
+    </div>
+    <!-- Campos administrativos - SOLO directora/admin/recepcionista -->
     <div id="edit-pac-admin-fields" style="display:none;">
       <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-bottom:10px;padding-top:8px;border-top:1px solid var(--border);">Datos administrativos</div>
-      <div class="form-group" id="edit-pac-estado-wrap"><label>Estado</label>
-        <select id="edit-pac-estado">
-          <option value="activo">Activo</option>
-          <option value="inactivo">Inactivo</option>
-          <option value="alta">Alta</option>
-        </select>
-      </div>
       <div class="form-group"><label>💰 Precio sesión personalizado (Gs.)</label><input type="number" id="edit-pac-valor" placeholder="Dejar vacío para precio estándar"></div>
       <div class="form-group"><label>💸 Pago profesional personalizado (Gs.)</label><input type="number" id="edit-pac-pago-prof" placeholder="Ej: 60000"></div>
       <div class="form-group"><label>👤 Responsable (para factura)</label><input id="edit-pac-responsable" placeholder="Nombre del padre/madre"></div>
