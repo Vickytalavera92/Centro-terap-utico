@@ -1660,7 +1660,11 @@ async function verLegajo(pacId, profId) {
       return '<button class="btn btn-primary btn-sm mb-12" onclick="openObs(\'' + tipo + '\')">+ ' + label + '</button>';
     };
 
-    var html = '<button class="back-btn" onclick="verProf(\'' + profId + '\')">← Volver al perfil</button>';
+    var backAction = window._legajoDesde === 'pacientes' 
+      ? 'window._legajoDesde=null;document.getElementById(\'page-pacientes\').style.display=\'\';goTo(\'pacientes\')'
+      : 'verProf(\'' + profId + '\')';
+    var backLabel = window._legajoDesde === 'pacientes' ? '← Volver a Pacientes' : '← Volver al perfil';
+    var html = '<button class="back-btn" onclick="' + backAction + '">' + backLabel + '</button>';
     html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;">' +
       (canEdit ? '<button class="btn btn-secondary btn-sm" onclick="openEditPac(\'' + pacId + '\')">✏️ Editar datos</button>' : '') +
       (canEdit && pac.estado === 'activo' ? '<button class="btn btn-sm" style="background:#FAEEDA;color:#633806;" onclick="darAlta(\'' + pacId + '\')">✅ Dar de alta</button>' : '') +
