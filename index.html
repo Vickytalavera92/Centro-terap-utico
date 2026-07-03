@@ -1912,6 +1912,8 @@ async function regSesion() {
 
 async function loadPacs() {
   try {
+    // Define showInactivos FIRST before any queries
+    var showInactivos = window._showInactivos || false;
     var pacs;
     if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
       var estadoQ = showInactivos ? '?estado=not.eq.activo&order=nombre.asc' : '?estado=eq.activo&order=nombre.asc';
@@ -1931,9 +1933,6 @@ async function loadPacs() {
     var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional');
     var profMap = {};
     profs.forEach(function(p) { profMap[p.id] = p.nombre; });
-    // Add merge tool button for directora
-    // Show/hide inactive toggle
-    var showInactivos = window._showInactivos || false;
     var headerEl = document.getElementById('pac-header-actions');
     if (headerEl && (CU.rol === 'directora' || CU.rol === 'recepcionista')) {
       headerEl.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
@@ -1953,8 +1952,18 @@ async function loadPacs() {
     // Load count of inactive patients separately for display
     var inactivosCount = 0;
     if (!showInactivos) {
-      var inactivosQ = await api('GET', 'pacientes', null, '?estado=not.eq.activo&select=id').catch(function(){return[];});
-      inactivosCount = inactivosQ.length;
+      try {
+        if (CU.rol === 'profesional') {
+          // Count only their own inactivos
+          if (typeof pacIds !== 'undefined' && pacIds) {
+            var inactivosQ = await api('GET', 'pacientes', null, '?id=in.(' + pacIds + ')&estado=not.eq.activo&select=id');
+            inactivosCount = inactivosQ.length;
+          }
+        } else {
+          var inactivosQ = await api('GET', 'pacientes', null, '?estado=not.eq.activo&select=id');
+          inactivosCount = inactivosQ.length;
+        }
+      } catch(e) { inactivosCount = 0; }
     }
     var el = document.getElementById('pac-table-wrap');
     if (!pacs.length) { 
