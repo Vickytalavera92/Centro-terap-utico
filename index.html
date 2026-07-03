@@ -923,9 +923,10 @@ input[type="time"] { -webkit-appearance: none; }
 
 <!-- MODAL EDITAR PACIENTE -->
 <div class="modal-overlay" id="modal-edit-pac">
-  <div class="modal">
+  <div class="modal" style="max-height:90vh;overflow-y:auto;">
     <div class="modal-header"><h3>Editar paciente</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-pac')">✕</button></div>
     <input type="hidden" id="edit-pac-id">
+    <!-- Campos clínicos - visibles para TODOS -->
     <div class="grid-2">
       <div class="form-group"><label>Nombre</label><input id="edit-pac-nombre" placeholder="Nombre"></div>
       <div class="form-group"><label>Apellido</label><input id="edit-pac-apellido" placeholder="Apellido"></div>
@@ -939,20 +940,28 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="form-group"><label>Cobertura</label><input id="edit-pac-cob" placeholder="IIPS, particular..."></div>
     </div>
     <div class="form-group"><label>Diagnóstico</label><input id="edit-pac-diag" placeholder="Diagnóstico principal"></div>
-    <div class="form-group"><label>Fecha de ingreso al centro</label><input type="date" id="edit-pac-ingreso"></div>
-    <div class="form-group"><label>Estado</label>
-      <select id="edit-pac-estado">
-        <option value="activo">Activo</option>
-        <option value="inactivo">Inactivo</option>
-        <option value="alta">Alta</option>
-      </select>
-    </div>
+    <div class="form-group"><label>Fecha de ingreso</label><input type="date" id="edit-pac-ingreso"></div>
     <div id="edit-pac-prof-wrap" style="margin-bottom:16px;"></div>
-    <div class="form-group"><label>💰 Precio total personalizado (Gs.) — opcional</label><input type="number" id="edit-pac-valor" placeholder="Ej: 150000 — dejar vacío para usar precio estándar"></div>
-    <div class="form-group"><label>👤 Nombre para factura (responsable)</label><input id="edit-pac-responsable" placeholder="Nombre del padre/madre que figura en factura"></div>
-    <div class="form-group"><label>🪪 RUC / CI del responsable</label><input id="edit-pac-ruc" placeholder="Ej: 1048676-3"></div>
-    <div class="form-group"><label>💸 Pago profesional personalizado (Gs.) — opcional</label><input type="number" id="edit-pac-pago-prof" placeholder="Ej: 60000 — CREA gana la diferencia"></div>
-    <div class="form-group"><label>🔗 Link Google Drive</label><input id="edit-pac-drive" placeholder="https://drive.google.com/..."></div>
+    <!-- Campos administrativos - SOLO directora/admin/recepcionista -->
+    <div id="edit-pac-admin-fields" style="display:none;">
+      <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-bottom:10px;padding-top:8px;border-top:1px solid var(--border);">Datos administrativos</div>
+      <div class="form-group" id="edit-pac-estado-wrap"><label>Estado</label>
+        <select id="edit-pac-estado">
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+          <option value="alta">Alta</option>
+        </select>
+      </div>
+      <div class="form-group"><label>💰 Precio sesión personalizado (Gs.)</label><input type="number" id="edit-pac-valor" placeholder="Dejar vacío para precio estándar"></div>
+      <div class="form-group"><label>💸 Pago profesional personalizado (Gs.)</label><input type="number" id="edit-pac-pago-prof" placeholder="Ej: 60000"></div>
+      <div class="form-group"><label>👤 Responsable (para factura)</label><input id="edit-pac-responsable" placeholder="Nombre del padre/madre"></div>
+      <div class="form-group"><label>🪪 RUC / CI del responsable</label><input id="edit-pac-ruc" placeholder="Ej: 1048676-3"></div>
+      <div class="form-group"><label>🔗 Link Google Drive</label><input id="edit-pac-drive" placeholder="https://drive.google.com/..."></div>
+    </div>
+    <!-- Drive para todos -->
+    <div id="edit-pac-drive-wrap" style="display:none;">
+      <div class="form-group"><label>🔗 Link Google Drive</label><input id="edit-pac-drive-prof" placeholder="https://drive.google.com/..."></div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-edit-pac')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveEditPac()">Guardar cambios</button>
@@ -2588,8 +2597,6 @@ async function openEditPac(pacId) {
     document.getElementById('edit-pac-diag').value = p.diagnostico || '';
     document.getElementById('edit-pac-ingreso').value = p.fecha_ingreso || '';
     document.getElementById('edit-pac-estado').value = p.estado || 'activo';
-    var estadoWrap = document.getElementById('edit-pac-estado-wrap');
-    if (estadoWrap) estadoWrap.style.display = canSeeFinancial ? '' : 'none';
     document.getElementById('edit-pac-fnac').value = p.fecha_nacimiento || '';
     document.getElementById('edit-pac-drive').value = p.drive_link || '';
     document.getElementById('edit-pac-valor').value = p.valor_sesion || '';
