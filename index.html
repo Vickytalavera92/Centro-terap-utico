@@ -323,14 +323,20 @@ input[type="time"] { -webkit-appearance: none; }
 
     <!-- PACIENTES -->
     <div class="page" id="page-pacientes">
-      <div id="pac-header-actions" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
-      <div class="card">
-        <div class="flex items-center justify-between mb-12">
-          <div class="section-title" style="margin-bottom:0;">Pacientes</div>
-          <button class="btn btn-primary btn-sm" onclick="openModalPac()">+ Nuevo paciente</button>
+      <div id="pac-list-view">
+        <div id="pac-header-actions" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
+        <div class="card">
+          <div class="flex items-center justify-between mb-12">
+            <div class="section-title" style="margin-bottom:0;">Pacientes</div>
+            <button class="btn btn-primary btn-sm" onclick="openModalPac()">+ Nuevo paciente</button>
+          </div>
+          <input id="pac-search" placeholder="🔍 Buscar por nombre..." oninput="filtrarPacientes(this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;margin-bottom:12px;">
+          <div id="pac-table-wrap"></div>
         </div>
-        <input id="pac-search" placeholder="🔍 Buscar por nombre..." oninput="filtrarPacientes(this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;margin-bottom:12px;">
-        <div id="pac-table-wrap"></div>
+      </div>
+      <div id="pac-legajo-view" style="display:none;">
+        <button class="back-btn" onclick="volverAListaPacientes()">← Volver a Pacientes</button>
+        <div id="pac-legajo-content"></div>
       </div>
     </div>
 
@@ -1629,6 +1635,16 @@ async function verProf(idxOrId) {
   } catch(e) { console.error(e); dv.innerHTML = '<div class="empty-state">Error: ' + e.message + ' | profId: ' + profId + '</div>'; }
 }
 
+async function verLegajoEnContenedor(pacId, profId, container) {
+  curPacId = pacId;
+  curProfId = profId;
+  var canEdit = CU.rol === 'directora' || CU.id === profId || CU.rol === 'recepcionista';
+  var lv = container;
+  lv.innerHTML = '<div class="loading">Cargando legajo...</div>';
+  // Reuse same logic as verLegajo but render to custom container
+  await _renderLegajo(pacId, profId, canEdit, lv);
+}
+
 async function verLegajo(pacId, profId) {
   curPacId = pacId;
   curProfId = profId;
@@ -1636,6 +1652,10 @@ async function verLegajo(pacId, profId) {
   document.getElementById('view-prof-detail').style.display = 'none';
   document.getElementById('view-legajo').style.display = 'block';
   var lv = document.getElementById('view-legajo');
+  await _renderLegajo(pacId, profId, canEdit, lv);
+}
+
+async function _renderLegajo(pacId, profId, canEdit, lv) {
   lv.innerHTML = '<div class="loading">Cargando legajo...</div>';
   try {
     var hoyStr = today();
