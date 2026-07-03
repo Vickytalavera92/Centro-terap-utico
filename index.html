@@ -326,7 +326,7 @@ input[type="time"] { -webkit-appearance: none; }
       <div id="pac-list-view">
         <div id="pac-header-actions" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
         <div class="card">
-          <div class="flex items-center justify-between mb-12">
+          <div class="flex items-center justify-between mb-12" id="pac-list-header">
             <div class="section-title" style="margin-bottom:0;">Pacientes</div>
             <button class="btn btn-primary btn-sm" onclick="openModalPac()">+ Nuevo paciente</button>
           </div>
@@ -1943,6 +1943,8 @@ async function loadPacs() {
         '</div>';
     } else if (headerEl && CU.rol === 'administrador') {
       headerEl.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="verPreferenciales()">💲 Preferenciales</button>';
+    } else if (headerEl && CU.rol === 'profesional') {
+      headerEl.innerHTML = '<button class="btn ' + (showInactivos ? 'btn-primary' : 'btn-secondary') + ' btn-sm" onclick="toggleInactivos()">' + (showInactivos ? '← Volver a activos' : '📁 Mis pacientes inactivos') + '</button>';
     }
     // Load standard price for comparison
     var tarifasStd = await api('GET', 'tarifas', null, '?tipo=eq.sesion&limit=1').catch(function(){return[];});
@@ -1963,7 +1965,8 @@ async function loadPacs() {
       pacs.map(function(p) {
         var isPref = p.valor_sesion && p.valor_sesion > 0 && p.valor_sesion < precioStd;
         var canSeeMonto = CU.rol === 'directora' || CU.rol === 'administrador' || CU.rol === 'recepcionista';
-        return '<tr' + (isPref ? ' style="border-left:3px solid #1565C0;"' : '') + '>' +
+        var isInactivo = p.estado && p.estado !== 'activo';
+        return '<tr' + (isPref ? ' style="border-left:3px solid #1565C0;"' : isInactivo ? ' style="opacity:0.75;background:#FAFAFA;"' : '') + '>' +
           '<td><div style="display:flex;align-items:center;gap:8px;"><div class="av" style="width:28px;height:28px;font-size:10px;margin-bottom:0;background:' + (isPref ? '#1565C0' : '') + ';">' + ini(p.nombre, p.apellido) + '</div><div><span style="font-weight:500;">' + p.nombre + ' ' + p.apellido + '</span>' + (p.fecha_nacimiento ? '<div style="font-size:11px;color:var(--text-secondary);">' + calcAge(p.fecha_nacimiento) + ' años</div>' : '') + (isPref ? '<div style="font-size:11px;color:#1565C0;font-weight:600;">💲 Preferencial' + (canSeeMonto ? ': ' + fmtGs(p.valor_sesion) : '') + '</div>' : '') + '</div></div></td>' +
           '<td style="color:var(--text-secondary);font-size:12px;"><div>' + (p.responsable_nombre||'—') + '</div><div style="font-size:11px;color:var(--text-tertiary);">' + (p.ruc||'') + '</div></td>' +
           '<td>' + (p.profesional_id && profMap[p.profesional_id] ? profMap[p.profesional_id].replace('Dra. ','').replace('Lic. ','') : '—') + '</td>' +
@@ -1971,9 +1974,10 @@ async function loadPacs() {
           '<td><span class="badge ' + (p.estado==='activo'?'b-green':p.estado==='alta'?'b-gray':'b-amber') + '">' + p.estado + '</span></td>' +
           '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td>' +
           '<td>' +
-          '<div style="display:flex;gap:4px;">' +
+          '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
           '<button onclick="verLegajoDesdePacs(\'' + p.id + '\')" style="background:#E8F6F4;border:1px solid #1B8A7A;color:#1B8A7A;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">📋 Legajo</button>' +
           '<button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">✏️</button>' +
+          (isInactivo ? '<button onclick="reactivarPaciente(\'' + p.id + '\')" style="background:#E8F6F4;border:1px solid #2E7D32;color:#2E7D32;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">✅ Reactivar</button>' : '') +
           '</div>' + ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirMergeDesdeFila(\'' + p.id + '\',\'' + (p.nombre + ' ' + p.apellido).replace(/'/g,'') + '\')" title="Fusionar" style="background:none;border:1px solid #2196F3;color:#2196F3;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">🔄</button>' : '') + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">🗑</button>' : '') + '</div></td>' +
           '</tr>';
       }).join('') + '</tbody></table>';
@@ -2788,6 +2792,15 @@ function filtrarPacientes(query) {
     var txt = tr.textContent.toLowerCase();
     tr.style.display = !q || txt.indexOf(q) > -1 ? '' : 'none';
   });
+}
+
+async function reactivarPaciente(pacId) {
+  if (!confirm('¿Reactivar este paciente?')) return;
+  try {
+    await api('PATCH', 'pacientes', { estado: 'activo' }, '?id=eq.' + pacId);
+    toast('✅ Paciente reactivado');
+    loadPacs();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 async function verMisPacientes() {
