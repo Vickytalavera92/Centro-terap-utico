@@ -1291,9 +1291,9 @@ async function loadDashboard() {
 
     var results = await Promise.all([
       api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc').catch(function(){return [];}),
-      isProf 
+      isProf
         ? api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id).catch(function(){return [];})
-        : api('GET', 'pacientes', null, '?estado=eq.activo').catch(function(){return [];}),
+        : api('GET', 'pacientes', null, '?estado=eq.activo&select=id').catch(function(){return [];}),
       api('GET', 'agenda', null, agendaQ).catch(function(){return [];}),
       api('GET', 'agenda', null, agendaHoyQ).catch(function(){return [];}),
       isProf
@@ -1308,7 +1308,19 @@ async function loadDashboard() {
 
     var profs = results[0];
     var pacsActivos = isProf ? results[1] : results[1]; // asignaciones count for prof, pacientes for dir
-    var pacsActivosCount = isProf ? results[1].length : results[1].length;
+    var pacsActivosCount;
+    if (isProf) {
+      // Count only active patients for this profesional
+      try {
+        var myAsigIds = results[1].map(function(a) { return a.paciente_id; });
+        if (myAsigIds.length) {
+          var activePacs = await api('GET', 'pacientes', null, '?id=in.(' + myAsigIds.join(',') + ')&estado=eq.activo&select=id');
+          pacsActivosCount = activePacs.length;
+        } else { pacsActivosCount = 0; }
+      } catch(e) { pacsActivosCount = results[1].length; }
+    } else {
+      pacsActivosCount = results[1].length;
+    }
     var turnosMes = results[2];
     var turnosHoy = results[3];
     var pacsNuevos = isProf ? [] : results[4];
@@ -1547,7 +1559,7 @@ async function verProf(idxOrId) {
     var pacs = [];
     if (asig.length) {
       var pacIds2 = asig.map(function(a) { return a.paciente_id; }).join(',');
-      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')');
+      pacs = await api('GET', 'pacientes', null, '?id=in.(' + pacIds2 + ')&estado=eq.activo&order=nombre.asc');
     }
     var html = '<button class="back-btn" onclick="loadProfs()">← Volver</button>';
     if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
@@ -3895,7 +3907,7 @@ async function loadResumen() {
       api('GET', 'asignaciones', null, ''),
       api('GET', 'profesional_tarifas', null, ''),
       api('GET', 'tarifas', null, ''),
-      api('GET', 'pacientes', null, '?select=id,valor_sesion,pago_profesional_custom').catch(function(){return[];})
+      api('GET', 'pacientes', null, '?estado=eq.activo&select=id,valor_sesion,pago_profesional_custom').catch(function(){return[];})
     ]);
 
     var profs = results[0];
@@ -3917,9 +3929,13 @@ async function loadResumen() {
     var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
 
     // Count pacientes per prof
+    // Only count ACTIVE patients per prof
+    var activePacIds = new Set(pacientes.map(function(p) { return p.id; }));
     var pacsPorProf = {};
     asigs.forEach(function(a) {
-      pacsPorProf[a.profesional_id] = (pacsPorProf[a.profesional_id] || 0) + 1;
+      if (activePacIds.has(a.paciente_id)) {
+        pacsPorProf[a.profesional_id] = (pacsPorProf[a.profesional_id] || 0) + 1;
+      }
     });
 
     // Calculate stats per prof
