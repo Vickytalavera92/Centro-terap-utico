@@ -898,7 +898,7 @@ input[type="time"] { -webkit-appearance: none; }
     <input type="hidden" id="cobro-id">
     <div style="font-size:13px;font-weight:500;color:var(--teal);margin-bottom:16px;" id="cobro-pac-nombre"></div>
     <div class="grid-2">
-      <div class="form-group"><label>Monto cobrado (Gs.)</label><input type="number" id="cobro-monto" placeholder="Ej: 440000"></div>
+      <div class="form-group"><label>Monto cobrado (Gs.)</label><input type="number" id="cobro-monto" placeholder="Ej: 440000" oninput="actualizarPreviewFactura()"></div>
       <div class="form-group"><label>Método de pago</label>
         <select id="cobro-metodo">
           <option value="efectivo">Efectivo</option>
@@ -915,7 +915,21 @@ input[type="time"] { -webkit-appearance: none; }
         Factura emitida
       </label>
     </div>
-    <div class="form-group"><label>Número de factura</label><input id="cobro-nro-factura" placeholder="Ej: 001-001-0001234"></div>
+    <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px;">
+      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">📄 FACTURACIÓN ELECTRÓNICA</div>
+      <div class="form-group">
+        <label>Número de factura</label>
+        <div style="display:flex;gap:6px;">
+          <input id="cobro-nro-factura" placeholder="001-001-0000001" style="flex:1;">
+          <button class="btn btn-secondary btn-sm" onclick="sugerirNroFactura()" title="Sugerir siguiente número">🔢 Auto</button>
+        </div>
+      </div>
+      <div id="cobro-datos-factura" style="display:none;background:#F8F9FA;border-radius:8px;padding:12px;margin-top:8px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">📋 DATOS PARA COPIAR EN FACTURA ELECTRÓNICA</div>
+        <div id="cobro-factura-preview"></div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:8px;width:100%;" onclick="copiarDatosFactura()">📋 Copiar datos al portapapeles</button>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-cobro')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCobro()">Guardar</button>
@@ -3715,6 +3729,10 @@ async function loadCobros() {
     var cobrosMap = {};
     cobros.forEach(function(c) { cobrosMap[c.paciente_id] = c; });
     
+    // Count pending invoices for alert
+    var sinFactura = Object.values(cobrosMap).filter(function(c) { return c.monto > 0 && !c.facturado; }).length;
+    var conFactura = Object.values(cobrosMap).filter(function(c) { return c.facturado; }).length;
+    
     // Group turnos by patient
     var turnosPorPac = {};
     turnos.forEach(function(t) {
@@ -3746,6 +3764,10 @@ async function loadCobros() {
       '<span style="font-size:16px;font-weight:600;">' + getCobrosLabel() + '</span>' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesCobros(1)">Siguiente →</button>' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesCobros(0)">Hoy</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+      (sinFactura > 0 ? '<span style="background:#FEF6E0;color:#E65100;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">⚠️ ' + sinFactura + ' sin facturar</span>' : '') +
+      (conFactura > 0 ? '<span style="background:#E8F6F4;color:#1B8A7A;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;">📄 ' + conFactura + ' facturadas</span>' : '') +
       '</div></div>';
     
     // Summary
@@ -3840,8 +3862,91 @@ async function abrirCobroModal(pacId) {
     document.getElementById('cobro-facturado').checked = c ? (c.facturado||false) : false;
     document.getElementById('cobro-nro-factura').value = c ? (c.nro_factura||'') : '';
     document.getElementById('cobro-id').value = c ? c.id : '';
+    document.getElementById('cobro-monto').value = c ? (c.monto||'') : '';
+    // Store patient data for factura preview
+    window._cobrosPacData = p;
+    // Show/hide factura preview based on if facturado
+    actualizarPreviewFactura();
     openModal('modal-cobro');
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error(e); alert('Error: ' + e.message); }
+}
+
+function actualizarPreviewFactura() {
+  var p = window._cobrosPacData;
+  if (!p) return;
+  var nro = document.getElementById('cobro-nro-factura').value;
+  var monto = document.getElementById('cobro-monto').value;
+  var dataDiv = document.getElementById('cobro-datos-factura');
+  var preview = document.getElementById('cobro-factura-preview');
+  if (!dataDiv || !preview) return;
+  
+  var responsable = p.responsable_nombre || (p.nombre + ' ' + (p.apellido||''));
+  var ruc = p.ruc || 'Sin RUC registrado';
+  var montoFmt = monto ? 'Gs. ' + parseInt(monto).toLocaleString('es-PY') : 'Sin monto';
+  var concepto = 'Servicios de psicología/terapia - ' + (window._cobrosCurrentMes || '');
+  
+  dataDiv.style.display = 'block';
+  preview.innerHTML = 
+    '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;">' +
+    '<span style="color:var(--text-secondary);">RUC/CI:</span><span style="font-weight:600;">' + ruc + '</span>' +
+    '<span style="color:var(--text-secondary);">Razón social:</span><span style="font-weight:600;">' + responsable + '</span>' +
+    '<span style="color:var(--text-secondary);">Concepto:</span><span>' + concepto + '</span>' +
+    '<span style="color:var(--text-secondary);">Monto:</span><span style="font-weight:600;color:#1B8A7A;">' + montoFmt + '</span>' +
+    (nro ? '<span style="color:var(--text-secondary);">Nro. factura:</span><span style="font-weight:600;">' + nro + '</span>' : '') +
+    '</div>';
+}
+
+async function sugerirNroFactura() {
+  try {
+    // Get last invoice number from cobros
+    var cobros = await api('GET', 'cobros', null, '?nro_factura=not.is.null&order=created_at.desc&limit=10');
+    var lastNro = '';
+    cobros.forEach(function(c) { if (c.nro_factura) lastNro = c.nro_factura; });
+    
+    if (lastNro) {
+      // Increment last number: 001-001-0000001 -> 001-001-0000002
+      var parts = lastNro.split('-');
+      if (parts.length === 3) {
+        var num = parseInt(parts[2]) + 1;
+        var siguiente = parts[0] + '-' + parts[1] + '-' + String(num).padStart(7,'0');
+        document.getElementById('cobro-nro-factura').value = siguiente;
+        actualizarPreviewFactura();
+        toast('✅ Siguiente: ' + siguiente);
+        return;
+      }
+    }
+    toast('Ingresá el primer número manualmente');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function copiarDatosFactura() {
+  var p = window._cobrosPacData;
+  if (!p) return;
+  var monto = document.getElementById('cobro-monto').value;
+  var nro = document.getElementById('cobro-nro-factura').value;
+  var responsable = p.responsable_nombre || (p.nombre + ' ' + (p.apellido||''));
+  var ruc = p.ruc || '';
+  var concepto = 'Servicios de psicología/terapia - ' + (window._cobrosCurrentMes || '');
+  var montoFmt = monto ? parseInt(monto).toLocaleString('es-PY') : '';
+  
+  var texto = 'RUC/CI: ' + ruc + '\n' +
+    'Razón social: ' + responsable + '\n' +
+    'Concepto: ' + concepto + '\n' +
+    'Monto: Gs. ' + montoFmt + '\n' +
+    (nro ? 'Nro. factura: ' + nro + '\n' : '');
+  
+  navigator.clipboard.writeText(texto).then(function() {
+    toast('✅ Datos copiados al portapapeles');
+  }).catch(function() {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = texto;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('✅ Datos copiados');
+  });
 }
 
 async function guardarCobro() {
