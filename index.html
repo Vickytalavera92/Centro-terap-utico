@@ -3959,15 +3959,29 @@ async function guardarCobro() {
   var nroFac = document.getElementById('cobro-nro-factura').value;
   var cobroId = document.getElementById('cobro-id').value;
   
+  if (!pacId) { alert('Error: no hay paciente seleccionado'); return; }
+  if (!mesKey) { alert('Error: no hay mes seleccionado'); return; }
+  if (monto <= 0) { alert('Ingresá un monto válido'); return; }
+  
   try {
+    var data = { 
+      paciente_id: pacId, 
+      mes: mesKey, 
+      monto: monto, 
+      metodo: metodo, 
+      observacion: obs || null, 
+      facturado: facturado, 
+      nro_factura: nroFac || null 
+    };
     if (cobroId) {
-      await api('PATCH', 'cobros', { monto: monto, metodo: metodo, observacion: obs, facturado: facturado, nro_factura: nroFac || null }, '?id=eq.' + cobroId);
+      await api('PATCH', 'cobros', data, '?id=eq.' + cobroId);
     } else {
+      await api('POST', 'cobros', data);
     }
     closeModal('modal-cobro');
     toast('✅ Cobro guardado');
     loadCobros();
-  } catch(e) { alert('Error: ' + e.message); }
+  } catch(e) { alert('Error al guardar: ' + e.message); }
 }
 
 // ==================
