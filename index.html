@@ -1033,7 +1033,7 @@ input[type="time"] { -webkit-appearance: none; }
 <div class="modal-overlay" id="modal-turno">
   <div class="modal">
     <div class="modal-header"><h3>Nuevo turno</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-turno')">✕</button></div>
-    <div class="form-group"><label>Profesional</label><select id="turno-prof"></select></div>
+    <div class="form-group"><label>Profesional</label><select id="turno-prof" onchange="filtrarPacsPorProf()"></select></div>
     <div class="form-group"><label>Paciente</label><select id="turno-pac"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha</label><input type="date" id="turno-fecha"></div>
@@ -2425,7 +2425,7 @@ async function loadAgenda() {
     // Load patients - profesionales only see their own (incl. inactive for retroactive entries)
     var pacs;
     if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
-      pacs = await api('GET', 'pacientes', null, '?order=nombre.asc');
+      pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
     } else {
       var myAsigA = await api('GET', 'asignaciones', null, '?profesional_id=eq.' + CU.id);
       if (!myAsigA.length) { pacs = []; }
@@ -2813,6 +2813,32 @@ function filtrarPacientes(query) {
     var txt = tr.textContent.toLowerCase();
     tr.style.display = !q || txt.indexOf(q) > -1 ? '' : 'none';
   });
+}
+
+async function filtrarPacsPorProf() {
+  var profId = document.getElementById('turno-prof') ? document.getElementById('turno-prof').value : '';
+  var psel = document.getElementById('turno-pac');
+  if (!psel) return;
+  psel.innerHTML = '<option value="">Cargando...</option>';
+  try {
+    var pacs = [];
+    if (profId) {
+      // Load only patients of selected prof
+      var asigs = await api('GET', 'asignaciones', null, '?profesional_id=eq.' + profId);
+      if (asigs.length) {
+        var ids = asigs.map(function(a) { return a.paciente_id; }).join(',');
+        pacs = await api('GET', 'pacientes', null, '?id=in.(' + ids + ')&order=nombre.asc');
+      }
+    } else {
+      // No prof selected - show all active patients
+      pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
+    }
+    psel.innerHTML = '<option value="">Turno libre</option>' + 
+      pacs.map(function(p) { 
+        return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + 
+          (p.estado && p.estado !== 'activo' ? ' (inactivo)' : '') + '</option>'; 
+      }).join('');
+  } catch(e) { psel.innerHTML = '<option value="">Error cargando</option>'; }
 }
 
 async function reactivarPaciente(pacId) {
