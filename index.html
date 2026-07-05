@@ -1482,6 +1482,45 @@ async function loadDashboard() {
     }
 
     // Agenda hoy + Equipo (equipo only for dir/recep)
+    // SALA DE ESPERA for dir/recep
+    if (!isProf) {
+      var profMap2 = {};
+      results[0].forEach(function(p) { profMap2[p.id] = p.nombre ? p.nombre.split(' ')[0] : ''; });
+      var turnosEspera = turnosHoy.filter(function(t) { return t.estado !== 'cancelado'; });
+      turnosEspera.sort(function(a,b) { return (a.hora||'00:00').localeCompare(b.hora||'00:00'); });
+      html += '<div class="card mb-16"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:18px;">🪑</span><div class="section-title" style="margin-bottom:0;">Sala de espera — hoy</div></div>';
+      if (!turnosEspera.length) {
+        html += '<div style="font-size:13px;color:var(--text-secondary);">Sin turnos para hoy</div>';
+      } else {
+        html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);"><th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text-secondary);">Hora</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text-secondary);">Paciente</th><th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text-secondary);">Profesional</th><th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text-secondary);">Estado</th></tr></thead><tbody>';
+        turnosEspera.forEach(function(t) {
+          var ec = {confirmado:'#1B8A7A', pendiente:'#F0A500', cancelado_hora:'#FF8C00'};
+          var el2 = {confirmado:'✅ Asistió', pendiente:'⏳ Pendiente', cancelado_hora:'🟠 Canc. s/hora'};
+          html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:7px 10px;font-weight:600;color:#1B8A7A;">' + (t.hora ? t.hora.slice(0,5) : '-') + '</td>' +
+            '<td style="padding:7px 10px;">' + (t.paciente_nombre||'Turno libre') + '</td>' +
+            '<td style="padding:7px 10px;font-size:12px;color:var(--text-secondary);">' + (profMap2[t.profesional_id]||'') + '</td>' +
+            '<td style="padding:7px 10px;text-align:center;"><span style="font-size:11px;background:' + (ec[t.estado]||'#999') + '20;color:' + (ec[t.estado]||'#999') + ';padding:2px 8px;border-radius:4px;">' + (el2[t.estado]||t.estado) + '</span></td></tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+    }
+
+    // PRÓXIMOS TURNOS for profesional
+    if (isProf) {
+      var pendHoyProf = turnosHoy.filter(function(t) { return t.estado === 'pendiente'; });
+      pendHoyProf.sort(function(a,b) { return (a.hora||'00:00').localeCompare(b.hora||'00:00'); });
+      if (pendHoyProf.length) {
+        html += '<div class="card mb-16"><div class="section-title mb-8">⏰ Pendientes de hoy</div>';
+        pendHoyProf.forEach(function(t) {
+          html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">' +
+            '<span style="font-weight:700;color:#1B8A7A;min-width:40px;">' + (t.hora ? t.hora.slice(0,5) : '-') + '</span>' +
+            '<span style="font-size:13px;">' + (t.paciente_nombre||'Turno libre') + '</span></div>';
+        });
+        html += '</div>';
+      }
+    }
+
     html += '<div id="dash-bottom-grid" style="display:grid;grid-template-columns:' + (isProf ? '1fr' : '1fr 1fr') + ';gap:16px;">' +
       '<div class="card"><div class="section-title mb-12">🗓 ' + (isProf ? 'Mi agenda de hoy' : 'Agenda de hoy') + '</div><div id="d-agenda-inner"></div></div>' +
       (isProf ? '' : '<div class="card"><div class="section-title mb-12">👥 Equipo</div><div id="d-team-inner"></div></div>') +
@@ -3460,6 +3499,55 @@ async function loadAdmin() {
         '<button class="btn btn-secondary btn-sm" data-pid="' + p.id + '" data-pnombre="' + p.nombre.replace(/'/g,'') + '" onclick="configProfTarifas(this)">⚙️ Tarifas</button>' +
         '</div></div></div>';
     });
+
+    // BALANCE GENERAL
+    try {
+      var gastosData = await api('GET', 'gastos', null, '?fecha=gte.' + rng.first + '&fecha=lte.' + rng.last);
+      var gastosTotales = 0;
+      gastosData.forEach(function(g) { gastosTotales += (g.monto || 0); });
+      var balanceNeto = totalGenerado - totalProfs - gastosTotales;
+      html += '<div class="card" style="margin-top:16px;">' +
+        '<div class="section-title mb-12">⚖️ Balance General del mes</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">' +
+        '<div style="padding:12px;background:#E8F6F4;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">💰 Ingresos</div>' +
+          '<div style="font-size:17px;font-weight:700;color:#1B8A7A;">' + fmtGs(totalGenerado) + '</div>' +
+        '</div>' +
+        '<div style="padding:12px;background:#FFF3E0;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👩‍⚕️ Honorarios</div>' +
+          '<div style="font-size:17px;font-weight:700;color:#E65100;">' + fmtGs(totalProfs) + '</div>' +
+        '</div>' +
+        '<div style="padding:12px;background:#FCE4EC;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">🧾 Gastos</div>' +
+          '<div style="font-size:17px;font-weight:700;color:#C0392B;">' + fmtGs(gastosTotales) + '</div>' +
+        '</div>' +
+        '<div style="padding:12px;border-radius:8px;text-align:center;border:2px solid ' + (balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';background:' + (balanceNeto >= 0 ? '#E8F6F4' : '#FCE4EC') + ';">' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">🏦 Ganancia neta CREA</div>' +
+          '<div style="font-size:19px;font-weight:700;color:' + (balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(balanceNeto) + '</div>' +
+        '</div></div>';
+      // META FINANCIERA
+      var metaKey = 'meta_' + _adminAnio + '_' + String(_adminMes).padStart(2,'0');
+      var metaMonto = 0;
+      try { var mr = await window.storage.get(metaKey); metaMonto = mr ? (parseInt(mr.value)||0) : 0; } catch(e2) {}
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+        '<div style="font-weight:600;font-size:14px;">🎯 Meta financiera del mes</div>' +
+        '<button class="btn btn-secondary btn-sm" onclick="editarMeta()">✏️ ' + (metaMonto ? 'Editar' : 'Configurar') + ' meta</button>' +
+        '</div>';
+      if (metaMonto > 0) {
+        var pct = Math.min(100, Math.round((totalGenerado / metaMonto) * 100));
+        var barColor = pct >= 100 ? '#1B8A7A' : pct >= 75 ? '#F0A500' : '#C0392B';
+        html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
+          '<span>' + fmtGs(totalGenerado) + ' de ' + fmtGs(metaMonto) + '</span>' +
+          '<span style="font-weight:700;color:' + barColor + ';">' + pct + '%</span></div>' +
+          '<div style="background:#E0E0E0;border-radius:20px;height:14px;overflow:hidden;margin-bottom:6px;">' +
+          '<div style="width:' + pct + '%;background:' + barColor + ';height:100%;border-radius:20px;"></div></div>' +
+          (pct >= 100 ? '<div style="color:#1B8A7A;font-weight:600;">🎉 ¡Meta alcanzada!</div>' :
+            '<div style="font-size:12px;color:var(--text-secondary);">Faltan ' + fmtGs(metaMonto - totalGenerado) + ' para la meta</div>');
+      } else {
+        html += '<div style="font-size:13px;color:var(--text-secondary);">Sin meta configurada para este mes.</div>';
+      }
+      html += '</div>';
+    } catch(ebal) { console.error('Balance error:', ebal); }
 
     el.innerHTML = html;
   } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
