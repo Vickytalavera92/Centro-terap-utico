@@ -1132,7 +1132,7 @@ async function login() {
     try { sessionStorage.setItem('crea_e', btoa(email)); sessionStorage.setItem('crea_p', btoa(pass)); } catch(e) {}
     // Clean and rebuild nav for this user
     // 1. Remove all dynamic items
-    ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
+    ['nav-admin','nav-cobros','nav-gastos','nav-resumen','nav-instrumentos'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
@@ -1173,11 +1173,13 @@ async function login() {
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
+      addNav('nav-instrumentos', '🗂 Instrumentos', 'instrumentos');
     } else if (CU.rol === 'administrador') {
       addNav('nav-admin', '💰 Administración', 'admin');
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
-      ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
+      addNav('nav-resumen', '📊 Resumen General', 'resumen');
+      ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil','nav-instrumentos'].forEach(function(id) {
         var el = document.getElementById(id); if (el) el.style.display = 'none';
       });
     } else if (CU.rol === 'recepcionista') {
@@ -1185,6 +1187,7 @@ async function login() {
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
     } else if (CU.rol === 'profesional') {
+      addNav('nav-instrumentos', '🗂 Instrumentos', 'instrumentos');
       document.getElementById('nav-profesionales').style.display = 'none';
     }
     // 5. Route to first page
@@ -1204,7 +1207,7 @@ function logout() {
   // Clear session
   try { sessionStorage.removeItem('crea_e'); sessionStorage.removeItem('crea_p'); } catch(e) {}
   // Clean dynamic nav items
-  ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
+  ['nav-admin','nav-cobros','nav-gastos','nav-resumen','nav-instrumentos'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && el.parentNode) el.parentNode.removeChild(el);
   });
@@ -3528,7 +3531,7 @@ async function loadAdmin() {
       // META FINANCIERA
       var metaKey = 'meta_' + _adminAnio + '_' + String(_adminMes).padStart(2,'0');
       var metaMonto = 0;
-      try { var mr = await window.storage.get(metaKey); metaMonto = mr ? (parseInt(mr.value)||0) : 0; } catch(e2) {}
+      try { var lsVal = localStorage.getItem(metaKey); metaMonto = lsVal ? (parseInt(lsVal)||0) : 0; } catch(e2) {}
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
         '<div style="font-weight:600;font-size:14px;">🎯 Meta financiera del mes</div>' +
         '<button class="btn btn-secondary btn-sm" onclick="editarMeta()">✏️ ' + (metaMonto ? 'Editar' : 'Configurar') + ' meta</button>' +
@@ -5484,18 +5487,18 @@ async function editarMeta() {
   var metaKey = 'meta_' + _adminAnio + '_' + String(_adminMes).padStart(2,'0');
   var actual = '';
   try {
-    var r = await window.storage.get(metaKey);
-    actual = r ? r.value : '';
+    var lsActual = localStorage.getItem(metaKey);
+    actual = lsActual || '';
   } catch(e) {}
   var nueva = prompt('Meta de facturación para ' + _adminAnio + '/' + String(_adminMes).padStart(2,'0') + ' (Gs.):\n\nActual: ' + (actual ? fmtGs(parseInt(actual)) : 'Sin meta'), actual || '');
   if (nueva === null) return;
   var monto = parseInt((nueva || '0').replace(/[^0-9]/g,'')) || 0;
   try {
     if (monto > 0) {
-      await window.storage.set(metaKey, String(monto));
+      localStorage.setItem(metaKey, String(monto));
       toast('✅ Meta guardada: ' + fmtGs(monto));
     } else {
-      await window.storage.delete(metaKey);
+      localStorage.removeItem(metaKey);
       toast('Meta eliminada');
     }
     loadAdmin();
