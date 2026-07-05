@@ -674,6 +674,13 @@ input[type="time"] { -webkit-appearance: none; }
         </select>
       </div>
     </div>
+    <div class="form-group"><label>Método de pago</label>
+      <select id="gasto-metodo">
+        <option value="efectivo">💵 Efectivo (caja chica)</option>
+        <option value="tc_crea">💳 TC Corporativa CREA</option>
+        <option value="transferencia">🏦 Transferencia</option>
+      </select>
+    </div>
     <div class="form-group"><label>Fecha</label><input type="date" id="gasto-fecha"></div>
     <div class="form-group"><label>N° comprobante (opcional)</label><input id="gasto-comprobante" placeholder="Ej: 001-001-0000123"></div>
     <div class="modal-footer">
@@ -3332,7 +3339,11 @@ async function loadAdmin() {
       colegio: 130000, compartida: 65000, evaluacion: 130000
     };
 
-    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+    // Load deposits for caja summary
+    var depositos = [];
+    try { depositos = await api('GET', 'depositos', null, '?mes=eq.' + mesKey + '&order=fecha.desc'); } catch(e) {}
+    
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">' +
       '<div style="display:flex;align-items:center;gap:10px;">' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesAdmin(-1)">← Anterior</button>' +
       '<span style="font-size:16px;font-weight:600;">' + getMesLabel() + '</span>' +
@@ -3758,7 +3769,11 @@ async function loadCobros() {
       else { totalPendiente += montoTotal; }
     });
     
-    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+    // Load deposits for caja summary
+    var depositos = [];
+    try { depositos = await api('GET', 'depositos', null, '?mes=eq.' + mesKey + '&order=fecha.desc'); } catch(e) {}
+    
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">' +
       '<div style="display:flex;align-items:center;gap:10px;">' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesCobros(-1)">← Anterior</button>' +
       '<span style="font-size:16px;font-weight:600;">' + getCobrosLabel() + '</span>' +
@@ -4017,12 +4032,19 @@ async function loadGastos() {
   try {
     var mesKey = _gastosAnio + '_' + String(_gastosMes).padStart(2,'0');
     var gastos = await api('GET', 'gastos', null, '?mes=eq.' + mesKey + '&order=categoria.asc');
+    var depositos = [];
+    try { depositos = await api('GET', 'depositos', null, '?mes=eq.' + mesKey + '&order=fecha.desc'); } catch(e) {}
+    window._gastosCurrentMes = mesKey;
     
     var totalFijo = gastos.filter(function(g) { return g.tipo === 'fijo'; }).reduce(function(s,g) { return s+g.monto; }, 0);
     var totalVar = gastos.filter(function(g) { return g.tipo === 'variable'; }).reduce(function(s,g) { return s+g.monto; }, 0);
     var total = totalFijo + totalVar;
     
-    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+    // Load deposits for caja summary
+    var depositos = [];
+    try { depositos = await api('GET', 'depositos', null, '?mes=eq.' + mesKey + '&order=fecha.desc'); } catch(e) {}
+    
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">' +
       '<div style="display:flex;align-items:center;gap:10px;">' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesGastos(-1)">← Anterior</button>' +
       '<span style="font-size:16px;font-weight:600;">' + getGastosLabel() + '</span>' +
@@ -4034,6 +4056,45 @@ async function loadGastos() {
 
     var fijos = gastos.filter(function(g) { return g.tipo === 'fijo'; });
     var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
+
+    // CAJA CHICA SUMMARY - visible for directora and recepcionista
+    var cobrosEfectivo = 0;
+    try {
+      var cobrosEf = await api('GET', 'cobros', null, '?mes=eq.' + mesKey + '&metodo=eq.efectivo');
+      cobrosEfectivo = cobrosEf.reduce(function(s,c) { return s + (c.monto||0); }, 0);
+    } catch(eef) {}
+    var gastosEfectivo = gastos.filter(function(g) { return (g.metodo_pago||'efectivo') === 'efectivo'; })
+      .reduce(function(s,g) { return s + (g.monto||0); }, 0);
+    var totalDepositos = depositos.reduce(function(s,d) { return s + (d.monto||0); }, 0);
+    var saldoCaja = cobrosEfectivo - gastosEfectivo - totalDepositos;
+
+    html += '<div class="card" style="margin-bottom:16px;border-left:4px solid #FF8C00;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<div style="font-weight:600;font-size:14px;">💵 Control de Caja Chica</div>' +
+      (CU.rol !== 'recepcionista' ? '' : '') +
+      '<button class="btn btn-secondary btn-sm" onclick="registrarDeposito()">🏦 Registrar depósito</button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px;">' +
+      '<div style="padding:10px;background:#FFF8E1;border-radius:8px;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">💵 Cobrado efectivo</div>' +
+        '<div style="font-size:15px;font-weight:700;color:#FF8C00;">' + fmtGs(cobrosEfectivo) + '</div>' +
+      '</div>' +
+      '<div style="padding:10px;background:#FCE4EC;border-radius:8px;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">💸 Gastos efectivo</div>' +
+        '<div style="font-size:15px;font-weight:700;color:#C0392B;">' + fmtGs(gastosEfectivo) + '</div>' +
+      '</div>' +
+      '<div style="padding:10px;background:#E3F2FD;border-radius:8px;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🏦 Depositado banco</div>' +
+        '<div style="font-size:15px;font-weight:700;color:#1565C0;">' + fmtGs(totalDepositos) + '</div>' +
+      '</div>' +
+      '<div style="padding:10px;border-radius:8px;text-align:center;border:2px solid ' + (saldoCaja >= 0 ? '#FF8C00' : '#C0392B') + ';background:' + (saldoCaja >= 0 ? '#FFF8E1' : '#FCE4EC') + ';">' +
+        '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">💰 Saldo en caja</div>' +
+        '<div style="font-size:15px;font-weight:700;color:' + (saldoCaja >= 0 ? '#FF8C00' : '#C0392B') + ';">' + fmtGs(saldoCaja) + '</div>' +
+      '</div></div>' +
+      (depositos.length ? '<div style="font-size:11px;color:var(--text-secondary);padding:8px;background:var(--bg);border-radius:6px;">🏦 Depósitos: ' +
+        depositos.map(function(d) { return d.fecha + ' — ' + fmtGs(d.monto) + (d.descripcion ? ' (' + d.descripcion + ')' : ''); }).join(' · ') +
+        '</div>' : '<div style="font-size:12px;color:var(--text-tertiary);">Sin depósitos registrados este mes</div>') +
+      '</div>';
 
     if (CU.rol === 'recepcionista') {
       html += '<div class="grid-2 mb-20">' +
@@ -4061,9 +4122,13 @@ async function loadGastos() {
           '<th>Categoría</th><th>Descripción</th><th>Fecha</th><th>Comprobante</th><th style="text-align:right;">Monto</th><th></th>' +
           '</tr></thead><tbody>';
         lista.forEach(function(g) {
+          var metodoColors = {efectivo:'#FF8C00',tc_crea:'#2196F3',transferencia:'#1B8A7A'};
+          var metodoLabels = {efectivo:'💵 Efectivo',tc_crea:'💳 TC CREA',transferencia:'🏦 Transfer.'};
+          var metodoPago = g.metodo_pago || 'efectivo';
           t += '<tr>' +
             '<td>' + (GASTO_LABELS[g.categoria]||g.categoria) + '</td>' +
             '<td style="color:var(--text-secondary);">' + (g.descripcion||'—') + '</td>' +
+            '<td><span style="font-size:11px;background:' + (metodoColors[metodoPago]||'#999') + '20;color:' + (metodoColors[metodoPago]||'#999') + ';padding:2px 8px;border-radius:4px;">' + (metodoLabels[metodoPago]||metodoPago) + '</span></td>' +
             '<td style="font-size:12px;">' + (g.fecha||'') + '</td>' +
             '<td style="font-size:12px;color:var(--text-secondary);">' + (g.comprobante||'—') + '</td>' +
             '<td style="text-align:right;font-weight:500;">' + fmtGs(g.monto) + '</td>' +
@@ -5622,6 +5687,31 @@ async function editarMeta() {
       toast('Meta eliminada');
     }
     loadAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================
+// DEPOSITOS CAJA CHICA
+// ==================
+async function registrarDeposito() {
+  var monto = prompt('Monto del depósito al banco (Gs.):');
+  if (!monto) return;
+  var montoNum = parseInt((monto || '0').replace(/[^0-9]/g,''));
+  if (!montoNum || montoNum < 1) { alert('Ingresá un monto válido'); return; }
+  var desc = prompt('Descripción (opcional, ej: depósito semanal):') || '';
+  var mesKey = window._gastosCurrentMes || (_gastosAnio + '_' + String(_gastosMes).padStart(2,'0'));
+  var today = new Date();
+  var fechaHoy = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  try {
+    await api('POST', 'depositos', {
+      mes: mesKey,
+      monto: montoNum,
+      fecha: fechaHoy,
+      descripcion: desc || null,
+      registrado_por: CU.id
+    });
+    toast('✅ Depósito registrado: ' + fmtGs(montoNum));
+    loadGastos();
   } catch(e) { alert('Error: ' + e.message); }
 }
 
