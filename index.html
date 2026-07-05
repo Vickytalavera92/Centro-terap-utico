@@ -1155,6 +1155,13 @@ async function login() {
     // 4. Build nav by role
     var sidebar = document.querySelector('.sidebar-nav');
     function addNav(id, label, page) {
+      // Try to show existing static nav item first
+      var existing = document.getElementById(id);
+      if (existing) {
+        existing.style.display = '';
+        return;
+      }
+      // Otherwise create new one
       var el = document.createElement('div');
       el.className = 'nav-item'; el.id = id;
       el.innerHTML = label;
@@ -1324,7 +1331,45 @@ async function loadDashboard() {
     var turnosMes = results[2];
     var turnosHoy = results[3];
     var pacsNuevos = isProf ? [] : results[4];
+    
+    // Birthday calculations (this month)
+    var thisMonth = targetDate.getMonth() + 1;
+    var todayDay = new Date().getDate();
+    var todayMonth = new Date().getMonth() + 1;
+    
+    // Get birthdays from all staff and patients
+    var birthdayPeople = [];
+    // Check profs birthdays
+    results[0].forEach(function(p) {
+      if (p.fecha_nacimiento) {
+        var parts = p.fecha_nacimiento.split('-');
+        var month = parseInt(parts[1]);
+        var day = parseInt(parts[2]);
+        if (month === thisMonth) {
+          var isToday = month === todayMonth && day === todayDay;
+          birthdayPeople.push({ nombre: p.nombre, dia: day, tipo: 'Profesional', isToday: isToday });
+        }
+      }
+    });
     var turnosMesAnt = results[5];
+    // Patient birthdays
+    try {
+      var pacsBday = isProf 
+        ? await api('GET', 'pacientes', null, '?id=in.(' + (results[1].map ? results[1].map(function(a){return a.paciente_id;}).join(',') : '') + ')&estado=eq.activo&select=nombre,apellido,fecha_nacimiento')
+        : await api('GET', 'pacientes', null, '?estado=eq.activo&select=nombre,apellido,fecha_nacimiento');
+      pacsBday.forEach(function(p) {
+        if (p.fecha_nacimiento) {
+          var parts = p.fecha_nacimiento.split('-');
+          var month = parseInt(parts[1]);
+          var day = parseInt(parts[2]);
+          if (month === thisMonth) {
+            var isToday = month === todayMonth && day === todayDay;
+            birthdayPeople.push({ nombre: p.nombre + ' ' + (p.apellido||''), dia: day, tipo: 'Paciente', isToday: isToday });
+          }
+        }
+      });
+    } catch(e) {}
+    birthdayPeople.sort(function(a,b) { return a.dia - b.dia; });
     var cobros = results[6];
     var profTarifas = results[7];
     var tarifas = results[8];
@@ -3301,7 +3346,22 @@ async function loadAdmin() {
       var pb = profBreakdown[p.id];
       if (!pb || pb.totalGen === 0) return;
       
-      html += '<div class="card mb-16">' +
+      // Birthday widget
+    if (birthdayPeople.length) {
+      var bdayHtml = '<div class="card mb-16"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:20px;">🎂</span><div class="section-title" style="margin-bottom:0;">Cumpleaños en ' + mesNombre + '</div></div>';
+      bdayHtml += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+      birthdayPeople.forEach(function(p) {
+        var isToday = p.isToday;
+        bdayHtml += '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1px solid ' + (isToday ? '#FFD700' : 'var(--border)') + ';background:' + (isToday ? '#FFFDE7' : 'var(--surface)') + ';">' +
+          (isToday ? '🎉 ' : '') +
+          '<div><div style="font-size:13px;font-weight:' + (isToday ? '700' : '500') + ';">' + p.nombre + '</div>' +
+          '<div style="font-size:11px;color:var(--text-secondary);">' + p.tipo + ' · ' + (isToday ? '¡Hoy!' : p.dia + ' de ' + mesNombre) + '</div></div></div>';
+      });
+      bdayHtml += '</div></div>';
+      html += bdayHtml;
+    }
+    
+    html += '<div class="card mb-16">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
         '<div class="av" style="width:36px;height:36px;font-size:12px;margin-bottom:0;">' + (pb.iniciales||'??') + '</div>' +
@@ -5330,6 +5390,28 @@ async function verLegajoDesdePacs(pacId) {
     alert('Error: ' + e.message);
     volverAListaPacientes();
   }
+}
+
+async function editarMeta() {
+  var metaKey = 'meta_' + _adminAnio + '_' + String(_adminMes).padStart(2,'0');
+  var actual = '';
+  try {
+    var r = await window.storage.get(metaKey);
+    actual = r ? r.value : '';
+  } catch(e) {}
+  var nueva = prompt('Meta de facturación para ' + _adminAnio + '/' + String(_adminMes).padStart(2,'0') + ' (Gs.):\n\nActual: ' + (actual ? fmtGs(parseInt(actual)) : 'Sin meta'), actual || '');
+  if (nueva === null) return;
+  var monto = parseInt((nueva || '0').replace(/[^0-9]/g,'')) || 0;
+  try {
+    if (monto > 0) {
+      await window.storage.set(metaKey, String(monto));
+      toast('✅ Meta guardada: ' + fmtGs(monto));
+    } else {
+      await window.storage.delete(metaKey);
+      toast('Meta eliminada');
+    }
+    loadAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
