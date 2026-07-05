@@ -902,7 +902,9 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="form-group"><label>Método de pago</label>
         <select id="cobro-metodo">
           <option value="efectivo">Efectivo</option>
+          <option value="pos">POS / Tarjeta</option>
           <option value="transferencia">Transferencia</option>
+          <option value="cheque">Cheque</option>
         </select>
       </div>
     </div>
@@ -3398,21 +3400,6 @@ async function loadAdmin() {
       var pb = profBreakdown[p.id];
       if (!pb || pb.totalGen === 0) return;
       
-      // Birthday widget
-    if (birthdayPeople.length) {
-      var bdayHtml = '<div class="card mb-16"><div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:20px;">🎂</span><div class="section-title" style="margin-bottom:0;">Cumpleaños en ' + mesNombre + '</div></div>';
-      bdayHtml += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-      birthdayPeople.forEach(function(p) {
-        var isToday = p.isToday;
-        bdayHtml += '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1px solid ' + (isToday ? '#FFD700' : 'var(--border)') + ';background:' + (isToday ? '#FFFDE7' : 'var(--surface)') + ';">' +
-          (isToday ? '🎉 ' : '') +
-          '<div><div style="font-size:13px;font-weight:' + (isToday ? '700' : '500') + ';">' + p.nombre + '</div>' +
-          '<div style="font-size:11px;color:var(--text-secondary);">' + p.tipo + ' · ' + (isToday ? '¡Hoy!' : p.dia + ' de ' + mesNombre) + '</div></div></div>';
-      });
-      bdayHtml += '</div></div>';
-      html += bdayHtml;
-    }
-    
     html += '<div class="card mb-16">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
