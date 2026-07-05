@@ -1132,9 +1132,14 @@ async function login() {
     try { sessionStorage.setItem('crea_e', btoa(email)); sessionStorage.setItem('crea_p', btoa(pass)); } catch(e) {}
     // Clean and rebuild nav for this user
     // 1. Remove all dynamic items
-    ['nav-admin','nav-cobros','nav-gastos','nav-resumen','nav-instrumentos'].forEach(function(id) {
+    ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    // Hide static nav items (don't remove - they stay in DOM)
+    ['nav-instrumentos'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'none';
     });
     // 2. Reset all static items visibility
     ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
@@ -1207,9 +1212,14 @@ function logout() {
   // Clear session
   try { sessionStorage.removeItem('crea_e'); sessionStorage.removeItem('crea_p'); } catch(e) {}
   // Clean dynamic nav items
-  ['nav-admin','nav-cobros','nav-gastos','nav-resumen','nav-instrumentos'].forEach(function(id) {
+  ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && el.parentNode) el.parentNode.removeChild(el);
+  });
+  // Hide static nav items
+  ['nav-instrumentos'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
   });
   // Reset all nav visibility
   ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
