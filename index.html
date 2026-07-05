@@ -3857,6 +3857,7 @@ async function abrirCobroModal(pacId) {
     var cobros = await api('GET', 'cobros', null, '?paciente_id=eq.' + pacId + '&mes=eq.' + mesKey);
     var p = pacs[0];
     var c = cobros[0];
+    document.getElementById('cobro-pac-nombre').textContent = p ? (p.nombre + ' ' + (p.apellido||'')) : '';
     document.getElementById('cobro-metodo').value = c ? (c.metodo||'efectivo') : 'efectivo';
     document.getElementById('cobro-obs').value = c ? (c.observacion||'') : '';
     document.getElementById('cobro-facturado').checked = c ? (c.facturado||false) : false;
@@ -3964,10 +3965,13 @@ async function guardarCobro() {
   if (monto <= 0) { alert('Ingresá un monto válido'); return; }
   
   try {
+    var today = new Date();
+    var fechaHoy = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     var data = { 
       paciente_id: pacId, 
       mes: mesKey, 
       monto: monto, 
+      fecha: fechaHoy,
       metodo: metodo, 
       observacion: obs || null, 
       facturado: facturado, 
