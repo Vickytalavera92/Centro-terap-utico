@@ -803,6 +803,43 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL PAGO GUARDERIA -->
+<div class="modal-overlay" id="modal-pago-guarderia">
+  <div class="modal" style="width:380px;">
+    <div class="modal-header">
+      <h3 id="pago-guard-titulo">Registrar pago</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-pago-guarderia')">✕</button>
+    </div>
+    <input type="hidden" id="pago-guard-nino-id">
+    <input type="hidden" id="pago-guard-pago-id">
+    <div id="pago-guard-resumen" style="background:var(--bg);padding:10px;border-radius:8px;margin-bottom:12px;font-size:13px;"></div>
+    <div class="form-group">
+      <label>Monto cobrado (Gs.)</label>
+      <input type="number" id="pago-guard-monto" placeholder="0">
+    </div>
+    <div class="form-group">
+      <label>Método de pago</label>
+      <select id="pago-guard-metodo">
+        <option value="efectivo">💵 Efectivo</option>
+        <option value="transferencia">🏦 Transferencia</option>
+        <option value="pos">💳 POS / Tarjeta</option>
+        <option value="qr">📱 QR</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Observación</label>
+      <input id="pago-guard-obs" placeholder="Opcional...">
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-danger btn-sm" id="pago-guard-btn-eliminar" style="display:none;" onclick="eliminarPagoGuarderia()">🗑 Deshacer</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('modal-pago-guarderia')">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarPagoGuarderia()">💾 Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL COLONIA -->
 <div class="modal-overlay" id="modal-colonia">
   <div class="modal" style="width:420px;">
@@ -3360,7 +3397,11 @@ async function loadSemanal() {
           });
         }
         var isDiffMonthCell = d.getMonth() !== viewMonth;
-        table += '<td style="padding:3px;border:1px solid var(--border);vertical-align:top;min-width:100px;min-height:30px;' + (isDiffMonthCell ? 'background:#F5F5F5;' : '') + '">' + cell + '</td>';
+        var canEditCell = (CU.rol === 'directora' || CU.rol === 'recepcionista') && !isDiffMonthCell;
+        var cellBg = isDiffMonthCell ? 'background:#F5F5F5;' : '';
+        var cellClick = canEditCell ? 'onclick="abrirTurnoRapido(\'' + dStr + '\',\'' + hora + '\')" onmouseenter="this.style.background=\'#f0f9f8\'" onmouseleave="this.style.background=\'\'' : '';
+        var cellCursor = canEditCell ? 'cursor:pointer;' : '';
+        table += '<td style="padding:3px;border:1px solid var(--border);vertical-align:top;min-width:110px;min-height:40px;' + cellBg + cellCursor + '" ' + cellClick + '>' + cell + '</td>';
       });
       table += '</tr>';
     });
@@ -6240,32 +6281,67 @@ async function loadGuarderia() {
     }
 
     el.innerHTML = html;
-  } catch(e) { el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state">⚠️ Error: ' + e.message +
+      '<br><small style="color:var(--text-secondary);">Si dice \"permission denied\" corré en Supabase SQL Editor:<br>' +
+      'ALTER TABLE guarderia_ninos DISABLE ROW LEVEL SECURITY;<br>' +
+      'ALTER TABLE guarderia_pagos DISABLE ROW LEVEL SECURITY;<br>' +
+      'ALTER TABLE colonias DISABLE ROW LEVEL SECURITY;</small>' +
+      '<br><button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="loadGuarderia()">↻ Reintentar</button></div>';
+  }
 }
 
 async function registrarPagoGuarderia(ninoId, nombre, cuotaFinal) {
   var mesKey = _guarderiaAnio + '_' + String(_guarderiaMes).padStart(2,'0');
+  window._pagoGuardMesKey = mesKey;
+  window._pagoGuardNinoId = ninoId;
   var pago = null;
   try {
     var pagos = await api('GET', 'guarderia_pagos', null, '?nino_id=eq.' + ninoId + '&mes=eq.' + mesKey);
     pago = pagos[0] || null;
   } catch(e) {}
-  var montoStr = prompt('Monto cobrado a ' + nombre + ' (Gs.):', pago ? pago.monto : cuotaFinal);
-  if (!montoStr) return;
-  var monto = parseInt((montoStr||'0').replace(/[^0-9]/g,''));
+  document.getElementById('pago-guard-nino-id').value = ninoId;
+  document.getElementById('pago-guard-pago-id').value = pago ? pago.id : '';
+  document.getElementById('pago-guard-titulo').textContent = nombre;
+  document.getElementById('pago-guard-monto').value = pago ? pago.monto : cuotaFinal;
+  document.getElementById('pago-guard-metodo').value = pago ? (pago.metodo_pago||'efectivo') : 'efectivo';
+  document.getElementById('pago-guard-obs').value = pago ? (pago.observacion||'') : '';
+  document.getElementById('pago-guard-btn-eliminar').style.display = pago ? '' : 'none';
+  document.getElementById('pago-guard-resumen').innerHTML =
+    '<span style="color:var(--text-secondary);">Cuota a cobrar: </span>' +
+    '<strong style="color:#1B8A7A;">' + fmtGs(cuotaFinal) + '</strong>' +
+    (pago ? ' · <span style="color:#1B8A7A;">✅ Pagado: ' + fmtGs(pago.monto) + '</span>' : 
+      ' · <span style="color:#E65100;">⏳ Pendiente</span>');
+  openModal('modal-pago-guarderia');
+}
+
+async function confirmarPagoGuarderia() {
+  var ninoId = document.getElementById('pago-guard-nino-id').value;
+  var pagoId = document.getElementById('pago-guard-pago-id').value;
+  var mesKey = window._pagoGuardMesKey;
+  var monto = parseInt(document.getElementById('pago-guard-monto').value)||0;
   if (!monto) { alert('Ingresá un monto válido'); return; }
-  var metodos = ['efectivo', 'transferencia', 'pos', 'qr'];
-  var metodoOpts = metodos.map(function(m,i) { return (i+1) + '. ' + m; }).join('\n');
-  var metodoIdx = prompt('Método de pago:\n' + metodoOpts + '\n(ingresá el número):', '1');
-  var metodo = metodos[(parseInt(metodoIdx)||1)-1] || 'efectivo';
-  var obs = prompt('Observación (opcional):', pago ? (pago.observacion||'') : '') || null;
+  var metodo = document.getElementById('pago-guard-metodo').value;
+  var obs = document.getElementById('pago-guard-obs').value || null;
   var today = new Date();
   var fechaHoy = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
   var data = { nino_id: ninoId, mes: mesKey, monto: monto, metodo_pago: metodo, fecha: fechaHoy, observacion: obs };
   try {
-    if (pago) { await api('PATCH', 'guarderia_pagos', data, '?id=eq.' + pago.id); }
+    if (pagoId) { await api('PATCH', 'guarderia_pagos', data, '?id=eq.' + pagoId); }
     else { await api('POST', 'guarderia_pagos', data); }
-    toast('✅ Pago registrado: ' + nombre);
+    closeModal('modal-pago-guarderia');
+    toast('✅ Pago guardado');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarPagoGuarderia() {
+  var pagoId = document.getElementById('pago-guard-pago-id').value;
+  if (!pagoId || !confirm('¿Deshacer este pago?')) return;
+  try {
+    await api('DELETE', 'guarderia_pagos', null, '?id=eq.' + pagoId);
+    closeModal('modal-pago-guarderia');
+    toast('✅ Pago eliminado');
     loadGuarderia();
   } catch(e) { alert('Error: ' + e.message); }
 }
@@ -6418,6 +6494,58 @@ async function eliminarCobro() {
     toast('✅ Cobro eliminado');
     loadCobros();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================
+// TURNO RÁPIDO DESDE SEMANAL
+// ==================
+async function abrirTurnoRapido(fecha, hora) {
+  var profFiltro = document.getElementById('semanal-prof-filter') ? 
+    document.getElementById('semanal-prof-filter').value : '';
+  var horaNum = parseInt(hora.split(':')[0]);
+  var horaFin = String(horaNum + 1).padStart(2,'0') + ':00';
+  var q = '?fecha=eq.' + fecha + '&hora=gte.' + hora + ':00&hora=lt.' + horaFin;
+  if (profFiltro) q += '&profesional_id=eq.' + profFiltro;
+  var existing = [];
+  try { existing = await api('GET', 'agenda', null, q); } catch(e) {}
+  if (existing.length > 0) {
+    openTurnoModal(fecha, hora, existing[0]);
+  } else {
+    openTurnoModal(fecha, hora, null);
+  }
+}
+
+function openTurnoModal(fecha, hora, existingTurno) {
+  var fechaEl = document.getElementById('turno-fecha');
+  var horaEl = document.getElementById('turno-hora');
+  var idEl = document.getElementById('turno-id');
+  if (fechaEl) fechaEl.value = fecha;
+  if (horaEl) horaEl.value = hora + ':00';
+  if (idEl) idEl.value = existingTurno ? existingTurno.id : '';
+  if (existingTurno) {
+    var tipoEl = document.getElementById('turno-tipo');
+    var estadoEl = document.getElementById('turno-estado');
+    if (tipoEl) tipoEl.value = existingTurno.tipo || 'sesion';
+    if (estadoEl) estadoEl.value = existingTurno.estado || 'pendiente';
+    var profSel = document.getElementById('turno-prof');
+    if (profSel && existingTurno.profesional_id) {
+      profSel.value = existingTurno.profesional_id;
+      filtrarPacsPorProf().then(function() {
+        var pacSel = document.getElementById('turno-pac');
+        if (pacSel && existingTurno.paciente_id) pacSel.value = existingTurno.paciente_id;
+      });
+    }
+  } else {
+    if (idEl) idEl.value = '';
+    var profFiltro = document.getElementById('semanal-prof-filter') ?
+      document.getElementById('semanal-prof-filter').value : '';
+    var profSel = document.getElementById('turno-prof');
+    if (profSel && profFiltro) {
+      profSel.value = profFiltro;
+      filtrarPacsPorProf();
+    }
+  }
+  openModal('modal-turno');
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
