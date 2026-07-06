@@ -937,9 +937,14 @@ input[type="time"] { -webkit-appearance: none; }
         <button class="btn btn-secondary btn-sm" style="margin-top:8px;width:100%;" onclick="copiarDatosFactura()">📋 Copiar datos al portapapeles</button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modal-cobro')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarCobro()">Guardar</button>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <div>
+        <button class="btn btn-danger btn-sm" id="cobro-btn-eliminar" style="display:none;" onclick="eliminarCobro()">🗑 Deshacer cobro</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" onclick="closeModal('modal-cobro')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarCobro()">Guardar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3879,6 +3884,8 @@ async function abrirCobroModal(pacId) {
     document.getElementById('cobro-nro-factura').value = c ? (c.nro_factura||'') : '';
     document.getElementById('cobro-id').value = c ? c.id : '';
     document.getElementById('cobro-monto').value = c ? (c.monto||'') : '';
+    var btnEliminar = document.getElementById('cobro-btn-eliminar');
+    if (btnEliminar) btnEliminar.style.display = c ? '' : 'none';
     // Store patient data for factura preview
     window._cobrosPacData = p;
     // Show/hide factura preview based on if facturado
@@ -5693,6 +5700,18 @@ async function editarMeta() {
 // ==================
 // DEPOSITOS CAJA CHICA
 // ==================
+async function eliminarCobro() {
+  var cobroId = document.getElementById('cobro-id').value;
+  if (!cobroId) return;
+  if (!confirm('¿Deshacer este cobro? Se eliminará el registro de pago.')) return;
+  try {
+    await api('DELETE', 'cobros', null, '?id=eq.' + cobroId);
+    closeModal('modal-cobro');
+    toast('✅ Cobro eliminado');
+    loadCobros();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 async function registrarDeposito() {
   var monto = prompt('Monto del depósito al banco (Gs.):');
   if (!monto) return;
