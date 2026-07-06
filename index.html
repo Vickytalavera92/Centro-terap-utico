@@ -293,6 +293,8 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="nav-item" id="nav-pacientes" onclick="goTo('pacientes')">📁 Pacientes</div>
       <div class="nav-item" id="nav-agenda" onclick="goTo('agenda')">📅 Agenda</div>
       <div class="nav-item" id="nav-semanal" onclick="goTo('semanal')">📆 Vista semanal</div>
+      <div class="nav-item" id="nav-sueldos" onclick="goTo('sueldos')" style="display:none;">👥 Sueldos</div>
+      <div class="nav-item" id="nav-guarderia" onclick="goTo('guarderia')" style="display:none;">🧒 Guardería</div>
       <div class="nav-item" id="nav-instrumentos" onclick="goTo('instrumentos')" style="display:none;">🗂 Instrumentos</div>
       <div class="nav-item" id="nav-perfil" onclick="goTo('perfil')">👤 Mi perfil</div>
       <div class="nav-item mobile-only" onclick="logout()" style="color:var(--red);display:none;" id="nav-logout">🚪 Salir</div>
@@ -352,6 +354,16 @@ input[type="time"] { -webkit-appearance: none; }
     <!-- RESUMEN GENERAL -->
     <div class="page" id="page-resumen">
       <div id="resumen-content"></div>
+    </div>
+
+    <!-- SUELDOS -->
+    <div class="page" id="page-sueldos">
+      <div id="sueldos-content"></div>
+    </div>
+
+    <!-- GUARDERIA -->
+    <div class="page" id="page-guarderia">
+      <div id="guarderia-content"></div>
     </div>
 
     <!-- INSTRUMENTOS -->
@@ -691,6 +703,85 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL EMPLEADO -->
+<div class="modal-overlay" id="modal-empleado">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header"><h3>Empleado fijo</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-empleado')">✕</button></div>
+    <input type="hidden" id="emp-id">
+    <div class="grid-2">
+      <div class="form-group"><label>Nombre</label><input id="emp-nombre" placeholder="Nombre completo"></div>
+      <div class="form-group"><label>Cargo</label><input id="emp-cargo" placeholder="Ej: Limpiadora"></div>
+    </div>
+    <div class="form-group"><label>Salario base (Gs.)</label><input type="number" id="emp-salario" placeholder="Ej: 2800000"></div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="emp-ips" style="width:auto;">
+        Tiene IPS (9% empleado + 16.5% patronal)
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-empleado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NINO GUARDERIA -->
+<div class="modal-overlay" id="modal-nino">
+  <div class="modal" style="width:440px;">
+    <div class="modal-header"><h3>Niño guardería</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-nino')">✕</button></div>
+    <input type="hidden" id="nino-id">
+    <div class="grid-2">
+      <div class="form-group"><label>Nombre</label><input id="nino-nombre" placeholder="Nombre del niño"></div>
+      <div class="form-group"><label>Responsable</label><input id="nino-responsable" placeholder="Mamá/papá"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Turno</label>
+        <select id="nino-turno" onchange="actualizarCuotaTurno()">
+          <option value="normal">Turno normal (1.200.000)</option>
+          <option value="extendido">Extendido (1.650.000)</option>
+          <option value="doble">Doble turno (1.950.000)</option>
+          <option value="excepcion">Excepción</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Cuota base (Gs.)</label><input type="number" id="nino-cuota" placeholder="1200000"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Tipo de descuento</label>
+        <select id="nino-desc-tipo">
+          <option value="ninguno">Sin descuento</option>
+          <option value="socio_cit">🏟 Socio CIT</option>
+          <option value="tc_banco">💳 TC Banco (Conti)</option>
+          <option value="exonerado">⭐ Exonerado</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Monto descuento (Gs.)</label><input type="number" id="nino-desc-monto" placeholder="0"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-nino')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarNino()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COLONIA -->
+<div class="modal-overlay" id="modal-colonia">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header"><h3>Nueva colonia</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-colonia')">✕</button></div>
+    <input type="hidden" id="colonia-id">
+    <div class="form-group"><label>Nombre</label><input id="colonia-nombre" placeholder="Ej: Colonia de Invierno 2026"></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Fecha inicio</label><input type="date" id="colonia-inicio"></div>
+      <div class="form-group"><label>Fecha fin</label><input type="date" id="colonia-fin"></div>
+    </div>
+    <div class="form-group"><label>Precio base por día (Gs.)</label><input type="number" id="colonia-precio" placeholder="Ej: 300000"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-colonia')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarColonia()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL HORARIO FIJO -->
 <div class="modal-overlay" id="modal-horario">
   <div class="modal" style="width:440px;">
@@ -937,14 +1028,9 @@ input[type="time"] { -webkit-appearance: none; }
         <button class="btn btn-secondary btn-sm" style="margin-top:8px;width:100%;" onclick="copiarDatosFactura()">📋 Copiar datos al portapapeles</button>
       </div>
     </div>
-    <div class="modal-footer" style="justify-content:space-between;">
-      <div>
-        <button class="btn btn-danger btn-sm" id="cobro-btn-eliminar" style="display:none;" onclick="eliminarCobro()">🗑 Deshacer cobro</button>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-secondary" onclick="closeModal('modal-cobro')">Cancelar</button>
-        <button class="btn btn-primary" onclick="guardarCobro()">Guardar</button>
-      </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cobro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCobro()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1205,12 +1291,16 @@ async function login() {
       addNav('nav-admin', '💰 Administración', 'admin');
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
+      addNav('nav-sueldos', '👥 Sueldos', 'sueldos');
+      addNav('nav-guarderia', '🧒 Guardería', 'guarderia');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
       addNav('nav-instrumentos', '🗂 Instrumentos', 'instrumentos');
     } else if (CU.rol === 'administrador') {
       addNav('nav-admin', '💰 Administración', 'admin');
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
+      addNav('nav-sueldos', '👥 Sueldos', 'sueldos');
+      addNav('nav-guarderia', '🧒 Guardería', 'guarderia');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
       ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil','nav-instrumentos'].forEach(function(id) {
         var el = document.getElementById(id); if (el) el.style.display = 'none';
@@ -1218,6 +1308,7 @@ async function login() {
     } else if (CU.rol === 'recepcionista') {
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
+      addNav('nav-guarderia', '🧒 Guardería', 'guarderia');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
     } else if (CU.rol === 'profesional') {
       addNav('nav-instrumentos', '🗂 Instrumentos', 'instrumentos');
@@ -1267,7 +1358,7 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos', sueldos: 'Sueldos Fijos', guarderia: 'Guardería' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
@@ -1280,6 +1371,8 @@ function goTo(page) {
   if (page === 'gastos') loadGastos();
   if (page === 'resumen') loadResumen();
   if (page === 'instrumentos') loadInstrumentos();
+  if (page === 'sueldos') loadSueldos();
+  if (page === 'guarderia') loadGuarderia();
 }
 
 function switchTab(el, id) {
@@ -3884,8 +3977,6 @@ async function abrirCobroModal(pacId) {
     document.getElementById('cobro-nro-factura').value = c ? (c.nro_factura||'') : '';
     document.getElementById('cobro-id').value = c ? c.id : '';
     document.getElementById('cobro-monto').value = c ? (c.monto||'') : '';
-    var btnEliminar = document.getElementById('cobro-btn-eliminar');
-    if (btnEliminar) btnEliminar.style.display = c ? '' : 'none';
     // Store patient data for factura preview
     window._cobrosPacData = p;
     // Show/hide factura preview based on if facturado
@@ -5700,18 +5791,6 @@ async function editarMeta() {
 // ==================
 // DEPOSITOS CAJA CHICA
 // ==================
-async function eliminarCobro() {
-  var cobroId = document.getElementById('cobro-id').value;
-  if (!cobroId) return;
-  if (!confirm('¿Deshacer este cobro? Se eliminará el registro de pago.')) return;
-  try {
-    await api('DELETE', 'cobros', null, '?id=eq.' + cobroId);
-    closeModal('modal-cobro');
-    toast('✅ Cobro eliminado');
-    loadCobros();
-  } catch(e) { alert('Error: ' + e.message); }
-}
-
 async function registrarDeposito() {
   var monto = prompt('Monto del depósito al banco (Gs.):');
   if (!monto) return;
@@ -5732,6 +5811,477 @@ async function registrarDeposito() {
     toast('✅ Depósito registrado: ' + fmtGs(montoNum));
     loadGastos();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+
+// ==================
+// SUELDOS FIJOS
+// ==================
+var _sueldosMes = new Date().getMonth() + 1;
+var _sueldosAnio = new Date().getFullYear();
+
+function getSueldosLabel() {
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return meses[_sueldosMes-1] + ' ' + _sueldosAnio;
+}
+
+function cambiarMesSueldos(dir) {
+  if (dir === 0) { _sueldosMes = new Date().getMonth()+1; _sueldosAnio = new Date().getFullYear(); }
+  else { _sueldosMes += dir; if (_sueldosMes > 12) { _sueldosMes = 1; _sueldosAnio++; } if (_sueldosMes < 1) { _sueldosMes = 12; _sueldosAnio--; } }
+  loadSueldos();
+}
+
+async function loadSueldos() {
+  var el = document.getElementById('sueldos-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  var mesKey = _sueldosAnio + '_' + String(_sueldosMes).padStart(2,'0');
+  try {
+    var results = await Promise.all([
+      api('GET', 'empleados', null, '?activo=eq.true&order=cargo.asc'),
+      api('GET', 'pagos_empleados', null, '?mes=eq.' + mesKey)
+    ]);
+    var empleados = results[0];
+    var pagos = results[1];
+    var pagosMap = {};
+    pagos.forEach(function(p) { pagosMap[p.empleado_id] = p; });
+
+    var totalNeto = 0, totalIpsPatronal = 0, totalBruto = 0;
+
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesSueldos(-1)">←</button>' +
+      '<span style="font-size:16px;font-weight:600;">👥 ' + getSueldosLabel() + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesSueldos(1)">→</button>' +
+      '</div>' +
+      '<button class="btn btn-secondary btn-sm" onclick="abrirModalEmpleado(null)">+ Agregar empleado</button>' +
+      '</div>';
+
+    // Table
+    html += '<div class="card"><table style="width:100%;border-collapse:collapse;">' +
+      '<thead><tr style="background:var(--bg);">' +
+      '<th style="padding:10px;text-align:left;font-size:12px;color:var(--text-secondary);">Empleado</th>' +
+      '<th style="padding:10px;text-align:right;font-size:12px;color:var(--text-secondary);">Salario base</th>' +
+      '<th style="padding:10px;text-align:right;font-size:12px;color:var(--text-secondary);">IPS (9%)</th>' +
+      '<th style="padding:10px;text-align:right;font-size:12px;color:var(--text-secondary);">Anticipo</th>' +
+      '<th style="padding:10px;text-align:right;font-size:12px;color:var(--text-secondary);">Otros desc.</th>' +
+      '<th style="padding:10px;text-align:right;font-size:12px;color:var(--text-secondary);">Neto a cobrar</th>' +
+      '<th style="padding:10px;text-align:right;font-size:12px;color:var(--text-secondary);">IPS patronal</th>' +
+      '<th style="padding:10px;text-align:center;font-size:12px;color:var(--text-secondary);">Estado</th>' +
+      '<th style="padding:10px;"></th>' +
+      '</tr></thead><tbody>';
+
+    empleados.forEach(function(emp) {
+      var pago = pagosMap[emp.id];
+      var ipsEmp = emp.tiene_ips ? Math.round(emp.salario_base * 0.09) : 0;
+      var ipsPatronal = emp.tiene_ips ? Math.round(emp.salario_base * 0.165) : 0;
+      var adelanto = pago ? (pago.adelanto || 0) : 0;
+      var otrosDesc = pago ? (pago.otros_descuentos || 0) : 0;
+      var neto = emp.salario_base - ipsEmp - adelanto - otrosDesc;
+      var pagado = pago ? pago.pagado : false;
+      totalNeto += neto;
+      totalIpsPatronal += ipsPatronal;
+      totalBruto += emp.salario_base;
+
+      html += '<tr style="border-bottom:1px solid var(--border);">' +
+        '<td style="padding:10px;">' +
+        '<div style="font-weight:600;">' + emp.nombre + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);">' + emp.cargo + (emp.tiene_ips ? ' · <span style="color:#1565C0;">IPS</span>' : '') + '</div>' +
+        (pago && pago.observacion ? '<div style="font-size:10px;color:#F0A500;margin-top:2px;">📝 ' + pago.observacion + '</div>' : '') +
+        '</td>' +
+        '<td style="padding:10px;text-align:right;">' + fmtGs(emp.salario_base) + '</td>' +
+        '<td style="padding:10px;text-align:right;color:' + (ipsEmp > 0 ? '#C0392B' : 'var(--text-tertiary)') + ';">' + (ipsEmp > 0 ? fmtGs(ipsEmp) : '—') + '</td>' +
+        '<td style="padding:10px;text-align:right;color:' + (adelanto > 0 ? '#E65100' : 'var(--text-tertiary)') + ';">' + (adelanto > 0 ? fmtGs(adelanto) : '—') + '</td>' +
+        '<td style="padding:10px;text-align:right;color:' + (otrosDesc > 0 ? '#C0392B' : 'var(--text-tertiary)') + ';">' + (otrosDesc > 0 ? fmtGs(otrosDesc) : '—') + '</td>' +
+        '<td style="padding:10px;text-align:right;font-weight:700;color:#1B8A7A;">' + fmtGs(neto) + '</td>' +
+        '<td style="padding:10px;text-align:right;color:#1565C0;">' + (ipsPatronal > 0 ? fmtGs(ipsPatronal) : '—') + '</td>' +
+        '<td style="padding:10px;text-align:center;">' +
+        (pagado ? '<span style="background:#E8F6F4;color:#1B8A7A;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">✅ Pagado</span>' :
+          '<span style="background:#FEF6E0;color:#E65100;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">⏳ Pendiente</span>') +
+        '</td>' +
+        '<td style="padding:10px;">' +
+        '<div style="display:flex;gap:4px;">' +
+        '<button data-eid="' + emp.id + '" data-nombre="' + emp.nombre.replace(/"/g,'') + '" data-salario="' + emp.salario_base + '" data-ips="' + emp.tiene_ips + '" onclick="registrarPagoEmpleado(this.dataset.eid,this.dataset.nombre,parseInt(this.dataset.salario),this.dataset.ips===\'true\')" class="btn btn-secondary btn-sm">💾 Pagar</button>' +
+        '<button data-empid="' + emp.id + '" onclick="abrirModalEmpleado(this.dataset.empid)" class="btn btn-ghost btn-sm">✏️</button>' +
+        '</div></td>' +
+        '</tr>';
+    });
+
+    // Totals
+    html += '<tr style="background:var(--bg);font-weight:700;">' +
+      '<td style="padding:10px;">TOTAL</td>' +
+      '<td style="padding:10px;text-align:right;">' + fmtGs(totalBruto) + '</td>' +
+      '<td colspan="3" style="padding:10px;"></td>' +
+      '<td style="padding:10px;text-align:right;color:#1B8A7A;">' + fmtGs(totalNeto) + '</td>' +
+      '<td style="padding:10px;text-align:right;color:#1565C0;">' + fmtGs(totalIpsPatronal) + '</td>' +
+      '<td colspan="2" style="padding:10px;text-align:right;font-size:12px;color:var(--text-secondary);">Costo total CREA: ' + fmtGs(totalNeto + totalIpsPatronal) + '</td>' +
+      '</tr>';
+
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+async function registrarPagoEmpleado(empId, nombre, salarioBase, tieneIps) {
+  var mesKey = _sueldosAnio + '_' + String(_sueldosMes).padStart(2,'0');
+  var pago = null;
+  try {
+    var pagos = await api('GET', 'pagos_empleados', null, '?empleado_id=eq.' + empId + '&mes=eq.' + mesKey);
+    pago = pagos[0] || null;
+  } catch(e) {}
+
+  var adelanto = prompt('Anticipo/adelanto para ' + nombre + ' (Gs., 0 si no hay):', pago ? (pago.adelanto||0) : 0);
+  if (adelanto === null) return;
+  var otros = prompt('Otros descuentos (Gs., 0 si no hay):', pago ? (pago.otros_descuentos||0) : 0);
+  if (otros === null) return;
+  var obs = prompt('Observación (opcional):', pago ? (pago.observacion||'') : '');
+  if (obs === null) return;
+
+  var data = {
+    empleado_id: empId,
+    mes: mesKey,
+    salario_base: salarioBase,
+    adelanto: parseInt((adelanto||'0').replace(/[^0-9]/g,'')) || 0,
+    otros_descuentos: parseInt((otros||'0').replace(/[^0-9]/g,'')) || 0,
+    observacion: obs || null,
+    pagado: true
+  };
+
+  try {
+    if (pago) {
+      await api('PATCH', 'pagos_empleados', data, '?id=eq.' + pago.id);
+    } else {
+      await api('POST', 'pagos_empleados', data);
+    }
+    toast('✅ Pago registrado: ' + nombre);
+    loadSueldos();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function abrirModalEmpleado(empId) {
+  if (empId) {
+    var emps = await api('GET', 'empleados', null, '?id=eq.' + empId + '&limit=1');
+    var e = emps[0];
+    document.getElementById('emp-id').value = e.id;
+    document.getElementById('emp-nombre').value = e.nombre;
+    document.getElementById('emp-cargo').value = e.cargo;
+    document.getElementById('emp-salario').value = e.salario_base;
+    document.getElementById('emp-ips').checked = e.tiene_ips;
+  } else {
+    document.getElementById('emp-id').value = '';
+    document.getElementById('emp-nombre').value = '';
+    document.getElementById('emp-cargo').value = '';
+    document.getElementById('emp-salario').value = '';
+    document.getElementById('emp-ips').checked = false;
+  }
+  openModal('modal-empleado');
+}
+
+async function guardarEmpleado() {
+  var id = document.getElementById('emp-id').value;
+  var data = {
+    nombre: document.getElementById('emp-nombre').value.trim(),
+    cargo: document.getElementById('emp-cargo').value.trim(),
+    salario_base: parseInt(document.getElementById('emp-salario').value.replace(/[^0-9]/g,'')) || 0,
+    tiene_ips: document.getElementById('emp-ips').checked,
+    activo: true
+  };
+  if (!data.nombre || !data.salario_base) { alert('Completá nombre y salario'); return; }
+  try {
+    if (id) { await api('PATCH', 'empleados', data, '?id=eq.' + id); }
+    else { await api('POST', 'empleados', data); }
+    closeModal('modal-empleado');
+    toast('✅ Empleado guardado');
+    loadSueldos();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+
+// ==================
+// GUARDERIA
+// ==================
+var _guarderiaMes = new Date().getMonth() + 1;
+var _guarderiaAnio = new Date().getFullYear();
+var TURNOS_LABELS = { normal: 'Turno normal', extendido: 'Extendido', doble: 'Doble turno', excepcion: 'Excepción' };
+var DESCUENTO_LABELS = { socio_cit: '🏟 Socio CIT', tc_banco: '💳 TC Banco', exonerado: '⭐ Exonerado', ninguno: '' };
+
+function getGuarderiaLabel() {
+  var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return meses[_guarderiaMes-1] + ' ' + _guarderiaAnio;
+}
+
+function cambiarMesGuarderia(dir) {
+  if (dir === 0) { _guarderiaMes = new Date().getMonth()+1; _guarderiaAnio = new Date().getFullYear(); }
+  else { _guarderiaMes += dir; if (_guarderiaMes > 12) { _guarderiaMes = 1; _guarderiaAnio++; } if (_guarderiaMes < 1) { _guarderiaMes = 12; _guarderiaAnio--; } }
+  loadGuarderia();
+}
+
+async function loadGuarderia() {
+  var el = document.getElementById('guarderia-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  var mesKey = _guarderiaAnio + '_' + String(_guarderiaMes).padStart(2,'0');
+  try {
+    var results = await Promise.all([
+      api('GET', 'guarderia_ninos', null, '?activo=eq.true&order=nombre.asc'),
+      api('GET', 'guarderia_pagos', null, '?mes=eq.' + mesKey),
+      api('GET', 'colonias', null, '?activo=eq.true&order=fecha_inicio.desc')
+    ]);
+    var ninos = results[0];
+    var pagos = results[1];
+    var colonias = results[2];
+    var pagosMap = {};
+    pagos.forEach(function(p) { pagosMap[p.nino_id] = p; });
+
+    var totalEsperado = 0, totalCobrado = 0, pagados = 0;
+    ninos.forEach(function(n) {
+      var cuotaFinal = n.cuota_base - (n.descuento_monto || 0);
+      totalEsperado += cuotaFinal;
+      var pago = pagosMap[n.id];
+      if (pago) { totalCobrado += pago.monto; pagados++; }
+    });
+
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesGuarderia(-1)">←</button>' +
+      '<span style="font-size:16px;font-weight:600;">🧒 Guardería — ' + getGuarderiaLabel() + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesGuarderia(1)">→</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
+      '</div></div>';
+
+    // Summary cards
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">' +
+      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + ninos.length + '</div><div class="stat-label">Niños activos</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + pagados + '</div><div class="stat-label">Pagaron</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#F0A500;">' + (ninos.length - pagados) + '</div><div class="stat-label">Pendientes</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;font-size:16px;">' + fmtGs(totalCobrado) + '</div><div class="stat-label">Cobrado</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#C0392B;font-size:16px;">' + fmtGs(totalEsperado - totalCobrado) + '</div><div class="stat-label">Pendiente</div></div>' +
+      '</div>';
+
+    // Ninos table
+    html += '<div class="card" style="margin-bottom:16px;"><div class="section-title mb-12">📋 Lista de niños</div>' +
+      '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);">' +
+      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Nombre</th>' +
+      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Turno</th>' +
+      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Cuota base</th>' +
+      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Descuento</th>' +
+      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Cuota final</th>' +
+      '<th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Estado</th>' +
+      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Método/Obs</th>' +
+      '<th style="padding:8px;"></th>' +
+      '</tr></thead><tbody>';
+
+    ninos.forEach(function(n) {
+      var pago = pagosMap[n.id];
+      var cuotaFinal = n.cuota_base - (n.descuento_monto || 0);
+      var metodoPago = pago ? (pago.metodo_pago || 'efectivo') : '';
+      var metodosLabel = {efectivo:'💵',pos:'💳',transferencia:'🏦',qr:'📱'};
+
+      html += '<tr style="border-bottom:1px solid var(--border);">' +
+        '<td style="padding:8px;"><div style="font-weight:500;">' + n.nombre + '</div>' +
+        (n.responsable ? '<div style="font-size:11px;color:var(--text-secondary);">' + n.responsable + '</div>' : '') + '</td>' +
+        '<td style="padding:8px;font-size:12px;">' + (TURNOS_LABELS[n.turno]||n.turno) + '</td>' +
+        '<td style="padding:8px;text-align:right;font-size:12px;">' + fmtGs(n.cuota_base) + '</td>' +
+        '<td style="padding:8px;text-align:right;">' +
+        (n.descuento_monto > 0 ? '<span style="font-size:11px;background:#E3F2FD;color:#1565C0;padding:2px 6px;border-radius:4px;">' + (DESCUENTO_LABELS[n.descuento_tipo]||n.descuento_tipo) + '<br>-' + fmtGs(n.descuento_monto) + '</span>' : '<span style="color:var(--text-tertiary);font-size:11px;">—</span>') +
+        '</td>' +
+        '<td style="padding:8px;text-align:right;font-weight:700;color:#1B8A7A;">' + fmtGs(cuotaFinal) + '</td>' +
+        '<td style="padding:8px;text-align:center;">' +
+        (pago ? '<span style="background:#E8F6F4;color:#1B8A7A;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;">✅ ' + fmtGs(pago.monto) + '</span>' :
+          '<span style="background:#FEF6E0;color:#E65100;padding:3px 8px;border-radius:20px;font-size:11px;">⏳ Pendiente</span>') +
+        '</td>' +
+        '<td style="padding:8px;font-size:12px;">' +
+        (pago ? (metodosLabel[metodoPago]||'') + ' ' + (pago.observacion||'') : '') +
+        '</td>' +
+        '<td style="padding:8px;"><div style="display:flex;gap:4px;">' +
+        '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" data-cuota="' + cuotaFinal + '" onclick="registrarPagoGuarderia(this.dataset.nid,this.dataset.nombre,parseInt(this.dataset.cuota))" class="btn btn-secondary btn-sm">' + (pago ? '✏️ Editar' : '💰 Cobrar') + '</button>' +
+        (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
+        '</div></td></tr>';
+    });
+
+    html += '</tbody></table></div>';
+
+    // Colonias section
+    if (colonias.length) {
+      html += '<div class="card"><div class="section-title mb-12">🏕️ Colonias</div>';
+      colonias.forEach(function(c) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">' +
+          '<div><div style="font-weight:600;">' + c.nombre + '</div>' +
+          '<div style="font-size:12px;color:var(--text-secondary);">' + (c.fecha_inicio||'') + ' al ' + (c.fecha_fin||'') + ' · Precio base: ' + fmtGs(c.precio_base||0) + '</div></div>' +
+        '<button data-cid="' + c.id + '" data-cnombre="' + c.nombre.replace(/"/g,'') + '" onclick="verColonia(this.dataset.cid,this.dataset.cnombre)" class="btn btn-secondary btn-sm">Ver inscriptos</button>' +
+          '</div>';
+      });
+      if (CU.rol === 'directora') {
+        html += '<button class="btn btn-secondary btn-sm" onclick="abrirModalColonia()">+ Nueva colonia</button>';
+      }
+      html += '</div>';
+    } else {
+      html += '<div class="card"><div class="section-title mb-8">🏕️ Colonias</div>' +
+        '<div style="color:var(--text-secondary);font-size:13px;">No hay colonias activas.</div>' +
+        (CU.rol === 'directora' ? '<button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="abrirModalColonia()">+ Nueva colonia</button>' : '') +
+        '</div>';
+    }
+
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+async function registrarPagoGuarderia(ninoId, nombre, cuotaFinal) {
+  var mesKey = _guarderiaAnio + '_' + String(_guarderiaMes).padStart(2,'0');
+  var pago = null;
+  try {
+    var pagos = await api('GET', 'guarderia_pagos', null, '?nino_id=eq.' + ninoId + '&mes=eq.' + mesKey);
+    pago = pagos[0] || null;
+  } catch(e) {}
+  var montoStr = prompt('Monto cobrado a ' + nombre + ' (Gs.):', pago ? pago.monto : cuotaFinal);
+  if (!montoStr) return;
+  var monto = parseInt((montoStr||'0').replace(/[^0-9]/g,''));
+  if (!monto) { alert('Ingresá un monto válido'); return; }
+  var metodos = ['efectivo', 'transferencia', 'pos', 'qr'];
+  var metodoOpts = metodos.map(function(m,i) { return (i+1) + '. ' + m; }).join('\n');
+  var metodoIdx = prompt('Método de pago:\n' + metodoOpts + '\n(ingresá el número):', '1');
+  var metodo = metodos[(parseInt(metodoIdx)||1)-1] || 'efectivo';
+  var obs = prompt('Observación (opcional):', pago ? (pago.observacion||'') : '') || null;
+  var today = new Date();
+  var fechaHoy = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  var data = { nino_id: ninoId, mes: mesKey, monto: monto, metodo_pago: metodo, fecha: fechaHoy, observacion: obs };
+  try {
+    if (pago) { await api('PATCH', 'guarderia_pagos', data, '?id=eq.' + pago.id); }
+    else { await api('POST', 'guarderia_pagos', data); }
+    toast('✅ Pago registrado: ' + nombre);
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function abrirModalNino(ninoId) {
+  if (ninoId) {
+    var ninos = await api('GET', 'guarderia_ninos', null, '?id=eq.' + ninoId + '&limit=1');
+    var n = ninos[0];
+    document.getElementById('nino-id').value = n.id;
+    document.getElementById('nino-nombre').value = n.nombre;
+    document.getElementById('nino-responsable').value = n.responsable||'';
+    document.getElementById('nino-turno').value = n.turno;
+    document.getElementById('nino-cuota').value = n.cuota_base;
+    document.getElementById('nino-desc-tipo').value = n.descuento_tipo||'ninguno';
+    document.getElementById('nino-desc-monto').value = n.descuento_monto||0;
+  } else {
+    document.getElementById('nino-id').value = '';
+    document.getElementById('nino-nombre').value = '';
+    document.getElementById('nino-responsable').value = '';
+    document.getElementById('nino-turno').value = 'normal';
+    document.getElementById('nino-cuota').value = 1200000;
+    document.getElementById('nino-desc-tipo').value = 'ninguno';
+    document.getElementById('nino-desc-monto').value = 0;
+  }
+  openModal('modal-nino');
+}
+
+async function guardarNino() {
+  var id = document.getElementById('nino-id').value;
+  var descTipo = document.getElementById('nino-desc-tipo').value;
+  var data = {
+    nombre: document.getElementById('nino-nombre').value.trim(),
+    responsable: document.getElementById('nino-responsable').value.trim() || null,
+    turno: document.getElementById('nino-turno').value,
+    cuota_base: parseInt(document.getElementById('nino-cuota').value)||0,
+    descuento_tipo: descTipo !== 'ninguno' ? descTipo : null,
+    descuento_monto: parseInt(document.getElementById('nino-desc-monto').value)||0,
+    activo: true
+  };
+  if (!data.nombre) { alert('Ingresá el nombre'); return; }
+  try {
+    if (id) { await api('PATCH', 'guarderia_ninos', data, '?id=eq.' + id); }
+    else { await api('POST', 'guarderia_ninos', data); }
+    closeModal('modal-nino');
+    toast('✅ Guardado');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function verColonia(coloniaId, nombre) {
+  try {
+    var inscriptos = await api('GET', 'colonia_inscripciones', null, '?colonia_id=eq.' + coloniaId + '&order=nombre_nino.asc');
+    var totalCobrado = inscriptos.filter(function(i) { return i.pagado; }).reduce(function(s,i) { return s+(i.monto||0); }, 0);
+    var html = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<div class="section-title" style="margin-bottom:0;">🏕️ ' + nombre + '</div>' +
+      '<div style="display:flex;gap:8px;"><button data-cid="' + coloniaId + '" onclick="agregarInscripto(this.dataset.cid)" class="btn btn-secondary btn-sm">+ Inscribir</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="loadGuarderia()">← Volver</button></div></div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Total cobrado: <strong style="color:#1B8A7A;">' + fmtGs(totalCobrado) + '</strong> · ' + inscriptos.filter(function(i){return i.pagado;}).length + ' de ' + inscriptos.length + ' pagaron</div>';
+    if (inscriptos.length) {
+      html += '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);"><th style="padding:8px;text-align:left;font-size:11px;">Nombre</th><th style="padding:8px;text-align:center;font-size:11px;">Días</th><th style="padding:8px;text-align:right;font-size:11px;">Monto</th><th style="padding:8px;text-align:center;font-size:11px;">Estado</th><th></th></tr></thead><tbody>';
+      inscriptos.forEach(function(i) {
+        html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;">' + i.nombre_nino + '</td>' +
+          '<td style="padding:8px;text-align:center;">' + (i.dias||'—') + '</td>' +
+          '<td style="padding:8px;text-align:right;">' + fmtGs(i.monto||0) + '</td>' +
+          '<td style="padding:8px;text-align:center;">' + (i.pagado ? '<span style="color:#1B8A7A;font-size:11px;">✅ Pagado</span>' : '<span style="color:#E65100;font-size:11px;">⏳ Pendiente</span>') + '</td>' +
+          '<td style="padding:8px;"><button data-iid="' + i.id + '" data-pagado="' + !i.pagado + '" onclick="marcarPagoColonia(this.dataset.iid,this.dataset.pagado===\'true\')" class="btn btn-ghost btn-sm">' + (i.pagado ? 'Deshacer' : '✅ Marcar pagado') + '</button></td></tr>';
+      });
+      html += '</tbody></table>';
+    } else {
+      html += '<div style="color:var(--text-secondary);font-size:13px;">Sin inscriptos aún.</div>';
+    }
+    html += '</div>';
+    document.getElementById('guarderia-content').innerHTML = html;
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function agregarInscripto(coloniaId) {
+  var nombre = prompt('Nombre del niño:');
+  if (!nombre) return;
+  var dias = prompt('Cantidad de días:');
+  var monto = prompt('Monto a cobrar (Gs.):');
+  if (!monto) return;
+  try {
+    await api('POST', 'colonia_inscripciones', {
+      colonia_id: coloniaId, nombre_nino: nombre.trim(),
+      dias: parseInt(dias)||null, monto: parseInt((monto||'0').replace(/[^0-9]/g,''))||0, pagado: false
+    });
+    toast('✅ Inscripto agregado');
+    var colonias = await api('GET', 'colonias', null, '?id=eq.' + coloniaId + '&limit=1');
+    verColonia(coloniaId, colonias[0] ? colonias[0].nombre : 'Colonia');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function marcarPagoColonia(inscId, pagado) {
+  try {
+    await api('PATCH', 'colonia_inscripciones', { pagado: pagado }, '?id=eq.' + inscId);
+    toast(pagado ? '✅ Marcado como pagado' : 'Pago deshecho');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function abrirModalColonia() {
+  document.getElementById('colonia-id').value = '';
+  document.getElementById('colonia-nombre').value = '';
+  document.getElementById('colonia-inicio').value = '';
+  document.getElementById('colonia-fin').value = '';
+  document.getElementById('colonia-precio').value = '';
+  openModal('modal-colonia');
+}
+
+async function guardarColonia() {
+  var id = document.getElementById('colonia-id').value;
+  var data = {
+    nombre: document.getElementById('colonia-nombre').value.trim(),
+    fecha_inicio: document.getElementById('colonia-inicio').value || null,
+    fecha_fin: document.getElementById('colonia-fin').value || null,
+    precio_base: parseInt(document.getElementById('colonia-precio').value)||0,
+    activo: true
+  };
+  if (!data.nombre) { alert('Ingresá el nombre de la colonia'); return; }
+  try {
+    if (id) { await api('PATCH', 'colonias', data, '?id=eq.' + id); }
+    else { await api('POST', 'colonias', data); }
+    closeModal('modal-colonia');
+    toast('✅ Colonia guardada');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+function actualizarCuotaTurno() {
+  var turno = document.getElementById('nino-turno').value;
+  var cuotas = { normal: 1200000, extendido: 1650000, doble: 1950000, excepcion: 1450000 };
+  if (cuotas[turno]) document.getElementById('nino-cuota').value = cuotas[turno];
 }
 
 document.getElementById('login-pass').addEventListener('keydown', function(e) { if (e.key === 'Enter') login(); });
