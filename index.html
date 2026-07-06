@@ -728,20 +728,27 @@ input[type="time"] { -webkit-appearance: none; }
 
 <!-- MODAL NINO GUARDERIA -->
 <div class="modal-overlay" id="modal-nino">
-  <div class="modal" style="width:440px;">
+  <div class="modal" style="width:480px;max-height:90vh;overflow-y:auto;">
     <div class="modal-header"><h3>Niño guardería</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-nino')">✕</button></div>
     <input type="hidden" id="nino-id">
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-bottom:8px;">Datos del niño</div>
     <div class="grid-2">
-      <div class="form-group"><label>Nombre</label><input id="nino-nombre" placeholder="Nombre del niño"></div>
-      <div class="form-group"><label>Responsable</label><input id="nino-responsable" placeholder="Mamá/papá"></div>
+      <div class="form-group"><label>Nombre del niño</label><input id="nino-nombre" placeholder="Nombre completo"></div>
+      <div class="form-group"><label>Fecha de nacimiento</label><input type="date" id="nino-fnac"></div>
     </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin:10px 0 8px;">Responsable / Facturación</div>
+    <div class="grid-2">
+      <div class="form-group"><label>Nombre responsable</label><input id="nino-responsable" placeholder="Mamá/papá que paga"></div>
+      <div class="form-group"><label>RUC/CI responsable</label><input id="nino-ruc" placeholder="Ej: 1234567-8"></div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin:10px 0 8px;">Turno y cuota</div>
     <div class="grid-2">
       <div class="form-group"><label>Turno</label>
         <select id="nino-turno" onchange="actualizarCuotaTurno()">
           <option value="normal">Turno normal (1.200.000)</option>
           <option value="extendido">Extendido (1.650.000)</option>
           <option value="doble">Doble turno (1.950.000)</option>
-          <option value="excepcion">Excepción</option>
+          <option value="excepcion">Excepción (1.450.000)</option>
         </select>
       </div>
       <div class="form-group"><label>Cuota base (Gs.)</label><input type="number" id="nino-cuota" placeholder="1200000"></div>
@@ -3628,25 +3635,48 @@ async function loadAdmin() {
       var gastosData = await api('GET', 'gastos', null, '?fecha=gte.' + rng.first + '&fecha=lte.' + rng.last);
       var gastosTotales = 0;
       gastosData.forEach(function(g) { gastosTotales += (g.monto || 0); });
-      var balanceNeto = totalGenerado - totalProfs - gastosTotales;
+      
+      // Add sueldos fijos to balance
+      var sueldosTotales = 0;
+      try {
+        var empleadosData = await api('GET', 'empleados', null, '?activo=eq.true');
+        var pagosEmpData = await api('GET', 'pagos_empleados', null, '?mes=eq.' + mesKey);
+        var pagosEmpMap = {};
+        pagosEmpData.forEach(function(p) { pagosEmpMap[p.empleado_id] = p; });
+        empleadosData.forEach(function(emp) {
+          var pago = pagosEmpMap[emp.id];
+          var ipsEmp = emp.tiene_ips ? Math.round(emp.salario_base * 0.09) : 0;
+          var ipsPatronal = emp.tiene_ips ? Math.round(emp.salario_base * 0.165) : 0;
+          var adelanto = pago ? (pago.adelanto || 0) : 0;
+          var otros = pago ? (pago.otros_descuentos || 0) : 0;
+          var neto = emp.salario_base - ipsEmp - adelanto - otros;
+          sueldosTotales += neto + ipsPatronal;
+        });
+      } catch(eSuel) {}
+      
+      var balanceNeto = totalGenerado - totalProfs - gastosTotales - sueldosTotales;
       html += '<div class="card" style="margin-top:16px;">' +
         '<div class="section-title mb-12">⚖️ Balance General del mes</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">' +
-        '<div style="padding:12px;background:#E8F6F4;border-radius:8px;text-align:center;">' +
-          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">💰 Ingresos</div>' +
-          '<div style="font-size:17px;font-weight:700;color:#1B8A7A;">' + fmtGs(totalGenerado) + '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">' +
+        '<div style="padding:10px;background:#E8F6F4;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">💰 Ingresos</div>' +
+          '<div style="font-size:15px;font-weight:700;color:#1B8A7A;">' + fmtGs(totalGenerado) + '</div>' +
         '</div>' +
-        '<div style="padding:12px;background:#FFF3E0;border-radius:8px;text-align:center;">' +
-          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">👩‍⚕️ Honorarios</div>' +
-          '<div style="font-size:17px;font-weight:700;color:#E65100;">' + fmtGs(totalProfs) + '</div>' +
+        '<div style="padding:10px;background:#FFF3E0;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">👩‍⚕️ Honorarios prof.</div>' +
+          '<div style="font-size:15px;font-weight:700;color:#E65100;">' + fmtGs(totalProfs) + '</div>' +
         '</div>' +
-        '<div style="padding:12px;background:#FCE4EC;border-radius:8px;text-align:center;">' +
-          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">🧾 Gastos</div>' +
-          '<div style="font-size:17px;font-weight:700;color:#C0392B;">' + fmtGs(gastosTotales) + '</div>' +
+        '<div style="padding:10px;background:#FCE4EC;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🧾 Gastos</div>' +
+          '<div style="font-size:15px;font-weight:700;color:#C0392B;">' + fmtGs(gastosTotales) + '</div>' +
         '</div>' +
-        '<div style="padding:12px;border-radius:8px;text-align:center;border:2px solid ' + (balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';background:' + (balanceNeto >= 0 ? '#E8F6F4' : '#FCE4EC') + ';">' +
-          '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">🏦 Ganancia neta CREA</div>' +
-          '<div style="font-size:19px;font-weight:700;color:' + (balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(balanceNeto) + '</div>' +
+        '<div style="padding:10px;background:#EDE7F6;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">👥 Sueldos fijos</div>' +
+          '<div style="font-size:15px;font-weight:700;color:#6A1B9A;">' + fmtGs(sueldosTotales) + '</div>' +
+        '</div>' +
+        '<div style="padding:10px;border-radius:8px;text-align:center;border:2px solid ' + (balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';background:' + (balanceNeto >= 0 ? '#E8F6F4' : '#FCE4EC') + ';">' +
+          '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🏦 Ganancia neta CREA</div>' +
+          '<div style="font-size:17px;font-weight:700;color:' + (balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(balanceNeto) + '</div>' +
         '</div></div>';
       // META FINANCIERA
       var metaKey = 'meta_' + _adminAnio + '_' + String(_adminMes).padStart(2,'0');
@@ -3657,15 +3687,17 @@ async function loadAdmin() {
         '<button class="btn btn-secondary btn-sm" onclick="editarMeta()">✏️ ' + (metaMonto ? 'Editar' : 'Configurar') + ' meta</button>' +
         '</div>';
       if (metaMonto > 0) {
-        var pct = Math.min(100, Math.round((totalGenerado / metaMonto) * 100));
+        var pct = Math.min(100, Math.round((balanceNeto / metaMonto) * 100));
         var barColor = pct >= 100 ? '#1B8A7A' : pct >= 75 ? '#F0A500' : '#C0392B';
-        html += '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
-          '<span>' + fmtGs(totalGenerado) + ' de ' + fmtGs(metaMonto) + '</span>' +
+        html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Meta sobre ganancia neta CREA (ingresos − honorarios − gastos)</div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
+          '<span>Ganancia: ' + fmtGs(balanceNeto) + ' de meta ' + fmtGs(metaMonto) + '</span>' +
           '<span style="font-weight:700;color:' + barColor + ';">' + pct + '%</span></div>' +
           '<div style="background:#E0E0E0;border-radius:20px;height:14px;overflow:hidden;margin-bottom:6px;">' +
-          '<div style="width:' + pct + '%;background:' + barColor + ';height:100%;border-radius:20px;"></div></div>' +
-          (pct >= 100 ? '<div style="color:#1B8A7A;font-weight:600;">🎉 ¡Meta alcanzada!</div>' :
-            '<div style="font-size:12px;color:var(--text-secondary);">Faltan ' + fmtGs(metaMonto - totalGenerado) + ' para la meta</div>');
+          '<div style="width:' + Math.max(0,pct) + '%;background:' + barColor + ';height:100%;border-radius:20px;"></div></div>' +
+          (pct >= 100 ? '<div style="color:#1B8A7A;font-weight:600;">🎉 ¡Meta de ganancia alcanzada!</div>' :
+            (balanceNeto < 0 ? '<div style="font-size:12px;color:#C0392B;">⚠️ Ganancia negativa este mes</div>' :
+            '<div style="font-size:12px;color:var(--text-secondary);">Faltan ' + fmtGs(metaMonto - balanceNeto) + ' de ganancia para la meta</div>'));
       } else {
         html += '<div style="font-size:13px;color:var(--text-secondary);">Sin meta configurada para este mes.</div>';
       }
@@ -5773,7 +5805,7 @@ async function editarMeta() {
     var lsActual = localStorage.getItem(metaKey);
     actual = lsActual || '';
   } catch(e) {}
-  var nueva = prompt('Meta de facturación para ' + _adminAnio + '/' + String(_adminMes).padStart(2,'0') + ' (Gs.):\n\nActual: ' + (actual ? fmtGs(parseInt(actual)) : 'Sin meta'), actual || '');
+  var nueva = prompt('Meta de ganancia neta (utilidad) para ' + _adminAnio + '/' + String(_adminMes).padStart(2,'0') + ' (Gs.):\n\nActual: ' + (actual ? fmtGs(parseInt(actual)) : 'Sin meta'), actual || '');
   if (nueva === null) return;
   var monto = parseInt((nueva || '0').replace(/[^0-9]/g,'')) || 0;
   try {
@@ -6050,24 +6082,28 @@ async function loadGuarderia() {
       '</div></div>';
 
     // Summary cards
+    // isAdminGuard defined above
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">' +
       '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + ninos.length + '</div><div class="stat-label">Niños activos</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + pagados + '</div><div class="stat-label">Pagaron</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + pagados + '</div><div class="stat-label">Pagaron este mes</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#F0A500;">' + (ninos.length - pagados) + '</div><div class="stat-label">Pendientes</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;font-size:16px;">' + fmtGs(totalCobrado) + '</div><div class="stat-label">Cobrado</div></div>' +
-      '<div class="stat-card"><div class="stat-num" style="color:#C0392B;font-size:16px;">' + fmtGs(totalEsperado - totalCobrado) + '</div><div class="stat-label">Pendiente</div></div>' +
+      (isAdminGuard ? '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;font-size:16px;">' + fmtGs(totalCobrado) + '</div><div class="stat-label">Total cobrado</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#C0392B;font-size:16px;">' + fmtGs(totalEsperado - totalCobrado) + '</div><div class="stat-label">Total pendiente</div></div>' +
+      '<div class="stat-card"><div class="stat-num" style="color:#607D8B;font-size:16px;">' + fmtGs(totalEsperado) + '</div><div class="stat-label">Total esperado</div></div>' : '') +
       '</div>';
 
     // Ninos table
+    var canSeeMontos = true; // All roles see individual amounts
+    // isAdminGuard defined above // Only admin/dir see totals
     html += '<div class="card" style="margin-bottom:16px;"><div class="section-title mb-12">📋 Lista de niños</div>' +
       '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);">' +
-      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Nombre</th>' +
+      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Nombre / Responsable</th>' +
       '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Turno</th>' +
-      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Cuota base</th>' +
+      (canSeeMontos ? '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Cuota base</th>' +
       '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Descuento</th>' +
-      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Cuota final</th>' +
-      '<th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Estado</th>' +
-      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Método/Obs</th>' +
+      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Cuota final</th>' : '') +
+      '<th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Estado pago</th>' +
+      '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Factura / Método</th>' +
       '<th style="padding:8px;"></th>' +
       '</tr></thead><tbody>';
 
@@ -6077,24 +6113,33 @@ async function loadGuarderia() {
       var metodoPago = pago ? (pago.metodo_pago || 'efectivo') : '';
       var metodosLabel = {efectivo:'💵',pos:'💳',transferencia:'🏦',qr:'📱'};
 
+      var responsableNombre = n.responsable_nombre || n.responsable || '';
+      var rucNino = n.responsable_ruc || '';
       html += '<tr style="border-bottom:1px solid var(--border);">' +
-        '<td style="padding:8px;"><div style="font-weight:500;">' + n.nombre + '</div>' +
-        (n.responsable ? '<div style="font-size:11px;color:var(--text-secondary);">' + n.responsable + '</div>' : '') + '</td>' +
-        '<td style="padding:8px;font-size:12px;">' + (TURNOS_LABELS[n.turno]||n.turno) + '</td>' +
-        '<td style="padding:8px;text-align:right;font-size:12px;">' + fmtGs(n.cuota_base) + '</td>' +
-        '<td style="padding:8px;text-align:right;">' +
-        (n.descuento_monto > 0 ? '<span style="font-size:11px;background:#E3F2FD;color:#1565C0;padding:2px 6px;border-radius:4px;">' + (DESCUENTO_LABELS[n.descuento_tipo]||n.descuento_tipo) + '<br>-' + fmtGs(n.descuento_monto) + '</span>' : '<span style="color:var(--text-tertiary);font-size:11px;">—</span>') +
+        '<td style="padding:8px;">' +
+        '<div style="font-weight:500;">' + n.nombre + '</div>' +
+        (responsableNombre ? '<div style="font-size:11px;color:var(--text-secondary);">' + responsableNombre + '</div>' : '') +
+        (canSeeMontos && rucNino ? '<div style="font-size:10px;color:var(--text-tertiary);">RUC: ' + rucNino + '</div>' : '') +
         '</td>' +
-        '<td style="padding:8px;text-align:right;font-weight:700;color:#1B8A7A;">' + fmtGs(cuotaFinal) + '</td>' +
+        '<td style="padding:8px;font-size:12px;">' + (TURNOS_LABELS[n.turno]||n.turno) + '</td>' +
+        (canSeeMontos ? 
+          '<td style="padding:8px;text-align:right;font-size:12px;">' + fmtGs(n.cuota_base) + '</td>' +
+          '<td style="padding:8px;text-align:right;">' +
+          (n.descuento_monto > 0 ? '<span style="font-size:11px;background:#E3F2FD;color:#1565C0;padding:2px 6px;border-radius:4px;">' + (DESCUENTO_LABELS[n.descuento_tipo]||n.descuento_tipo) + '<br>-' + fmtGs(n.descuento_monto) + '</span>' : '<span style="color:var(--text-tertiary);font-size:11px;">—</span>') +
+          '</td>' +
+          '<td style="padding:8px;text-align:right;font-weight:700;color:#1B8A7A;">' + fmtGs(cuotaFinal) + '</td>'
+        : '') +
         '<td style="padding:8px;text-align:center;">' +
-        (pago ? '<span style="background:#E8F6F4;color:#1B8A7A;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;">✅ ' + fmtGs(pago.monto) + '</span>' :
+        (pago ? '<span style="background:#E8F6F4;color:#1B8A7A;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;">✅ ' + (canSeeMontos ? fmtGs(pago.monto) : 'Pagado') + '</span>' :
           '<span style="background:#FEF6E0;color:#E65100;padding:3px 8px;border-radius:20px;font-size:11px;">⏳ Pendiente</span>') +
         '</td>' +
         '<td style="padding:8px;font-size:12px;">' +
         (pago ? (metodosLabel[metodoPago]||'') + ' ' + (pago.observacion||'') : '') +
+        (canSeeMontos && rucNino && !pago ? '<div style="font-size:10px;color:#F0A500;">📄 Pendiente factura</div>' : '') +
+        (canSeeMontos && rucNino && pago ? '<div style="font-size:10px;color:#1B8A7A;">📄 ' + rucNino + '</div>' : '') +
         '</td>' +
         '<td style="padding:8px;"><div style="display:flex;gap:4px;">' +
-        '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" data-cuota="' + cuotaFinal + '" onclick="registrarPagoGuarderia(this.dataset.nid,this.dataset.nombre,parseInt(this.dataset.cuota))" class="btn btn-secondary btn-sm">' + (pago ? '✏️ Editar' : '💰 Cobrar') + '</button>' +
+        '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" data-cuota="' + cuotaFinal + '" onclick="registrarPagoGuarderia(this.dataset.nid,this.dataset.nombre,parseInt(this.dataset.cuota))" class="btn btn-secondary btn-sm">' + (pago ? '✏️' : '💰') + '</button>' +
         (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
         '</div></td></tr>';
     });
@@ -6159,7 +6204,9 @@ async function abrirModalNino(ninoId) {
     var n = ninos[0];
     document.getElementById('nino-id').value = n.id;
     document.getElementById('nino-nombre').value = n.nombre;
-    document.getElementById('nino-responsable').value = n.responsable||'';
+    document.getElementById('nino-responsable').value = n.responsable_nombre||n.responsable||'';
+    document.getElementById('nino-ruc').value = n.responsable_ruc||'';
+    document.getElementById('nino-fnac').value = n.fecha_nacimiento||'';
     document.getElementById('nino-turno').value = n.turno;
     document.getElementById('nino-cuota').value = n.cuota_base;
     document.getElementById('nino-desc-tipo').value = n.descuento_tipo||'ninguno';
@@ -6168,6 +6215,8 @@ async function abrirModalNino(ninoId) {
     document.getElementById('nino-id').value = '';
     document.getElementById('nino-nombre').value = '';
     document.getElementById('nino-responsable').value = '';
+    document.getElementById('nino-ruc').value = '';
+    document.getElementById('nino-fnac').value = '';
     document.getElementById('nino-turno').value = 'normal';
     document.getElementById('nino-cuota').value = 1200000;
     document.getElementById('nino-desc-tipo').value = 'ninguno';
@@ -6182,6 +6231,9 @@ async function guardarNino() {
   var data = {
     nombre: document.getElementById('nino-nombre').value.trim(),
     responsable: document.getElementById('nino-responsable').value.trim() || null,
+    responsable_nombre: document.getElementById('nino-responsable').value.trim() || null,
+    responsable_ruc: document.getElementById('nino-ruc').value.trim() || null,
+    fecha_nacimiento: document.getElementById('nino-fnac').value || null,
     turno: document.getElementById('nino-turno').value,
     cuota_base: parseInt(document.getElementById('nino-cuota').value)||0,
     descuento_tipo: descTipo !== 'ninguno' ? descTipo : null,
