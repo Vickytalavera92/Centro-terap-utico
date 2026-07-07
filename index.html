@@ -3358,7 +3358,17 @@ async function loadSemanal() {
 
     // Build weekly grid
     var diasLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    var horas = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'];
+    // Rango base 8:00-19:00 + cualquier hora fuera de ese rango que tenga turnos reales
+    // (antes los turnos fuera de 8-19 quedaban afuera de la grilla y "desaparecían")
+    var horasMap = {};
+    for (var hBase = 8; hBase <= 19; hBase++) { horasMap[String(hBase).padStart(2,'0')] = hBase + ':00'; }
+    turnos.forEach(function(t) {
+      if (t.hora) {
+        var hh = t.hora.slice(0,2);
+        if (!horasMap[hh]) horasMap[hh] = parseInt(hh) + ':00';
+      }
+    });
+    var horas = Object.keys(horasMap).sort().map(function(hh) { return horasMap[hh]; });
 
     var table = '<table style="width:100%;border-collapse:collapse;min-width:700px;">';
     table += '<thead><tr><th style="padding:8px;background:var(--bg);border:1px solid var(--border);font-size:11px;width:50px;">Hora</th>';
@@ -6176,6 +6186,9 @@ async function loadGuarderia() {
     var pagosMap = {};
     pagos.forEach(function(p) { pagosMap[p.nino_id] = p; });
 
+    // isAdminGuard: solo directora/administrador ven totales del mes
+    var isAdminGuard = (CU.rol === 'directora' || CU.rol === 'administrador');
+
     var totalEsperado = 0, totalCobrado = 0, pagados = 0;
     ninos.forEach(function(n) {
       var cuotaFinal = n.cuota_base - (n.descuento_monto || 0);
@@ -6191,11 +6204,10 @@ async function loadGuarderia() {
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesGuarderia(1)">→</button>' +
       '</div>' +
       '<div style="display:flex;gap:8px;">' +
-        (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
+        (CU.rol === 'directora' ? '<button onclick="abrirModalNino()" class="btn btn-secondary btn-sm">+ Agregar niño</button>' : '') +
       '</div></div>';
 
     // Summary cards
-    // isAdminGuard defined above
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">' +
       '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + ninos.length + '</div><div class="stat-label">Niños activos</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + pagados + '</div><div class="stat-label">Pagaron este mes</div></div>' +
@@ -6207,7 +6219,6 @@ async function loadGuarderia() {
 
     // Ninos table
     var canSeeMontos = true; // All roles see individual amounts
-    // isAdminGuard defined above // Only admin/dir see totals
     html += '<div class="card" style="margin-bottom:16px;"><div class="section-title mb-12">📋 Lista de niños</div>' +
       '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);">' +
       '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Nombre / Responsable</th>' +
