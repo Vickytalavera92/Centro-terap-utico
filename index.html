@@ -1629,7 +1629,7 @@ async function loadDashboard() {
     var honorariosMes = 0;
     confirmadosMes.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
-      var valorTotal = tarifaMap[tipo] || 220000;
+      var valorTotal = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
       var cp = pacMapDash[t.paciente_id];
       if (cp && cp.valor_sesion) valorTotal = cp.valor_sesion;
       facturacionMes += valorTotal;
@@ -2573,7 +2573,7 @@ async function loadAgendaMes() {
         if (!tipoData[tipo]) tipoData[tipo] = { cant: 0, totalGen: 0, totalProf: 0 };
         // Use custom patient price if set
         var cp = pacMapMes[t.paciente_id];
-        var unitGen = (cp && cp.valor_sesion) ? cp.valor_sesion : (tarifaMap[tipo] || 220000);
+        var unitGen = (cp && cp.valor_sesion) ? cp.valor_sesion : (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000);
         var unitProf = (cp && cp.pago_profesional_custom) ? cp.pago_profesional_custom : 
                        (profTarLocalMap[tipo] !== undefined ? profTarLocalMap[tipo] : (DEFAULT_PAGO_MES[tipo] || 130000));
         tipoData[tipo].cant++;
@@ -3158,6 +3158,10 @@ async function filtrarPacsPorProf() {
 // TURNO_TIPO_OPTIONS_ALL: lista completa para admin, reportes y edición de turnos existentes
 // TURNO_TIPO_OPTIONS_AGENDA: lista simplificada para agendar nuevos turnos
 // ==================
+// Tarifas por defecto cuando el tipo no está configurado en la tabla 'tarifas' de Supabase
+var TARIFA_FALLBACK = { sesion:220000, evaluacion:220000, preferencial:220000, devolucion:250000, captada:220000, premium:220000, nueva:220000, colegio:220000, compartida:220000, entrevista_plus:220000, libre:0 };
+function tarifaPorTipo(tarifaMap, tipo) { return (tarifaMap && tarifaMap[tipo]) || TARIFA_FALLBACK[tipo] || 220000; }
+
 var TURNO_TIPO_OPTIONS_ALL = [
   { v: 'sesion', l: '🟩 Sesión normal' },
   { v: 'evaluacion', l: '🟤 Evaluación' },
@@ -3632,7 +3636,7 @@ async function loadAdmin() {
 
     turnos.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
-      var valorTotal = tarifaMap[tipo] || 220000;
+      var valorTotal = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
       var pagoProfDefault = DEFAULT_PAGO[tipo] || 130000;
       var pagoProf = profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo] ? profTarifaMap[t.profesional_id][tipo] : pagoProfDefault;
       
@@ -3753,7 +3757,7 @@ async function loadAdmin() {
           var pac2 = pacientesMap[t2.paciente_id];
           if (!pac2) return '';
           var tipo2 = t2.tipo || 'sesion';
-          var val2 = pac2.valor_sesion || tarifaMap[tipo2] || 220000;
+          var val2 = pac2.valor_sesion || tarifaMap[tipo2] || TARIFA_FALLBACK[tipo2] || 220000;
           return '<tr><td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;">' + (pac2.nombre||'') + ' ' + (pac2.apellido||'') + '</td>' +
             '<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-secondary);">' + (pac2.responsable_nombre||'—') + '</td>' +
             '<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-secondary);">' + (pac2.ruc||'—') + '</td>' +
@@ -4062,7 +4066,6 @@ async function loadCobros() {
     
     var tarifaMap = {};
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
-    
     var cobrosMap = {};
     cobros.forEach(function(c) { cobrosMap[c.paciente_id] = c; });
     
@@ -4087,7 +4090,7 @@ async function loadCobros() {
     pacConSesiones.forEach(function(p) {
       var ts = turnosPorPac[p.id] || [];
       var montoTotal = ts.reduce(function(sum, t) {
-        return sum + (p.valor_sesion || tarifaMap[t.tipo] || 220000);
+        return sum + (p.valor_sesion || tarifaPorTipo(tarifaMap, t.tipo));
       }, 0);
       totalFacturar += montoTotal;
       var cobro = cobrosMap[p.id];
@@ -4157,7 +4160,7 @@ function renderCobrosTable(pacientes, turnosPorPac, cobrosMap, tarifaMap, mesKey
   
   filtered.forEach(function(p) {
     var ts = turnosPorPac[p.id] || [];
-    var montoTotal = ts.reduce(function(sum, t) { return sum + (p.valor_sesion || tarifaMap[t.tipo] || 220000); }, 0);
+    var montoTotal = ts.reduce(function(sum, t) { return sum + (p.valor_sesion || tarifaPorTipo(tarifaMap, t.tipo)); }, 0);
     var cobro = cobrosMap[p.id];
     var cobrado = cobro ? (cobro.monto || 0) : 0;
     var saldo = montoTotal - cobrado;
@@ -4450,7 +4453,7 @@ async function loadGastos() {
         if (!lista.length) return '';
         var t = '<div class="card mb-16"><div class="section-title mb-12">' + titulo + '</div>' +
           '<table class="pac-table"><thead><tr>' +
-          '<th>Categoría</th><th>Descripción</th><th>Fecha</th><th>Comprobante</th><th style="text-align:right;">Monto</th><th></th>' +
+          '<th>Categoría</th><th>Descripción</th><th>Método</th><th>Fecha</th><th>Comprobante</th><th style="text-align:right;">Monto</th><th></th>' +
           '</tr></thead><tbody>';
         lista.forEach(function(g) {
           var metodoColors = {efectivo:'#FF8C00',tc_crea:'#2196F3',transferencia:'#1B8A7A'};
@@ -4521,6 +4524,7 @@ async function editarGasto(id) {
   }
     document.getElementById('gasto-fecha').value = g.fecha || today();
     document.getElementById('gasto-comprobante').value = g.comprobante || '';
+    document.getElementById('gasto-metodo').value = g.metodo_pago || 'efectivo';
     document.getElementById('gasto-delete-btn').style.display = 'inline-block';
     openModal('modal-gasto');
   } catch(e) { console.error(e); }
@@ -4536,6 +4540,7 @@ async function guardarGasto() {
     tipo: document.getElementById('gasto-tipo').value,
     fecha: document.getElementById('gasto-fecha').value,
     comprobante: document.getElementById('gasto-comprobante').value || null,
+    metodo_pago: document.getElementById('gasto-metodo').value || 'efectivo',
     mes: mesKey
   };
   try {
@@ -4651,7 +4656,7 @@ async function loadResumen() {
       var s = stats[t.profesional_id];
       var tipo = t.tipo || 'sesion';
       var cp = pacMap[t.paciente_id];
-      var valorTotal = (cp && cp.valor_sesion) ? cp.valor_sesion : (tarifaMap[tipo] || 220000);
+      var valorTotal = (cp && cp.valor_sesion) ? cp.valor_sesion : (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000);
       var ptMap = profTarMap[t.profesional_id] || {};
       var pago = ptMap[tipo] !== undefined ? ptMap[tipo] : (DEFAULT_PAGO[tipo] || 130000);
       if (cp && cp.pago_profesional_custom) pago = cp.pago_profesional_custom;
