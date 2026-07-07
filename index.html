@@ -3870,7 +3870,7 @@ async function loadAdmin() {
   } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
-var TIPO_LABELS_TARBASE = { sesion:'Sesión', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación', libre:'Libre', entrevista_plus:'Entrevista plus' };
+var TIPO_LABELS_TARBASE = { sesion:'Sesión normal', devolucion:'Devolución', captada:'Entrevista captada', colegio:'Reunión de colegio', compartida:'Reunión compartida' };
 
 async function loadAdminTarifas() {
   try {
@@ -3946,9 +3946,9 @@ async function configProfTarifas(el) {
     var profTarifas = await api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
     var profMap = {};
     profTarifas.forEach(function(pt) { profMap[pt.tipo] = pt.pago_profesional; });
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
-    var TIPO_LABELS = { sesion:'Sesión normal', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación' };
-    
+    var DEFAULT_PAGO = { sesion:130000, devolucion:150000, captada:220000, colegio:130000, compartida:65000 };
+    var TIPO_LABELS = { sesion:'Sesión normal', devolucion:'Devolución', captada:'Entrevista captada', colegio:'Reunión de colegio', compartida:'Reunión compartida' };
+
     var tipos = Object.keys(DEFAULT_PAGO);
     var rows = tipos.map(function(tipo) {
       var val = profMap[tipo] !== undefined ? profMap[tipo] : DEFAULT_PAGO[tipo];
@@ -3975,7 +3975,7 @@ async function configProfTarifas(el) {
 async function saveProfTarifas() {
   var profId = window._configProfId;
   if (!profId) return;
-  var tipos = ['sesion','preferencial','devolucion','captada','premium','nueva','colegio','compartida','evaluacion'];
+  var tipos = ['sesion','devolucion','captada','colegio','compartida'];
   try {
     // Delete existing and reinsert
     await api('DELETE', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
