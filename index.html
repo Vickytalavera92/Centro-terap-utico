@@ -3661,11 +3661,13 @@ async function loadAdmin() {
       totalCrea += ganCrea;
 
       if (profBreakdown[t.profesional_id]) {
-        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0 };
+        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0, minPrice: valorTotal, maxPrice: valorTotal };
         profBreakdown[t.profesional_id].tipos[tipo].cant++;
         if (t.estado === 'cancelado_hora') profBreakdown[t.profesional_id].tipos[tipo].cancHora++;
         profBreakdown[t.profesional_id].tipos[tipo].totalGen += valorTotal;
         profBreakdown[t.profesional_id].tipos[tipo].totalProf += pagoProf;
+        if (valorTotal < profBreakdown[t.profesional_id].tipos[tipo].minPrice) profBreakdown[t.profesional_id].tipos[tipo].minPrice = valorTotal;
+        if (valorTotal > profBreakdown[t.profesional_id].tipos[tipo].maxPrice) profBreakdown[t.profesional_id].tipos[tipo].maxPrice = valorTotal;
         profBreakdown[t.profesional_id].totalGen += valorTotal;
         profBreakdown[t.profesional_id].totalProf += pagoProf;
         profBreakdown[t.profesional_id].totalCrea += ganCrea;
@@ -3712,7 +3714,10 @@ async function loadAdmin() {
         var t = pb.tipos[tipo];
         var color = TIPO_COLORS[tipo] || '#4CAF50';
         var ganCrea = t.totalGen - t.totalProf;
-        var unitGen = t.cant > 0 ? Math.round(t.totalGen / t.cant) : 0;
+        // Si todos los pacientes del tipo pagan lo mismo → mostrar ese precio
+        // Si hay precios mixtos (ej: 1 pac preferencial en grupo sesión) → mostrar la tarifa base configurada
+        var preciosMixtos = t.minPrice !== t.maxPrice;
+        var unitGen = preciosMixtos ? (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000) : (t.minPrice || 0);
         var unitProf = t.cant > 0 ? Math.round(t.totalProf / t.cant) : 0;
         html += '<tr>' +
           '<td style="padding:8px 10px;border-bottom:1px solid var(--border);">' +
@@ -3721,7 +3726,7 @@ async function loadAdmin() {
           '<td style="padding:8px 10px;text-align:center;font-weight:600;border-bottom:1px solid var(--border);">' + t.cant + 
           (t.cancHora > 0 ? '<span style="font-size:10px;background:#FF8C0020;color:#FF8C00;border:1px solid #FF8C00;border-radius:4px;padding:1px 5px;margin-left:4px;">🟠 ' + t.cancHora + '</span>' : '') +
           '</td>' +
-          '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:11px;">' + fmtGs(unitGen) + ' / u.</td>' +
+          '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:11px;">' + fmtGs(unitGen) + ' / u.' + (preciosMixtos ? '<span title="Hay pacientes con precio distinto al estándar. Ver detalle abajo." style="margin-left:4px;font-size:10px;color:#E65100;cursor:help;">*var.</span>' : '') + '</td>' +
           '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.totalGen) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);font-size:11px;">' + fmtGs(unitProf) + ' / u.</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);">' + fmtGs(t.totalProf) + '</td>' +
