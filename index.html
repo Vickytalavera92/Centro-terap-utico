@@ -1116,6 +1116,21 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL TARIFAS PROFESIONAL -->
+<div class="modal-overlay" id="modal-tarifas">
+  <div class="modal" style="width:520px;max-height:85vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3 id="modal-tarifas-title">⚙️ Tarifas</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-tarifas')">✕</button>
+    </div>
+    <div id="modal-tarifas-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tarifas')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProfTarifas()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR PACIENTE -->
 <div class="modal-overlay" id="modal-edit-pac">
   <div class="modal" style="max-height:90vh;overflow-y:auto;">
@@ -1196,7 +1211,7 @@ input[type="time"] { -webkit-appearance: none; }
   <div class="modal">
     <div class="modal-header"><h3>Editar turno</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-turno')">✕</button></div>
     <input type="hidden" id="edit-turno-id">
-    <div class="form-group"><label>Paciente</label><select id="edit-turno-pac"><option value="">Turno libre</option></select></div>
+    <div class="form-group"><label>Paciente</label><select id="edit-turno-pac" onchange="filtrarTipoPorPacienteEdit()"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha</label><input type="date" id="edit-turno-fecha"></div>
       <div class="form-group"><label>Hora</label><input type="time" id="edit-turno-hora" style="font-size:14px;" step="300"></div>
@@ -1229,7 +1244,7 @@ input[type="time"] { -webkit-appearance: none; }
   <div class="modal">
     <div class="modal-header"><h3>Nuevo turno</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-turno')">✕</button></div>
     <div class="form-group"><label>Profesional</label><select id="turno-prof" onchange="filtrarPacsPorProf()"></select></div>
-    <div class="form-group"><label>Paciente</label><select id="turno-pac"><option value="">Turno libre</option></select></div>
+    <div class="form-group"><label>Paciente</label><select id="turno-pac" onchange="filtrarTipoPorPaciente()"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha</label><input type="date" id="turno-fecha"></div>
       <div class="form-group"><label>Hora</label><input type="time" id="turno-hora" style="font-size:14px;" step="300"></div>
@@ -1237,16 +1252,10 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="form-group"><label>Tipo de atención</label>
       <select id="turno-tipo">
         <option value="sesion">🟩 Sesión normal</option>
-        <option value="evaluacion">🟤 Evaluación</option>
-        <option value="preferencial">🟨 Costo preferencial</option>
-        <option value="devolucion">🟣 Devolución</option>
         <option value="captada">🔵 Entrevista captada</option>
-        <option value="premium">🟧 Normal premium</option>
-        <option value="nueva">⬜ Normal nueva</option>
+        <option value="devolucion">🟣 Devolución</option>
         <option value="colegio">🩵 Reunión de colegio</option>
         <option value="compartida">🩷 Reunión compartida</option>
-        <option value="entrevista_plus">⭐ Entrevista plus</option>
-        <option value="libre">⬛ Libre</option>
       </select>
     </div>
     <div class="modal-footer">
@@ -2295,7 +2304,7 @@ async function loadPacs() {
           '<td style="color:var(--text-secondary);">' + fmt(p.fecha_ingreso) + '</td>' +
           '<td>' +
           '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
-          '<button onclick="verLegajoDesdePacs(\'' + p.id + '\')" style="background:#E8F6F4;border:1px solid #1B8A7A;color:#1B8A7A;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">📋 Legajo</button>' +
+          (CU.rol !== 'recepcionista' ? '<button onclick="verLegajoDesdePacs(\'' + p.id + '\')" style="background:#E8F6F4;border:1px solid #1B8A7A;color:#1B8A7A;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">📋 Legajo</button>' : '') +
           '<button onclick="openEditPac(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">✏️</button>' +
           (isInactivo ? '<button onclick="reactivarPaciente(\'' + p.id + '\')" style="background:#E8F6F4;border:1px solid #2E7D32;color:#2E7D32;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">✅ Reactivar</button>' : '') +
           '</div>' + ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirMergeDesdeFila(\'' + p.id + '\',\'' + (p.nombre + ' ' + p.apellido).replace(/'/g,'') + '\')" title="Fusionar" style="background:none;border:1px solid #2196F3;color:#2196F3;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">🔄</button>' : '') + (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button onclick="eliminarPac(\'' + p.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;">🗑</button>' : '') + '</div></td>' +
@@ -2766,8 +2775,9 @@ async function openEditTurno(turnoId) {
     var psel = document.getElementById('edit-turno-pac');
     psel.innerHTML = '<option value="">Turno libre</option>' + pacs.map(function(p) {
       var sel = t.paciente_id === p.id ? ' selected' : '';
-      return '<option value="' + p.id + '"' + sel + '>' + p.nombre + ' ' + p.apellido + '</option>';
+      return '<option value="' + p.id + '" data-valor="' + (p.valor_sesion || '') + '"' + sel + '>' + p.nombre + ' ' + p.apellido + '</option>';
     }).join('');
+    await filtrarTipoPorPacienteEdit();
     openModal('modal-edit-turno');
   } catch(e) { console.error(e); }
 }
@@ -2928,6 +2938,9 @@ async function openEditPac(pacId) {
     document.getElementById('edit-pac-responsable').value = p.responsable_nombre || '';
     document.getElementById('edit-pac-ruc').value = p.ruc || '';
     document.getElementById('edit-pac-pago-prof').value = p.pago_profesional_custom || '';
+    // Campos administrativos (precio personalizado, pago profesional, responsable, RUC, drive) - solo directora/administrador/recepcionista
+    var isAdminRolePac = (CU.rol === 'directora' || CU.rol === 'administrador' || CU.rol === 'recepcionista');
+    document.getElementById('edit-pac-admin-fields').style.display = isAdminRolePac ? '' : 'none';
     // Show professionals checkboxes
     var profWrap = document.getElementById('edit-pac-prof-wrap');
     profWrap.innerHTML = '<label style="font-size:12px;font-weight:500;color:var(--text-secondary);display:block;margin-bottom:6px;">Profesionales asignadas</label>' +
@@ -3131,13 +3144,63 @@ async function filtrarPacsPorProf() {
       // No prof selected - show all active patients
       pacs = await api('GET', 'pacientes', null, '?estado=eq.activo&order=nombre.asc');
     }
-    psel.innerHTML = '<option value="">Turno libre</option>' + 
-      pacs.map(function(p) { 
-        return '<option value="' + p.id + '">' + p.nombre + ' ' + p.apellido + 
-          (p.estado && p.estado !== 'activo' ? ' (inactivo)' : '') + '</option>'; 
+    psel.innerHTML = '<option value="">Turno libre</option>' +
+      pacs.map(function(p) {
+        return '<option value="' + p.id + '" data-valor="' + (p.valor_sesion || '') + '">' + p.nombre + ' ' + p.apellido +
+          (p.estado && p.estado !== 'activo' ? ' (inactivo)' : '') + '</option>';
       }).join('');
+    filtrarTipoPorPaciente();
   } catch(e) { psel.innerHTML = '<option value="">Error cargando</option>'; }
 }
+
+// ==================
+// TIPOS DE TURNO
+// TURNO_TIPO_OPTIONS_ALL: lista completa para admin, reportes y edición de turnos existentes
+// TURNO_TIPO_OPTIONS_AGENDA: lista simplificada para agendar nuevos turnos
+// ==================
+var TURNO_TIPO_OPTIONS_ALL = [
+  { v: 'sesion', l: '🟩 Sesión normal' },
+  { v: 'evaluacion', l: '🟤 Evaluación' },
+  { v: 'preferencial', l: '🟨 Costo preferencial' },
+  { v: 'devolucion', l: '🟣 Devolución' },
+  { v: 'captada', l: '🔵 Entrevista captada' },
+  { v: 'premium', l: '🟧 Normal premium' },
+  { v: 'nueva', l: '⬜ Normal nueva' },
+  { v: 'colegio', l: '🩵 Reunión de colegio' },
+  { v: 'compartida', l: '🩷 Reunión compartida' },
+  { v: 'entrevista_plus', l: '⭐ Entrevista plus' },
+  { v: 'libre', l: '⬛ Libre' }
+];
+// Tipos visibles al agendar nuevos turnos (simplificado)
+var TURNO_TIPO_OPTIONS_AGENDA = [
+  { v: 'sesion', l: '🟩 Sesión normal' },
+  { v: 'captada', l: '🔵 Entrevista captada' },
+  { v: 'devolucion', l: '🟣 Devolución' },
+  { v: 'colegio', l: '🩵 Reunión de colegio' },
+  { v: 'compartida', l: '🩷 Reunión compartida' }
+];
+
+function _aplicarFiltroTipoPorPaciente(pacSelId, tipoSelId) {
+  // Para el modal de EDITAR turno: no tocamos el dropdown, conserva todas las opciones del HTML
+  if (tipoSelId === 'edit-turno-tipo') return;
+  var tsel = document.getElementById(tipoSelId);
+  if (!tsel) return;
+  var valorActual = tsel.value;
+  // Si hay un tipo legacy siendo preservado desde openTurnoModal, usarlo para la detección
+  var tipoAPreservar = window._preservarTipoTurno || valorActual;
+  // Opciones base del agenda simplificado
+  var opciones = TURNO_TIPO_OPTIONS_AGENDA.slice();
+  // Si el turno ya tenía un tipo legacy (ej: evaluacion, preferencial) lo incluimos para no perderlo
+  if (tipoAPreservar && !opciones.some(function(o) { return o.v === tipoAPreservar; })) {
+    var legacy = TURNO_TIPO_OPTIONS_ALL.find(function(o) { return o.v === tipoAPreservar; });
+    if (legacy) opciones.unshift(legacy);
+  }
+  tsel.innerHTML = opciones.map(function(o) { return '<option value="' + o.v + '">' + o.l + '</option>'; }).join('');
+  tsel.value = opciones.some(function(o) { return o.v === tipoAPreservar; }) ? tipoAPreservar : 'sesion';
+}
+
+function filtrarTipoPorPaciente() { _aplicarFiltroTipoPorPaciente('turno-pac', 'turno-tipo'); }
+function filtrarTipoPorPacienteEdit() { /* no-op: edit dropdown keeps all types from static HTML */ }
 
 async function reactivarPaciente(pacId) {
   if (!confirm('¿Reactivar este paciente?')) return;
@@ -3409,7 +3472,7 @@ async function loadSemanal() {
         var isDiffMonthCell = d.getMonth() !== viewMonth;
         var canEditCell = (CU.rol === 'directora' || CU.rol === 'recepcionista') && !isDiffMonthCell;
         var cellBg = isDiffMonthCell ? 'background:#F5F5F5;' : '';
-        var cellClick = canEditCell ? 'onclick="abrirTurnoRapido(\'' + dStr + '\',\'' + hora + '\')" onmouseenter="this.style.background=\'#f0f9f8\'" onmouseleave="this.style.background=\'\'' : '';
+        var cellClick = canEditCell ? 'onclick="abrirTurnoRapido(\'' + dStr + '\',\'' + hora + '\')" onmouseenter="this.style.background=\'#f0f9f8\'" onmouseleave="this.style.background=\'\'"' : '';
         var cellCursor = canEditCell ? 'cursor:pointer;' : '';
         table += '<td style="padding:3px;border:1px solid var(--border);vertical-align:top;min-width:110px;min-height:40px;' + cellBg + cellCursor + '" ' + cellClick + '>' + cell + '</td>';
       });
@@ -3541,7 +3604,10 @@ async function loadAdmin() {
       '<span style="font-size:16px;font-weight:600;">' + getMesLabel() + '</span>' +
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesAdmin(1)">Siguiente →</button>' +
       '</div>' +
+      '<div style="display:flex;gap:8px;">' +
       '<button class="btn btn-secondary btn-sm" onclick="loadAdminTarifas()">⚙️ Configurar tarifas</button>' +
+      (CU.rol === 'directora' ? '<button class="btn btn-secondary btn-sm" onclick="abrirMisTarifas()" title="Configurar tus propias tarifas de pago como profesional">💳 Mis tarifas</button>' : '') +
+      '</div>' +
       '</div>';
 
     // Summary cards
@@ -3795,28 +3861,71 @@ async function loadAdmin() {
   } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
+var TIPO_LABELS_TARBASE = { sesion:'Sesión', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación', libre:'Libre', entrevista_plus:'Entrevista plus' };
+
 async function loadAdminTarifas() {
   try {
     var tarifas = await api('GET', 'tarifas', null, '');
+    var tarifaMapBase = {};
+    tarifas.forEach(function(t) { tarifaMapBase[t.tipo] = t; });
+    var tiposBase = Object.keys(TIPO_LABELS_TARBASE);
     var html = '<div class="card"><div class="section-title">Tarifas base</div>' +
+      '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">💰 "Valor total" es lo que se le cobra al paciente/familia por tipo de sesión. Editá el monto y presioná "Guardar tarifas".</div>' +
       '<table style="width:100%;border-collapse:collapse;">' +
       '<thead><tr>' +
       '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Tipo</th>' +
-      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Valor total</th>' +
+      '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Valor total (a cobrar)</th>' +
       '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago prof. estándar</th>' +
       '</tr></thead><tbody>';
-    
+
     var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000 };
-    
-    tarifas.forEach(function(t) {
-      html += '<tr><td style="padding:8px;border-bottom:1px solid var(--border);">' + t.nombre + '</td>' +
-        '<td style="padding:8px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.valor_total) + '</td>' +
-        '<td style="padding:8px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(DEFAULT_PAGO[t.tipo]||0) + '</td></tr>';
+
+    tiposBase.forEach(function(tipo) {
+      var t = tarifaMapBase[tipo];
+      var val = t ? t.valor_total : '';
+      html += '<tr><td style="padding:8px;border-bottom:1px solid var(--border);">' + TIPO_LABELS_TARBASE[tipo] + (!t ? ' <span style="font-size:10px;color:#C0392B;">(sin configurar)</span>' : '') + '</td>' +
+        '<td style="padding:8px;text-align:right;border-bottom:1px solid var(--border);"><input type="number" id="tarbase-' + tipo + '" value="' + val + '" placeholder="Ej: 220000" style="width:130px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;text-align:right;"></td>' +
+        '<td style="padding:8px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);">' + fmtGs(DEFAULT_PAGO[tipo]||0) + '</td></tr>';
     });
-    
-    html += '</tbody></table><button class="btn btn-secondary btn-sm" style="margin-top:12px;" onclick="loadAdmin()">← Volver</button></div>';
+
+    html += '</tbody></table><div style="display:flex;gap:8px;margin-top:14px;">' +
+      '<button class="btn btn-primary btn-sm" onclick="saveTarifasBase()">💾 Guardar tarifas</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="loadAdmin()">← Volver</button></div></div>';
     document.getElementById('admin-content').innerHTML = html;
   } catch(e) { console.error(e); }
+}
+
+async function saveTarifasBase() {
+  var tipos = Object.keys(TIPO_LABELS_TARBASE);
+  try {
+    var existentes = await api('GET', 'tarifas', null, '');
+    var existMap = {};
+    existentes.forEach(function(t) { existMap[t.tipo] = t; });
+    for (var i = 0; i < tipos.length; i++) {
+      var tipo = tipos[i];
+      var input = document.getElementById('tarbase-' + tipo);
+      if (!input || input.value === '') continue;
+      var val = parseInt(input.value) || 0;
+      if (existMap[tipo]) {
+        await api('PATCH', 'tarifas', { valor_total: val }, '?tipo=eq.' + tipo);
+      } else {
+        await api('POST', 'tarifas', { tipo: tipo, nombre: TIPO_LABELS_TARBASE[tipo], valor_total: val });
+      }
+    }
+    toast('✅ Tarifas guardadas');
+    loadAdminTarifas();
+  } catch(e) { alert('Error al guardar: ' + e.message); }
+}
+
+function abrirMisTarifas() {
+  var fakeEl = {
+    getAttribute: function(attr) {
+      if (attr === 'data-pid') return CU.id;
+      if (attr === 'data-pnombre') return CU.nombre || 'Directora';
+      return null;
+    }
+  };
+  configProfTarifas(fakeEl);
 }
 
 async function configProfTarifas(el) {
@@ -4212,14 +4321,17 @@ async function guardarCobro() {
       nro_factura: nroFac || null 
     };
     if (cobroId) {
-      await api('PATCH', 'cobros', data, '?id=eq.' + cobroId);
+      var resultado = await api('PATCH', 'cobros', data, '?id=eq.' + cobroId);
+      if (!resultado || resultado.length === 0) {
+        throw new Error('No se pudo actualizar el cobro. Verificá los permisos en Supabase (cobros tabla - RLS). Consultá con la administradora del sistema.');
+      }
     } else {
       await api('POST', 'cobros', data);
     }
     closeModal('modal-cobro');
     toast('✅ Cobro guardado');
     loadCobros();
-  } catch(e) { alert('Error al guardar: ' + e.message); }
+  } catch(e) { alert('Error al guardar cobro:\n' + e.message); }
 }
 
 // ==================
@@ -5861,6 +5973,7 @@ function volverAListaPacientes() {
 }
 
 async function verLegajoDesdePacs(pacId) {
+  if (CU.rol === 'recepcionista') { alert('No tenés permiso para ver el legajo clínico.'); return; }
   try {
     // Get assigned profesional
     var asig = await api('GET', 'asignaciones', null, '?paciente_id=eq.' + pacId + '&limit=1');
@@ -6541,9 +6654,16 @@ function openTurnoModal(fecha, hora, existingTurno) {
     var profSel = document.getElementById('turno-prof');
     if (profSel && existingTurno.profesional_id) {
       profSel.value = existingTurno.profesional_id;
+      var _tipoExistente = existingTurno.tipo || 'sesion';
       filtrarPacsPorProf().then(function() {
         var pacSel = document.getElementById('turno-pac');
         if (pacSel && existingTurno.paciente_id) pacSel.value = existingTurno.paciente_id;
+        // Pasar el tipo existente para que _aplicarFiltroTipoPorPaciente pueda añadirlo si es legacy
+        window._preservarTipoTurno = _tipoExistente;
+        filtrarTipoPorPaciente();
+        window._preservarTipoTurno = null;
+        var tsel = document.getElementById('turno-tipo');
+        if (tsel) tsel.value = _tipoExistente;
       });
     }
   } else {
