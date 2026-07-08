@@ -404,10 +404,8 @@ input[type="time"] { -webkit-appearance: none; }
           <span style="font-size:11px;background:#FFC107;color:white;padding:2px 8px;border-radius:4px;">Preferencial</span>
           <span style="font-size:11px;background:#9C27B0;color:white;padding:2px 8px;border-radius:4px;">Devolución</span>
           <span style="font-size:11px;background:#2196F3;color:white;padding:2px 8px;border-radius:4px;">Captada</span>
-          <span style="font-size:11px;background:#FF9800;color:white;padding:2px 8px;border-radius:4px;">Premium</span>
           <span style="font-size:11px;background:#00BCD4;color:white;padding:2px 8px;border-radius:4px;">Colegio</span>
           <span style="font-size:11px;background:#E91E63;color:white;padding:2px 8px;border-radius:4px;">Compartida</span>
-          <span style="font-size:11px;background:#607D8B;color:white;padding:2px 8px;border-radius:4px;">Libre</span>
         </div>
         <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;display:block;"><div id="semanal-wrap"></div></div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
@@ -1246,8 +1244,9 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="form-group"><label>Tipo de atención</label>
       <select id="turno-tipo">
         <option value="sesion">🟩 Sesión normal</option>
-        <option value="captada">🔵 Entrevista captada</option>
+        <option value="preferencial">🟨 Costo preferencial</option>
         <option value="devolucion">🟣 Devolución</option>
+        <option value="captada">🔵 Entrevista captada</option>
         <option value="colegio">🩵 Reunión de colegio</option>
         <option value="compartida">🩷 Reunión compartida</option>
       </select>
