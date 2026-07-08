@@ -449,14 +449,11 @@ input[type="time"] { -webkit-appearance: none; }
           <select id="agenda-filter-tipo" onchange="loadAgenda()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
             <option value="">Todos los tipos</option>
             <option value="sesion">Sesión</option>
-            <option value="evaluacion">Evaluación</option>
+            <option value="preferencial">Preferencial</option>
             <option value="devolucion">Devolución</option>
             <option value="captada">Captada</option>
-            <option value="preferencial">Preferencial</option>
-            <option value="compartida">Compartida</option>
             <option value="colegio">Colegio</option>
-            <option value="entrevista_plus">Entrevista plus</option>
-            <option value="libre">Libre</option>
+            <option value="compartida">Compartida</option>
           </select>
           <button class="btn btn-secondary btn-sm" onclick="limpiarFiltrosAgenda()">✕ Limpiar</button>
         </div>
@@ -890,9 +887,11 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="form-group"><label>Tipo</label>
         <select id="hor-tipo">
           <option value="sesion">Sesión</option>
-          <option value="evaluacion">Evaluación</option>
           <option value="preferencial">Preferencial</option>
           <option value="devolucion">Devolución</option>
+          <option value="captada">Captada</option>
+          <option value="colegio">Colegio</option>
+          <option value="compartida">Compartida</option>
         </select>
       </div>
       <div class="form-group"><label>Frecuencia</label>
@@ -1222,13 +1221,8 @@ input[type="time"] { -webkit-appearance: none; }
         <option value="preferencial">🟨 Costo preferencial</option>
         <option value="devolucion">🟣 Devolución</option>
         <option value="captada">🔵 Entrevista captada</option>
-        <option value="premium">🟧 Normal premium</option>
-        <option value="nueva">⬜ Normal nueva</option>
         <option value="colegio">🩵 Reunión de colegio</option>
         <option value="compartida">🩷 Reunión compartida</option>
-        <option value="entrevista_plus">⭐ Entrevista plus</option>
-        <option value="evaluacion">🟤 Evaluación</option>
-        <option value="libre">⬛ Libre</option>
       </select>
     </div>
     <div class="modal-footer">
@@ -2759,7 +2753,16 @@ async function openEditTurno(turnoId) {
     document.getElementById('edit-turno-id').value = t.id;
     document.getElementById('edit-turno-fecha').value = t.fecha;
     document.getElementById('edit-turno-hora').value = t.hora ? t.hora.slice(0,5) : '';
-    document.getElementById('edit-turno-tipo').value = t.tipo || 'sesion';
+    // Dropdown de tipo: 6 opciones activas, + el tipo legacy del turno si no está entre ellas (para no perderlo)
+    var tipoActualEdit = t.tipo || 'sesion';
+    var tselEdit = document.getElementById('edit-turno-tipo');
+    var opcionesEdit = TURNO_TIPO_OPTIONS_AGENDA.slice();
+    if (!opcionesEdit.some(function(o) { return o.v === tipoActualEdit; })) {
+      var legacyEdit = TURNO_TIPO_OPTIONS_ALL.find(function(o) { return o.v === tipoActualEdit; });
+      if (legacyEdit) opcionesEdit.unshift(legacyEdit);
+    }
+    tselEdit.innerHTML = opcionesEdit.map(function(o) { return '<option value="' + o.v + '">' + o.l + '</option>'; }).join('');
+    tselEdit.value = tipoActualEdit;
     // Load pacientes - profesionales only see their own
     var pacs;
     if (CU.rol === 'directora' || CU.rol === 'recepcionista') {
@@ -5614,6 +5617,14 @@ function abrirNuevoHorario(profId) {
   document.getElementById('hor-pac').value = '';
   document.getElementById('hor-dia').value = '1';
   document.getElementById('hor-hora').value = '';
+  // Reset dropdown a las 6 opciones activas (por si quedó un tipo legacy inyectado de una edición previa)
+  document.getElementById('hor-tipo').innerHTML =
+    '<option value="sesion">Sesión</option>' +
+    '<option value="preferencial">Preferencial</option>' +
+    '<option value="devolucion">Devolución</option>' +
+    '<option value="captada">Captada</option>' +
+    '<option value="colegio">Colegio</option>' +
+    '<option value="compartida">Compartida</option>';
   document.getElementById('hor-tipo').value = 'sesion';
   document.getElementById('hor-frecuencia').value = 'semanal';
   document.getElementById('hor-semana').value = '1';
@@ -5631,7 +5642,21 @@ async function editarHorario(id) {
     document.getElementById('hor-pac').value = h.paciente_id || '';
     document.getElementById('hor-dia').value = h.dia_semana;
     document.getElementById('hor-hora').value = h.hora ? h.hora.slice(0,5) : '';
-    document.getElementById('hor-tipo').value = h.tipo || 'sesion';
+    // Reset a las 6 opciones activas, luego preservar tipo legacy si corresponde
+    var tipoActualHor = h.tipo || 'sesion';
+    var tselHor = document.getElementById('hor-tipo');
+    tselHor.innerHTML =
+      '<option value="sesion">Sesión</option>' +
+      '<option value="preferencial">Preferencial</option>' +
+      '<option value="devolucion">Devolución</option>' +
+      '<option value="captada">Captada</option>' +
+      '<option value="colegio">Colegio</option>' +
+      '<option value="compartida">Compartida</option>';
+    if (![].slice.call(tselHor.options).some(function(o) { return o.value === tipoActualHor; })) {
+      var legacyHor = TURNO_TIPO_OPTIONS_ALL.find(function(o) { return o.v === tipoActualHor; });
+      if (legacyHor) tselHor.insertAdjacentHTML('afterbegin', '<option value="' + legacyHor.v + '">' + legacyHor.l + '</option>');
+    }
+    tselHor.value = tipoActualHor;
     document.getElementById('hor-frecuencia').value = h.frecuencia || 'semanal';
     document.getElementById('hor-semana').value = h.semana_quincenal || 1;
     document.getElementById('hor-semana-wrap').style.display = h.frecuencia === 'quincenal' ? 'block' : 'none';
