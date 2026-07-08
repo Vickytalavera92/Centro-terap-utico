@@ -292,7 +292,6 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="nav-item" id="nav-profesionales" onclick="goTo('profesionales')">👩‍⚕️ Profesionales</div>
       <div class="nav-item" id="nav-pacientes" onclick="goTo('pacientes')">📁 Pacientes</div>
       <div class="nav-item" id="nav-agenda" onclick="goTo('agenda')">📅 Agenda</div>
-      <div class="nav-item" id="nav-semanal" onclick="goTo('semanal')">📆 Vista semanal</div>
       <div class="nav-item" id="nav-sueldos" onclick="goTo('sueldos')" style="display:none;">👥 Sueldos</div>
       <div class="nav-item" id="nav-guarderia" onclick="goTo('guarderia')" style="display:none;">🧒 Guardería</div>
       <div class="nav-item" id="nav-instrumentos" onclick="goTo('instrumentos')" style="display:none;">🗂 Instrumentos</div>
@@ -385,7 +384,17 @@ input[type="time"] { -webkit-appearance: none; }
     </div>
 
     <!-- SEMANAL -->
-    <div class="page" id="page-semanal">
+    <!-- AGENDA -->
+    <div class="page" id="page-agenda">
+      <!-- VISTA TABS -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-primary btn-sm" id="agenda-tab-dia" onclick="switchAgendaView('dia')">📅 Día</button>
+        <button class="btn btn-secondary btn-sm" id="agenda-tab-semana" onclick="switchAgendaView('semana')">📆 Semana</button>
+        <button class="btn btn-secondary btn-sm" id="agenda-tab-mes" onclick="switchAgendaView('mes')">🗓 Mes</button>
+      </div>
+
+      <!-- VISTA SEMANA -->
+      <div id="agenda-view-semana" style="display:none;">
       <div class="card">
         <div class="flex items-center justify-between mb-16">
           <div>
@@ -413,14 +422,6 @@ input[type="time"] { -webkit-appearance: none; }
           <div id="semanal-resumen"></div>
         </div>
       </div>
-    </div>
-
-    <!-- AGENDA -->
-    <div class="page" id="page-agenda">
-      <!-- VISTA TABS -->
-      <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <button class="btn btn-primary btn-sm" id="agenda-tab-dia" onclick="switchAgendaView('dia')">📅 Día</button>
-        <button class="btn btn-secondary btn-sm" id="agenda-tab-mes" onclick="switchAgendaView('mes')">📆 Mes</button>
       </div>
 
       <!-- VISTA DIA -->
@@ -1234,7 +1235,8 @@ input[type="time"] { -webkit-appearance: none; }
 <!-- MODAL TURNO -->
 <div class="modal-overlay" id="modal-turno">
   <div class="modal">
-    <div class="modal-header"><h3>Nuevo turno</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-turno')">✕</button></div>
+    <div class="modal-header"><h3 id="turno-modal-titulo">Nuevo turno</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-turno')">✕</button></div>
+    <input type="hidden" id="turno-id">
     <div class="form-group"><label>Profesional</label><select id="turno-prof" onchange="filtrarPacsPorProf()"></select></div>
     <div class="form-group"><label>Paciente</label><select id="turno-pac" onchange="filtrarTipoPorPaciente()"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
@@ -1339,7 +1341,7 @@ async function login() {
       if (el) el.style.display = 'none';
     });
     // 2. Reset all static items visibility
-    ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
+    ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-perfil'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.style.display = '';
     });
@@ -1385,7 +1387,7 @@ async function login() {
       addNav('nav-sueldos', '👥 Sueldos', 'sueldos');
       addNav('nav-guarderia', '🧒 Guardería', 'guarderia');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
-      ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil','nav-instrumentos'].forEach(function(id) {
+      ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-perfil','nav-instrumentos'].forEach(function(id) {
         var el = document.getElementById(id); if (el) el.style.display = 'none';
       });
     } else if (CU.rol === 'recepcionista') {
@@ -1424,7 +1426,7 @@ function logout() {
     if (el) el.style.display = 'none';
   });
   // Reset all nav visibility
-  ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-semanal','nav-perfil'].forEach(function(id) {
+  ['nav-dashboard','nav-profesionales','nav-pacientes','nav-agenda','nav-perfil'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.style.display = '';
   });
@@ -1441,14 +1443,13 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', semanal: 'Vista semanal', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos', sueldos: 'Sueldos Fijos', guarderia: 'Guardería' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos', sueldos: 'Sueldos Fijos', guarderia: 'Guardería' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
   if (page === 'pacientes') loadPacs();
   if (page === 'agenda') loadAgenda();
   if (page === 'perfil') loadPerfil();
-  if (page === 'semanal') { initSemanal(); loadSemanal(); }
   if (page === 'admin') loadAdmin();
   if (page === 'cobros') loadCobros();
   if (page === 'gastos') loadGastos();
@@ -1904,8 +1905,41 @@ async function verProf(idxOrId) {
     if (CU.rol === 'recepcionista') {
       html += '<div id="tp-horarios" class="tab-sec"><div id="horarios-content"><div class="loading">Cargando horarios...</div></div></div>';
     }
-    html += '<div id="tp-agenda" class="tab-sec' + (CU.rol === 'recepcionista' ? ' active' : '') + '">' +
-      (ag.length ? ag.map(function(a) {
+    var isFullEditRoleAgProf = (CU.rol === 'directora' || CU.rol === 'recepcionista');
+    html += '<div id="tp-agenda" class="tab-sec' + (CU.rol === 'recepcionista' ? ' active' : '') + '">';
+    if (isFullEditRoleAgProf) {
+      html +=
+        '<div style="display:flex;gap:8px;margin-bottom:14px;">' +
+          '<button class="btn btn-primary btn-sm" id="prof-agenda-tab-dia" onclick="switchProfAgendaView(\'dia\',\'' + profId + '\')">📅 Día</button>' +
+          '<button class="btn btn-secondary btn-sm" id="prof-agenda-tab-semana" onclick="switchProfAgendaView(\'semana\',\'' + profId + '\')">📆 Semana</button>' +
+          '<button class="btn btn-secondary btn-sm" id="prof-agenda-tab-mes" onclick="switchProfAgendaView(\'mes\',\'' + profId + '\')">🗓 Mes</button>' +
+        '</div>' +
+        '<div id="prof-agenda-view-dia">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+              '<button class="btn btn-secondary btn-sm" onclick="cambiarProfDia(-1,\'' + profId + '\')">←</button>' +
+              '<div id="prof-agenda-fecha" style="font-size:13px;color:var(--text-secondary);"></div>' +
+              '<button class="btn btn-secondary btn-sm" onclick="cambiarProfDia(1,\'' + profId + '\')">→</button>' +
+              '<button class="btn btn-secondary btn-sm" onclick="cambiarProfDia(0,\'' + profId + '\')">Hoy</button>' +
+            '</div>' +
+            '<button class="btn btn-primary btn-sm" onclick="abrirNuevoTurnoProf(\'' + profId + '\')">+ Nuevo turno</button>' +
+          '</div>' +
+          '<div id="prof-agenda-dia-wrap"></div>' +
+        '</div>' +
+        '<div id="prof-agenda-view-semana" style="display:none;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
+            '<div id="prof-semana-label" style="font-size:13px;color:var(--text-secondary);"></div>' +
+            '<div style="display:flex;gap:6px;">' +
+              '<button class="btn btn-secondary btn-sm" onclick="cambiarProfSemana(-1,\'' + profId + '\')">←</button>' +
+              '<button class="btn btn-secondary btn-sm" onclick="cambiarProfSemana(0,\'' + profId + '\')">Hoy</button>' +
+              '<button class="btn btn-secondary btn-sm" onclick="cambiarProfSemana(1,\'' + profId + '\')">→</button>' +
+            '</div>' +
+          '</div>' +
+          '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;"><div id="prof-semanal-wrap"></div></div>' +
+        '</div>' +
+        '<div id="prof-agenda-view-mes" style="display:none;"><div id="prof-mes-wrap"><div class="loading">Cargando...</div></div></div>';
+    } else {
+      html += (ag.length ? ag.map(function(a) {
         var ECOLORS = { pendiente: '#F0A500', confirmado: '#1B8A7A', cancelado: '#C0392B', cancelado_hora: '#E8683A' };
         var est = a.estado || 'pendiente';
         var bc = ECOLORS[est] || '#F0A500';
@@ -1919,8 +1953,9 @@ async function verProf(idxOrId) {
           '<span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
           '<span style="flex:1;font-size:13px;">' + (a.paciente_nombre||'Turno libre') + '</span>' +
           sel + '</div>';
-      }).join('') : '<div class="empty-state">Sin turnos hoy</div>') + '</div></div>' +
-      '<div id="prof-agenda-mes" style="display:none;"><div id="prof-mes-wrap"><div class="loading">Cargando...</div></div></div>';
+      }).join('') : '<div class="empty-state">Sin turnos hoy</div>');
+    }
+    html += '</div>';
     html += '<div id="tp-horarios" class="tab-sec"><div id="horarios-content"><div class="loading">Cargando horarios...</div></div></div>';
     if (CU.rol === 'directora') html += '<div id="tp-honorarios" class="tab-sec"><div class="loading" id="honorarios-loading">Cargando honorarios...</div></div>';
     html += '<div id="tp-legajos" class="tab-sec">' +
@@ -1941,6 +1976,7 @@ async function verProf(idxOrId) {
       }).join('') : '<div class="empty-state" style="grid-column:span 2">Sin pacientes</div>') +
       '</div></div>';
     dv.innerHTML = html;
+    if (isFullEditRoleAgProf) { _profDiaOffset = 0; loadProfAgendaDia(profId); }
     // Add nuevo legajo button for directors only
     if ((CU && CU.rol === 'directora')) {
       // Load honorarios summary for stat card (directora only)
@@ -2378,9 +2414,12 @@ async function savePac() {
 function switchAgendaView(view) {
   _agendaView = view;
   document.getElementById('agenda-view-dia').style.display = view === 'dia' ? 'block' : 'none';
+  document.getElementById('agenda-view-semana').style.display = view === 'semana' ? 'block' : 'none';
   document.getElementById('agenda-view-mes').style.display = view === 'mes' ? 'block' : 'none';
   document.getElementById('agenda-tab-dia').className = view === 'dia' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  document.getElementById('agenda-tab-semana').className = view === 'semana' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
   document.getElementById('agenda-tab-mes').className = view === 'mes' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (view === 'semana') { initSemanal(); loadSemanal(); }
   if (view === 'mes') loadAgendaMes();
 }
 
@@ -2745,6 +2784,7 @@ var _agendaMesOffset = 0;
 var _editTurnoId = null;
 
 async function openEditTurno(turnoId) {
+  window._turnoModalProfContext = null;
   _editTurnoId = turnoId;
   try {
     var turnos = await api('GET', 'agenda', null, '?id=eq.' + turnoId + '&limit=1');
@@ -2802,7 +2842,7 @@ async function saveEditTurno() {
     }, '?id=eq.' + id);
     closeModal('modal-edit-turno');
     toast('✅ Turno actualizado');
-    loadAgenda();
+    refrescarAgendaTrasGuardar();
   } catch(e) { alert('Error: ' + e.message); }
 }
 
@@ -2813,7 +2853,7 @@ async function eliminarTurno() {
     await api('DELETE', 'agenda', null, '?id=eq.' + id);
     closeModal('modal-edit-turno');
     toast('Turno eliminado');
-    loadAgenda();
+    refrescarAgendaTrasGuardar();
   } catch(e) { alert('Error: ' + e.message); }
 }
 
@@ -2831,10 +2871,14 @@ function getAgendaFecha() {
 
 function openModalTurno() {
   document.getElementById('turno-fecha').value = getAgendaFecha();
+  document.getElementById('turno-id').value = '';
+  document.getElementById('turno-modal-titulo').textContent = 'Nuevo turno';
+  window._turnoModalProfContext = null;
   openModal('modal-turno');
 }
 
 async function saveTurno() {
+  var turnoIdExistente = document.getElementById('turno-id').value;
   var profId = document.getElementById('turno-prof').value;
   var fecha = document.getElementById('turno-fecha').value;
   var horaRaw = document.getElementById('turno-hora').value;
@@ -2859,12 +2903,18 @@ async function saveTurno() {
     var pacs = await api('GET', 'pacientes', null, '?id=eq.' + pacId + '&limit=1');
     if (pacs[0]) pacNombre = pacs[0].nombre + ' ' + pacs[0].apellido;
   }
+  var data = { profesional_id: profId, paciente_id: pacId || null, paciente_nombre: pacNombre || null, fecha: fecha, hora: hora, tipo: tipo };
   try {
-    await api('POST', 'agenda', { profesional_id: profId, paciente_id: pacId || null, paciente_nombre: pacNombre || null, fecha: fecha, hora: hora, tipo: tipo });
+    if (turnoIdExistente) {
+      await api('PATCH', 'agenda', data, '?id=eq.' + turnoIdExistente);
+      toast('✅ Turno actualizado');
+    } else {
+      await api('POST', 'agenda', data);
+      toast('✅ Turno agregado');
+    }
     closeModal('modal-turno');
-    toast('Turno agregado');
-    loadAgenda();
-  } catch(e) { console.error(e); }
+    refrescarAgendaTrasGuardar();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 async function openEditProf(profId) {
@@ -5777,30 +5827,220 @@ async function abrirMergeDesdeFila(pacId, pacNombre) {
 }
 
 // ==================
-// AGENDA MENSUAL EN PERFIL PROF
+// AGENDA COMPLETA EN PERFIL PROF (Día/Semana/Mes) — directora y recepcionista
 // ==================
 var _profMesOffset = 0;
+var _profDiaOffset = 0;
+var _profSemanaOffset = 0;
+window._turnoModalProfContext = null; // profId cuando el modal de turno se abrió desde el perfil; null si es desde Agenda principal
+window._profSemanalTurnos = {};
 
 function switchProfAgendaView(view, profId) {
-  var diaEl = document.getElementById('prof-agenda-dia');
-  var mesEl = document.getElementById('prof-agenda-mes');
-  var btnDia = document.getElementById('prof-agenda-btn-dia');
-  var btnMes = document.getElementById('prof-agenda-btn-mes');
-  if (!diaEl || !mesEl) return;
-  
-  if (view === 'dia') {
-    diaEl.style.display = '';
-    mesEl.style.display = 'none';
-    if (btnDia) { btnDia.className = 'btn btn-primary btn-sm'; }
-    if (btnMes) { btnMes.className = 'btn btn-secondary btn-sm'; }
+  var elDia = document.getElementById('prof-agenda-view-dia');
+  var elSem = document.getElementById('prof-agenda-view-semana');
+  var elMes = document.getElementById('prof-agenda-view-mes');
+  if (!elDia || !elSem || !elMes) return;
+  elDia.style.display = view === 'dia' ? 'block' : 'none';
+  elSem.style.display = view === 'semana' ? 'block' : 'none';
+  elMes.style.display = view === 'mes' ? 'block' : 'none';
+  var bd = document.getElementById('prof-agenda-tab-dia');
+  var bs = document.getElementById('prof-agenda-tab-semana');
+  var bm = document.getElementById('prof-agenda-tab-mes');
+  if (bd) bd.className = view === 'dia' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (bs) bs.className = view === 'semana' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (bm) bm.className = view === 'mes' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  if (view === 'dia') { _profDiaOffset = 0; loadProfAgendaDia(profId); }
+  if (view === 'semana') { _profSemanaOffset = 0; loadProfAgendaSemana(profId); }
+  if (view === 'mes') { _profMesOffset = 0; loadProfAgendaMes(profId); }
+}
+
+// --- VISTA DÍA ---
+function cambiarProfDia(dir, profId) {
+  if (dir === 0) _profDiaOffset = 0; else _profDiaOffset += dir;
+  loadProfAgendaDia(profId);
+}
+
+function getProfAgendaFecha() {
+  var d = new Date();
+  d.setDate(d.getDate() + _profDiaOffset);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+async function loadProfAgendaDia(profId) {
+  var fecha = getProfAgendaFecha();
+  var fechaEl = document.getElementById('prof-agenda-fecha');
+  if (fechaEl) fechaEl.textContent = new Date(fecha + 'T12:00:00').toLocaleDateString('es-PY', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  var wrap = document.getElementById('prof-agenda-dia-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var ag = await api('GET', 'agenda', null, '?profesional_id=eq.' + profId + '&fecha=eq.' + fecha + '&order=hora.asc');
+    if (!ag.length) { wrap.innerHTML = '<div class="empty-state">Sin turnos para este día</div>'; return; }
+    wrap.innerHTML = ag.map(function(a) {
+      var ECOLORS = { pendiente:'#F0A500', confirmado:'#1B8A7A', cancelado:'#C0392B', cancelado_hora:'#E8683A' };
+      var est = a.estado || 'pendiente';
+      var bc = ECOLORS[est] || '#F0A500';
+      return '<div class="agenda-slot" style="border-left:4px solid ' + bc + ';">' +
+        '<span class="slot-time">' + (a.hora ? a.hora.slice(0,5) : '') + '</span>' +
+        '<span style="flex:1;font-size:13px;font-weight:500;">' + (a.paciente_nombre||'Turno libre') + '</span>' +
+        '<select onchange="updateEstado(\'' + a.id + '\',this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid ' + bc + ';background:white;color:' + bc + ';font-weight:600;cursor:pointer;">' +
+          '<option value="pendiente"' + (est==='pendiente'?' selected':'') + '>🟡 Pendiente</option>' +
+          '<option value="confirmado"' + (est==='confirmado'?' selected':'') + '>🟢 Asistió</option>' +
+          '<option value="cancelado"' + (est==='cancelado'?' selected':'') + '>🔴 Cancelado</option>' +
+          '<option value="cancelado_hora"' + (est==='cancelado_hora'?' selected':'') + '>🟠 Canceló s/hora</option>' +
+        '</select>' +
+        '<button onclick="openEditTurnoEnPerfil(\'' + a.id + '\',\'' + profId + '\')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--text-secondary);margin-left:4px;">✏️</button>' +
+      '</div>';
+    }).join('');
+  } catch(e) { wrap.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+async function abrirNuevoTurnoProf(profId) {
+  document.getElementById('turno-fecha').value = getProfAgendaFecha();
+  document.getElementById('turno-hora').value = '09:00';
+  document.getElementById('turno-id').value = '';
+  document.getElementById('turno-modal-titulo').textContent = 'Nuevo turno';
+  try {
+    var profs = await api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc');
+    var tsel = document.getElementById('turno-prof');
+    tsel.innerHTML = profs.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + '</option>'; }).join('');
+    tsel.value = profId;
+  } catch(e) {}
+  await filtrarPacsPorProf();
+  filtrarTipoPorPaciente();
+  window._turnoModalProfContext = profId;
+  openModal('modal-turno');
+}
+
+// Wrapper de openEditTurno que preserva el contexto "estoy editando desde el perfil de tal profesional",
+// para que al guardar/eliminar se refresque la vista correcta (perfil) y no la Agenda principal.
+async function openEditTurnoEnPerfil(turnoId, profId) {
+  await openEditTurno(turnoId);
+  window._turnoModalProfContext = profId;
+}
+
+// Refresca la vista de agenda correspondiente tras guardar/editar/eliminar un turno,
+// según si el modal se abrió desde la Agenda principal o desde el perfil de un profesional.
+function refrescarAgendaTrasGuardar() {
+  if (window._turnoModalProfContext) {
+    var pid = window._turnoModalProfContext;
+    var vistaActiva = document.getElementById('prof-agenda-view-semana') && document.getElementById('prof-agenda-view-semana').style.display === 'block' ? 'semana' :
+      (document.getElementById('prof-agenda-view-mes') && document.getElementById('prof-agenda-view-mes').style.display === 'block' ? 'mes' : 'dia');
+    if (vistaActiva === 'semana') loadProfAgendaSemana(pid);
+    else if (vistaActiva === 'mes') loadProfAgendaMes(pid);
+    else loadProfAgendaDia(pid);
   } else {
-    diaEl.style.display = 'none';
-    mesEl.style.display = '';
-    if (btnDia) { btnDia.className = 'btn btn-secondary btn-sm'; }
-    if (btnMes) { btnMes.className = 'btn btn-primary btn-sm'; }
-    _profMesOffset = 0;
-    loadProfAgendaMes(profId);
+    loadAgenda();
   }
+}
+
+// --- VISTA SEMANA (filtrada a un profesional) ---
+function cambiarProfSemana(dir, profId) {
+  if (dir === 0) _profSemanaOffset = 0; else _profSemanaOffset += dir;
+  loadProfAgendaSemana(profId);
+}
+
+async function loadProfAgendaSemana(profId) {
+  var lunes = getLunes(_profSemanaOffset);
+  var dias = [];
+  for (var i = 0; i < 6; i++) {
+    var d = new Date(lunes);
+    d.setDate(lunes.getDate() + i);
+    dias.push(d);
+  }
+  var fechaIni = dateStr(dias[0]);
+  var fechaFin = dateStr(dias[5]);
+  var labelEl = document.getElementById('prof-semana-label');
+  if (labelEl) labelEl.textContent = fmtShort(dias[0]) + ' — ' + fmtShort(dias[5]);
+  var wrap = document.getElementById('prof-semanal-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var turnos = await api('GET', 'agenda', null, '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&profesional_id=eq.' + profId + '&order=hora.asc');
+    var diasLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    var horasMap = {};
+    for (var hBase = 8; hBase <= 19; hBase++) { horasMap[String(hBase).padStart(2,'0')] = hBase + ':00'; }
+    turnos.forEach(function(t) {
+      if (t.hora) {
+        var hh = t.hora.slice(0,2);
+        if (!horasMap[hh]) horasMap[hh] = parseInt(hh) + ':00';
+      }
+    });
+    var horas = Object.keys(horasMap).sort().map(function(hh) { return horasMap[hh]; });
+
+    window._profSemanalTurnos = {};
+
+    var table = '<table style="width:100%;border-collapse:collapse;min-width:700px;">';
+    table += '<thead><tr><th style="padding:8px;background:var(--bg);border:1px solid var(--border);font-size:11px;width:50px;">Hora</th>';
+    var midWeek = new Date(dias[2]);
+    var viewMonth = midWeek.getMonth();
+    dias.forEach(function(d, i) {
+      var isToday = dateStr(d) === today();
+      var isDiffMonth = d.getMonth() !== viewMonth;
+      table += '<th style="padding:8px;background:' + (isToday?'var(--teal-light)':isDiffMonth?'#F0F0F0':'var(--bg)') + ';border:1px solid var(--border);font-size:11px;text-align:center;' + (isDiffMonth?'color:var(--text-tertiary);':'') + '">' +
+        diasLabels[i] + ' ' + d.getDate() + '</th>';
+    });
+    table += '</tr></thead><tbody>';
+
+    horas.forEach(function(hora) {
+      table += '<tr>';
+      table += '<td style="padding:6px 8px;border:1px solid var(--border);font-size:11px;color:var(--text-secondary);white-space:nowrap;">' + hora + '</td>';
+      dias.forEach(function(d) {
+        var dStr = dateStr(d);
+        var horaCorta = hora.replace(':00','');
+        var horaCortaP = hora.split(':')[0].padStart(2,'0');
+        var slot = turnos.filter(function(t) {
+          if (t.fecha !== dStr || !t.hora) return false;
+          var th = t.hora.slice(0,2);
+          return th === horaCortaP || th === horaCorta.padStart(2,'0') || t.hora.startsWith(horaCorta + ':');
+        });
+        var cell = '';
+        var isDiffMonthCell = d.getMonth() !== viewMonth;
+        if (slot.length) {
+          slot.forEach(function(s) {
+            window._profSemanalTurnos[s.id] = s;
+            var color = TIPO_COLORS[s.tipo] || '#4CAF50';
+            var bgColor = s.estado === 'cancelado' ? '#C0392B' : s.estado === 'cancelado_hora' ? '#E8683A' : color;
+            var extraStyle = s.estado === 'cancelado' ? 'text-decoration:line-through;opacity:0.8;' : s.estado === 'cancelado_hora' ? 'opacity:0.85;' : '';
+            var estadoIcon = s.estado === 'cancelado' ? ' ✗' : s.estado === 'cancelado_hora' ? ' ⚠' : '';
+            cell += '<div onclick="editarTurnoProfSemanal(\'' + s.id + '\',\'' + profId + '\');event.stopPropagation();" title="Editar turno" style="background:' + bgColor + ';color:white;border-radius:4px;padding:3px 6px;font-size:11px;margin-bottom:2px;line-height:1.3;cursor:pointer;' + extraStyle + '">' +
+              (s.paciente_nombre || 'Turno') + estadoIcon + '</div>';
+          });
+          if (!isDiffMonthCell) {
+            cell += '<div onclick="abrirTurnoRapidoProf(\'' + dStr + '\',\'' + hora + '\',\'' + profId + '\');event.stopPropagation();" title="Agregar otro turno en este horario" style="text-align:center;font-size:13px;line-height:1;color:var(--teal);cursor:pointer;padding:1px 0;opacity:0.65;">+</div>';
+          }
+        }
+        var cellBg = isDiffMonthCell ? 'background:#F5F5F5;' : '';
+        var cellClick = !isDiffMonthCell ? 'onclick="abrirTurnoRapidoProf(\'' + dStr + '\',\'' + hora + '\',\'' + profId + '\')" onmouseenter="this.style.background=\'#f0f9f8\'" onmouseleave="this.style.background=\'\'"' : '';
+        var cellCursor = !isDiffMonthCell ? 'cursor:pointer;' : '';
+        table += '<td style="padding:3px;border:1px solid var(--border);vertical-align:top;min-width:110px;min-height:40px;' + cellBg + cellCursor + '" ' + cellClick + '>' + cell + '</td>';
+      });
+      table += '</tr>';
+    });
+    table += '</tbody></table>';
+    wrap.innerHTML = table;
+  } catch(e) { wrap.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+function editarTurnoProfSemanal(id, profId) {
+  var t = window._profSemanalTurnos && window._profSemanalTurnos[id];
+  if (!t) return;
+  var horaCorta = t.hora ? t.hora.slice(0, 5) : '09:00';
+  openTurnoModal(t.fecha, horaCorta, t);
+  window._turnoModalProfContext = profId;
+}
+
+async function abrirTurnoRapidoProf(fecha, hora, profId) {
+  var horaNum = parseInt(hora.split(':')[0]);
+  var horaFin = String(horaNum + 1).padStart(2,'0') + ':00';
+  var q = '?fecha=eq.' + fecha + '&hora=gte.' + hora + ':00&hora=lt.' + horaFin + '&profesional_id=eq.' + profId;
+  var existing = [];
+  try { existing = await api('GET', 'agenda', null, q); } catch(e) {}
+  if (existing.length > 0) { openTurnoModal(fecha, hora, existing[0]); }
+  else { openTurnoModal(fecha, hora, null); }
+  var profSel = document.getElementById('turno-prof');
+  if (profSel && !existing.length) { profSel.value = profId; filtrarPacsPorProf(); }
+  window._turnoModalProfContext = profId;
 }
 
 async function loadProfAgendaMes(profId) {
@@ -5869,7 +6109,7 @@ async function loadProfAgendaMes(profId) {
       var dayTurnos = byDate[dateStr] || [];
       var isToday = dateStr === todayStr;
       
-      html += '<div style="min-height:70px;background:' + (isToday?'#E8F6F4':'var(--surface)') + ';border-radius:4px;padding:3px;border:' + (isToday?'2px solid #1B8A7A':'1px solid var(--border)') + ';">' +
+      html += '<div data-date="' + dateStr + '" style="min-height:70px;background:' + (isToday?'#E8F6F4':'var(--surface)') + ';border-radius:4px;padding:3px;cursor:pointer;border:' + (isToday?'2px solid #1B8A7A':'1px solid var(--border)') + ';">' +
         '<div style="font-size:10px;font-weight:' + (isToday?'700':'500') + ';color:' + (isToday?'#1B8A7A':'var(--text-primary)') + ';margin-bottom:2px;">' + day + '</div>';
       
       dayTurnos.forEach(function(t) {
@@ -5924,17 +6164,23 @@ async function loadProfAgendaMes(profId) {
     var prevBtn = document.getElementById('prof-mes-prev');
     var nextBtn = document.getElementById('prof-mes-next');
     var hoyBtn = document.getElementById('prof-mes-hoy');
-    if (prevBtn) prevBtn.onclick = function() { _profMesOffset--; loadProfAgendaMes(_pid); };
-    if (nextBtn) nextBtn.onclick = function() { _profMesOffset++; loadProfAgendaMes(_pid); };
-    if (hoyBtn) hoyBtn.onclick = function() { _profMesOffset = 0; loadProfAgendaMes(_pid); };
-    
-    // Click handlers for days
+    if (prevBtn) prevBtn.onclick = function() { _profMesOffset--; loadProfAgendaMes(profId); };
+    if (nextBtn) nextBtn.onclick = function() { _profMesOffset++; loadProfAgendaMes(profId); };
+    if (hoyBtn) hoyBtn.onclick = function() { _profMesOffset = 0; loadProfAgendaMes(profId); };
+
+    // Click en un día: salta a la vista Día del perfil para ese día
     wrap.querySelectorAll('[data-date]').forEach(function(el) {
       el.addEventListener('click', function() {
-        // Could navigate to that day
+        var dateStr = this.getAttribute('data-date');
+        var parts = dateStr.split('-');
+        var target = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+        var now2 = new Date();
+        var todayLocal = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate());
+        _profDiaOffset = Math.round((target - todayLocal) / (1000*60*60*24));
+        switchProfAgendaView('dia', profId);
       });
     });
-    
+
   } catch(e) { wrap.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
@@ -6673,6 +6919,7 @@ async function eliminarCobro() {
 // TURNO RÁPIDO DESDE SEMANAL
 // ==================
 async function abrirTurnoRapido(fecha, hora) {
+  window._turnoModalProfContext = null;
   var profFiltro = document.getElementById('semanal-prof-filter') ?
     document.getElementById('semanal-prof-filter').value : '';
   var horaNum = parseInt(hora.split(':')[0]);
@@ -6691,6 +6938,7 @@ async function abrirTurnoRapido(fecha, hora) {
 // Abre el modal de edición para un turno específico desde la vista semanal,
 // usando el caché window._semanalTurnos cargado al renderizar la grilla.
 function editarTurnoSemanal(id) {
+  window._turnoModalProfContext = null;
   var t = window._semanalTurnos && window._semanalTurnos[id];
   if (!t) return;
   var horaCorta = t.hora ? t.hora.slice(0, 5) : '09:00';
@@ -6701,9 +6949,11 @@ function openTurnoModal(fecha, hora, existingTurno) {
   var fechaEl = document.getElementById('turno-fecha');
   var horaEl = document.getElementById('turno-hora');
   var idEl = document.getElementById('turno-id');
+  var tituloEl = document.getElementById('turno-modal-titulo');
   if (fechaEl) fechaEl.value = fecha;
   if (horaEl) horaEl.value = hora + ':00';
   if (idEl) idEl.value = existingTurno ? existingTurno.id : '';
+  if (tituloEl) tituloEl.textContent = existingTurno ? 'Editar turno' : 'Nuevo turno';
   if (existingTurno) {
     var tipoEl = document.getElementById('turno-tipo');
     var estadoEl = document.getElementById('turno-estado');
