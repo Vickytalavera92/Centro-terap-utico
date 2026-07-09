@@ -2051,6 +2051,19 @@ async function _renderLegajo(pacId, profId, canEdit, lv) {
     var asigProfIds = asigPac.map(function(a) { return a.profesional_id; }).filter(function(id) { return id && id.length > 0; });
     var allProfs2 = asigProfIds.length ? await api('GET', 'usuarios', null, '?id=in.(' + asigProfIds.join(',') + ')') : [];
     var profNames = allProfs2.map(function(p) { return p.nombre; }).join(', ');
+    // Mapa de autor: quién cargó cada entrada de legajo/sesión (puede no ser una de las asignadas actuales)
+    var idsAutores = [];
+    legajos.forEach(function(l) { if (l.profesional_id && idsAutores.indexOf(l.profesional_id) === -1) idsAutores.push(l.profesional_id); });
+    sesiones.forEach(function(s) { if (s.profesional_id && idsAutores.indexOf(s.profesional_id) === -1) idsAutores.push(s.profesional_id); });
+    var mapaAutores = {};
+    if (idsAutores.length) {
+      var autoresData = await api('GET', 'usuarios', null, '?id=in.(' + idsAutores.join(',') + ')');
+      autoresData.forEach(function(p) { mapaAutores[p.id] = p.nombre; });
+    }
+    var autorTag = function(pid) {
+      var nombre = mapaAutores[pid];
+      return nombre ? ' <span style="font-size:10px;color:var(--text-tertiary);font-weight:500;">· ' + nombre + '</span>' : '';
+    };
     html += '<div class="dir-banner">📁 Legajo clínico' + (CU.rol === 'directora' ? ' — vista directora' : '') + '</div>';
     if (allProfs2.length > 1) {
       html += '<div style="background:#FEF6E0;color:#633806;padding:8px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:12px;">👥 Profesionales asignadas: ' + profNames + '</div>';
@@ -2100,7 +2113,7 @@ async function _renderLegajo(pacId, profId, canEdit, lv) {
 
     html += '<div id="lt-obs" class="tab-sec active">' + addBtn('observacion', 'Nueva observación') +
       (obs.length ? obs.map(function(o) {
-        return '<div class="obs-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span class="obs-date">' + fmt(o.fecha) + '</span>' +
+        return '<div class="obs-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span class="obs-date">' + fmt(o.fecha) + autorTag(o.profesional_id) + '</span>' +
           (canEdit ? '<button onclick="openEditObs(\'' + o.id + '\',\'' + o.tipo + '\',\'' + o.contenido.replace(/'/g,"&#39;") + '\',false)" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-tertiary);">✏️</button>' : '') +
           '</div><div class="obs-text">' + o.contenido + '</div></div>';
       }).join('') : '<div class="empty-state">Sin observaciones</div>') + '</div>';
@@ -2109,13 +2122,13 @@ async function _renderLegajo(pacId, profId, canEdit, lv) {
       (objs.length ? objs.map(function(o) {
         return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">' +
           '<span style="font-size:18px;">' + (o.cumplido ? '✅' : '⭕') + '</span>' +
-          '<span style="flex:1;font-size:13px;">' + o.contenido + '</span>' +
+          '<span style="flex:1;font-size:13px;">' + o.contenido + autorTag(o.profesional_id) + '</span>' +
           '<span class="badge ' + (o.cumplido ? 'b-green' : 'b-amber') + '">' + (o.cumplido ? 'Logrado' : 'En proceso') + '</span>' +
           (canEdit ? '<button onclick="openEditObs(\'' + o.id + '\',\'' + o.tipo + '\',\'' + o.contenido.replace(/'/g,"&#39;") + '\''  + ',' + o.cumplido + ')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-tertiary);">✏️</button>' : '') +
           '</div>';
       }).join('') : '<div class="empty-state">Sin objetivos</div>') +
       (estr.length ? '<div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin:16px 0 8px;">ESTRATEGIAS</div>' +
-        estr.map(function(e) { return '<div class="obs-card" style="border-left-color:#0F6E56;">' + e.contenido + '</div>'; }).join('') : '') + '</div>';
+        estr.map(function(e) { return '<div class="obs-card" style="border-left-color:#0F6E56;">' + e.contenido + autorTag(e.profesional_id) + '</div>'; }).join('') : '') + '</div>';
 
     html += '<div id="lt-ses" class="tab-sec">' +
       (canEdit ? '<button class="btn btn-primary btn-sm mb-12" onclick="abrirNuevaSesion()">+ Registrar sesión</button>' : '') +
@@ -2125,7 +2138,7 @@ async function _renderLegajo(pacId, profId, canEdit, lv) {
         return '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
           '<div style="display:flex;align-items:center;gap:8px;">' +
-          '<span style="font-size:13px;font-weight:600;">' + fmt(s.fecha) + '</span>' +
+          '<span style="font-size:13px;font-weight:600;">' + fmt(s.fecha) + autorTag(s.profesional_id) + '</span>' +
           '<span class="badge ' + (tipoColor[s.tipo_reunion||s.tipo]||'b-green') + '">' + (tipoLabel[s.tipo_reunion||s.tipo]||s.tipo) + '</span>' +
           '</div>' +
           (canEdit ? '<div style="display:flex;gap:4px;">' +
@@ -2146,7 +2159,7 @@ async function _renderLegajo(pacId, profId, canEdit, lv) {
       (notas.length ? notas.map(function(n) {
         return '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">' +
           '<span style="font-size:20px;">📄</span>' +
-          '<span style="flex:1;font-size:13px;">' + n.contenido.slice(0,80) + (n.contenido.length > 80 ? '...' : '') + '</span>' +
+          '<span style="flex:1;font-size:13px;">' + n.contenido.slice(0,80) + (n.contenido.length > 80 ? '...' : '') + autorTag(n.profesional_id) + '</span>' +
           '<span style="font-size:11px;color:var(--text-secondary);">' + fmt(n.fecha) + '</span></div>';
       }).join('') : '<div class="empty-state">Sin notas</div>') + '</div>';
 
