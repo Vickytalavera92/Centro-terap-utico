@@ -564,6 +564,7 @@ input[type="time"] { -webkit-appearance: none; }
     </div>
     <div class="grid-2">
       <div class="form-group"><label>Teléfono</label><input id="edit-prof-telefono" placeholder="+595 981..."></div>
+      <div class="form-group"><label>🎂 Fecha de nacimiento</label><input type="date" id="edit-prof-fnac"></div>
       <div class="form-group"><label>Horario</label><input id="edit-prof-horario" placeholder="Lun-Vie, 8:00-16:00"></div>
     </div>
     <div class="form-group"><label>Estado</label>
@@ -1651,6 +1652,26 @@ async function loadDashboard() {
       (_dashMesOffset !== 0 ? '<button class="btn btn-secondary btn-sm" onclick="cambiarMesDash(0)">Hoy</button>' : '') +
       '</div>' +
       '<button class="btn btn-secondary btn-sm" onclick="loadDashboard()">↻ Actualizar</button></div>';
+
+    // Widget de cumpleaños: hoy (destacado) + próximos del mes
+    var bdayHoy = birthdayPeople.filter(function(b) { return b.isToday; });
+    var bdayProximos = birthdayPeople.filter(function(b) { return !b.isToday && b.dia >= todayDay; });
+    if (bdayHoy.length || bdayProximos.length) {
+      html += '<div style="background:linear-gradient(135deg,#FFF3E0,#FFE8D6);border:1px solid #FFCC80;border-radius:10px;padding:14px 16px;margin-bottom:16px;">';
+      if (bdayHoy.length) {
+        html += '<div style="font-size:14px;font-weight:700;color:#E65100;">🎂 ¡Hoy cumple' + (bdayHoy.length > 1 ? 'n' : '') + ' años!</div>' +
+          '<div style="font-size:13px;color:#7A4A00;margin-top:2px;">' +
+          bdayHoy.map(function(b) { return b.nombre + (b.tipo === 'Profesional' ? ' <span style="font-size:11px;opacity:0.75;">(equipo)</span>' : ' <span style="font-size:11px;opacity:0.75;">(paciente)</span>'); }).join(' · ') +
+          '</div>';
+      }
+      if (bdayProximos.length) {
+        html += '<div style="font-size:11px;font-weight:600;color:#8D6E00;text-transform:uppercase;margin-top:' + (bdayHoy.length ? '10px' : '0') + ';">🎉 Próximos cumpleaños del mes</div>' +
+          '<div style="font-size:12px;color:#7A4A00;margin-top:4px;">' +
+          bdayProximos.map(function(b) { return b.nombre + ' (' + b.dia + ')'; }).join(' · ') +
+          '</div>';
+      }
+      html += '</div>';
+    }
 
     // ROW 1: Indicadores principales
     html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">' +
@@ -2940,6 +2961,7 @@ async function openEditProf(profId) {
     document.getElementById('edit-prof-especialidad').value = p.especialidad || '';
     document.getElementById('edit-prof-matricula').value = p.matricula || '';
     document.getElementById('edit-prof-telefono').value = p.telefono || '';
+    document.getElementById('edit-prof-fnac').value = p.fecha_nacimiento || '';
     document.getElementById('edit-prof-horario').value = p.horario || '';
     document.getElementById('edit-prof-activo').value = p.activo ? 'true' : 'false';
     document.getElementById('edit-prof-descuento').value = p.descuento_fijo || 0;
@@ -2956,6 +2978,7 @@ async function saveEditProf() {
       especialidad: document.getElementById('edit-prof-especialidad').value || null,
       matricula: document.getElementById('edit-prof-matricula').value || null,
       telefono: document.getElementById('edit-prof-telefono').value || null,
+      fecha_nacimiento: document.getElementById('edit-prof-fnac').value || null,
       horario: document.getElementById('edit-prof-horario').value || null,
       activo: document.getElementById('edit-prof-activo').value === 'true',
       descuento_fijo: parseInt(document.getElementById('edit-prof-descuento').value) || 0
@@ -3142,6 +3165,7 @@ async function loadPerfil() {
       '<div class="form-group"><label>Especialidad</label><input id="p-especialidad" value="' + (u.especialidad||'') + '" placeholder="Ej: Psicología clínica"></div>' +
       '<div class="form-group"><label>Matrícula</label><input id="p-matricula" value="' + (u.matricula||'') + '" placeholder="MP-12345"></div>' +
       '<div class="form-group"><label>Teléfono</label><input id="p-telefono" value="' + (u.telefono||'') + '" placeholder="+595 981..."></div>' +
+      '<div class="form-group"><label>🎂 Fecha de nacimiento</label><input type="date" id="p-fnac" value="' + (u.fecha_nacimiento||'') + '"></div>' +
       '<div class="form-group"><label>Horario de atención</label><input id="p-horario" value="' + (u.horario||'') + '" placeholder="Lun-Vie, 8:00-16:00"></div>' +
       '</div>' +
       '<div style="margin-top:8px;">' +
@@ -3297,6 +3321,7 @@ async function savePerfil() {
       especialidad: document.getElementById('p-especialidad').value || null,
       matricula: document.getElementById('p-matricula').value || null,
       telefono: document.getElementById('p-telefono').value || null,
+      fecha_nacimiento: document.getElementById('p-fnac').value || null,
       horario: document.getElementById('p-horario').value || null
     };
     await api('PATCH', 'usuarios', updates, '?id=eq.' + CU.id);
