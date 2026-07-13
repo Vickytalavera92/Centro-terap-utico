@@ -6770,7 +6770,9 @@ async function loadGuarderia() {
         '<td style="padding:8px;"><div style="display:flex;gap:4px;">' +
         '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" data-cuota="' + cuotaFinal + '" onclick="registrarPagoGuarderia(this.dataset.nid,this.dataset.nombre,parseInt(this.dataset.cuota))" class="btn btn-secondary btn-sm">' + (pago ? '✏️' : '💰') + '</button>' +
         (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
-        (CU.rol === 'directora' && n.activo !== false ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="darDeBajaNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Dar de baja">🚫</button>' : '') +
+        (CU.rol === 'directora' && n.fecha_baja ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="reactivarNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Reactivar">↩️</button>' : '') +
+        (CU.rol === 'directora' && !n.fecha_baja ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="darDeBajaNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Dar de baja">🚫</button>' : '') +
+        (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="eliminarNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Eliminar definitivamente" style="color:#C0392B;">🗑️</button>' : '') +
         '</div></td></tr>';
     });
 
@@ -6905,10 +6907,29 @@ function actualizarDescuentoNino() {
 }
 
 async function darDeBajaNino(ninoId, nombre) {
-  if (!confirm('¿Dar de baja a ' + nombre + '? Ya no va a aparecer en los meses siguientes, pero se conserva su historial de pagos.')) return;
+  if (!confirm('¿Dar de baja a ' + nombre + '? Ya no va a aparecer en los meses siguientes, pero se conserva su historial de pagos. Usá esto cuando el niño asistió y ahora se va.')) return;
   try {
     await api('PATCH', 'guarderia_ninos', { activo: false, fecha_baja: today() }, '?id=eq.' + ninoId);
     toast('Niño dado de baja');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function reactivarNino(ninoId, nombre) {
+  if (!confirm('¿Reactivar a ' + nombre + '? Vuelve a aparecer como activo desde ahora.')) return;
+  try {
+    await api('PATCH', 'guarderia_ninos', { activo: true, fecha_baja: null }, '?id=eq.' + ninoId);
+    toast('✅ Niño reactivado');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarNino(ninoId, nombre) {
+  if (!confirm('¿ELIMINAR definitivamente a ' + nombre + '? Esto borra también su historial de pagos de guardería. No se puede deshacer.\n\nUsá esto solo si fue un error de carga (por ejemplo, un niño cargado en el mes equivocado). Si el niño realmente asistió y ahora se va, usá "Dar de baja" en su lugar.')) return;
+  try {
+    await api('DELETE', 'guarderia_pagos', null, '?nino_id=eq.' + ninoId);
+    await api('DELETE', 'guarderia_ninos', null, '?id=eq.' + ninoId);
+    toast('Niño eliminado');
     loadGuarderia();
   } catch(e) { alert('Error: ' + e.message); }
 }
