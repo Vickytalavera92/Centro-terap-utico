@@ -6962,10 +6962,14 @@ async function guardarNino() {
 }
 
 async function verColonia(coloniaId, nombre) {
+  document.getElementById('guarderia-content').innerHTML = '<div class="loading">Cargando...</div>';
   try {
-    var colonias = await api('GET', 'colonias', null, '?id=eq.' + coloniaId + '&limit=1');
-    window._coloniaActual = colonias[0] || null;
-    var inscriptos = await api('GET', 'colonia_inscripciones', null, '?colonia_id=eq.' + coloniaId + '&order=nombre_nino.asc');
+    var results = await Promise.all([
+      api('GET', 'colonias', null, '?id=eq.' + coloniaId + '&limit=1'),
+      api('GET', 'colonia_inscripciones', null, '?colonia_id=eq.' + coloniaId + '&order=nombre_nino.asc')
+    ]);
+    window._coloniaActual = results[0][0] || null;
+    var inscriptos = results[1];
     var totalCobrado = inscriptos.filter(function(i) { return i.pagado; }).reduce(function(s,i) { return s+(i.monto||0); }, 0);
     var html = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
       '<div class="section-title" style="margin-bottom:0;">🏕️ ' + nombre + '</div>' +
