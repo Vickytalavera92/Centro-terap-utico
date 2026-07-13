@@ -882,9 +882,9 @@ input[type="time"] { -webkit-appearance: none; }
       </div>
       <div class="form-group"><label id="inscripto-cantidad-label">Cantidad de días</label><input type="number" id="inscripto-cantidad" value="1" min="1" onchange="calcularMontoInscripto()"></div>
     </div>
-    <div class="form-group" style="display:flex;align-items:center;gap:8px;">
-      <input type="checkbox" id="inscripto-hermano" onchange="calcularMontoInscripto()" style="width:auto;">
-      <label style="margin:0;">Es hermano de otro inscripto (15% de descuento)</label>
+    <div class="grid-2">
+      <div class="form-group"><label>% de descuento (si aplica)</label><input type="number" id="inscripto-descuento-pct" value="0" min="0" max="100" onchange="calcularMontoInscripto()"></div>
+      <div class="form-group"><label>Motivo del descuento</label><input id="inscripto-descuento-motivo" placeholder="Ej: Hermano, Caso excepcional"></div>
     </div>
     <div class="form-group"><label>Monto a cobrar (Gs.)</label><input type="number" id="inscripto-monto"></div>
     <div class="modal-footer">
@@ -6976,7 +6976,9 @@ async function verColonia(coloniaId, nombre) {
       html += '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);"><th style="padding:8px;text-align:left;font-size:11px;">Nombre</th><th style="padding:8px;text-align:center;font-size:11px;">Modalidad</th><th style="padding:8px;text-align:right;font-size:11px;">Monto</th><th style="padding:8px;text-align:center;font-size:11px;">Estado</th><th></th></tr></thead><tbody>';
       inscriptos.forEach(function(i) {
         var modalidadLabel = (i.modalidad === 'semana' ? (i.cantidad||1) + ' sem.' : (i.cantidad||i.dias||1) + ' día(s)');
-        html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;">' + i.nombre_nino + (i.es_hermano ? ' <span style="font-size:10px;color:#1565C0;">👨‍👩‍👧‍👦 -15%</span>' : '') + '</td>' +
+        var pct = i.descuento_porcentaje != null ? i.descuento_porcentaje : (i.es_hermano ? 15 : 0);
+        var descBadge = pct > 0 ? ' <span style="font-size:10px;color:#1565C0;">-' + pct + '%' + (i.descuento_motivo ? ' (' + i.descuento_motivo + ')' : '') + '</span>' : '';
+        html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;">' + i.nombre_nino + descBadge + '</td>' +
           '<td style="padding:8px;text-align:center;font-size:12px;">' + modalidadLabel + '</td>' +
           '<td style="padding:8px;text-align:right;">' + fmtGs(i.monto||0) + '</td>' +
           '<td style="padding:8px;text-align:center;">' + (i.pagado ? '<span style="color:#1B8A7A;font-size:11px;">✅ Pagado</span>' : '<span style="color:#E65100;font-size:11px;">⏳ Pendiente</span>') + '</td>' +
@@ -7000,7 +7002,8 @@ async function abrirModalInscripto(coloniaId, inscriptoId) {
   document.getElementById('inscripto-nombre').value = '';
   document.getElementById('inscripto-modalidad').value = 'dia';
   document.getElementById('inscripto-cantidad').value = 1;
-  document.getElementById('inscripto-hermano').checked = false;
+  document.getElementById('inscripto-descuento-pct').value = 0;
+  document.getElementById('inscripto-descuento-motivo').value = '';
   document.getElementById('inscripto-modal-titulo').textContent = 'Inscribir niño';
   if (inscriptoId) {
     try {
@@ -7011,7 +7014,8 @@ async function abrirModalInscripto(coloniaId, inscriptoId) {
         document.getElementById('inscripto-nombre').value = i.nombre_nino;
         document.getElementById('inscripto-modalidad').value = i.modalidad || 'dia';
         document.getElementById('inscripto-cantidad').value = i.cantidad || i.dias || 1;
-        document.getElementById('inscripto-hermano').checked = !!i.es_hermano;
+        document.getElementById('inscripto-descuento-pct').value = i.descuento_porcentaje != null ? i.descuento_porcentaje : (i.es_hermano ? 15 : 0);
+        document.getElementById('inscripto-descuento-motivo').value = i.descuento_motivo || (i.es_hermano ? 'Hermano' : '');
         document.getElementById('inscripto-monto').value = i.monto || 0;
         document.getElementById('inscripto-modal-titulo').textContent = 'Editar inscripción';
       }
@@ -7033,10 +7037,10 @@ function calcularMontoInscripto() {
   if (!c) return;
   var modalidad = document.getElementById('inscripto-modalidad').value;
   var cantidad = parseInt(document.getElementById('inscripto-cantidad').value) || 1;
-  var esHermano = document.getElementById('inscripto-hermano').checked;
+  var pct = parseFloat(document.getElementById('inscripto-descuento-pct').value) || 0;
   var precioUnit = modalidad === 'semana' ? (c.precio_semana || 0) : (c.precio_dia || c.precio_base || 0);
   var monto = precioUnit * cantidad;
-  if (esHermano) monto = Math.round(monto * 0.85);
+  if (pct > 0) monto = Math.round(monto * (1 - pct / 100));
   document.getElementById('inscripto-monto').value = monto;
 }
 
@@ -7050,7 +7054,8 @@ async function guardarInscripto() {
     nombre_nino: nombre,
     modalidad: document.getElementById('inscripto-modalidad').value,
     cantidad: parseInt(document.getElementById('inscripto-cantidad').value) || 1,
-    es_hermano: document.getElementById('inscripto-hermano').checked,
+    descuento_porcentaje: parseFloat(document.getElementById('inscripto-descuento-pct').value) || 0,
+    descuento_motivo: document.getElementById('inscripto-descuento-motivo').value.trim() || null,
     monto: parseInt(document.getElementById('inscripto-monto').value) || 0
   };
   try {
