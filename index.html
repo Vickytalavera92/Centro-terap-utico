@@ -786,14 +786,19 @@ input[type="time"] { -webkit-appearance: none; }
     </div>
     <div class="grid-2">
       <div class="form-group"><label>Tipo de descuento</label>
-        <select id="nino-desc-tipo">
+        <select id="nino-desc-tipo" onchange="actualizarDescuentoNino()">
           <option value="ninguno">Sin descuento</option>
+          <option value="hermano">👨‍👩‍👧‍👦 Hermano (15%)</option>
           <option value="socio_cit">🏟 Socio CIT</option>
           <option value="tc_banco">💳 TC Banco (Conti)</option>
           <option value="exonerado">⭐ Exonerado</option>
         </select>
       </div>
       <div class="form-group"><label>Monto descuento (Gs.)</label><input type="number" id="nino-desc-monto" placeholder="0"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Fecha de inicio</label><input type="date" id="nino-fecha-inicio"></div>
+      <div class="form-group"><label>Fecha de baja (si ya no asiste)</label><input type="date" id="nino-fecha-baja"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-nino')">Cancelar</button>
@@ -842,19 +847,52 @@ input[type="time"] { -webkit-appearance: none; }
 <!-- MODAL COLONIA -->
 <div class="modal-overlay" id="modal-colonia">
   <div class="modal" style="width:420px;">
-    <div class="modal-header"><h3>Nueva colonia</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-colonia')">✕</button></div>
+    <div class="modal-header"><h3 id="colonia-modal-titulo">Nueva colonia</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-colonia')">✕</button></div>
     <input type="hidden" id="colonia-id">
     <div class="form-group"><label>Nombre</label><input id="colonia-nombre" placeholder="Ej: Colonia de Invierno 2026"></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha inicio</label><input type="date" id="colonia-inicio"></div>
       <div class="form-group"><label>Fecha fin</label><input type="date" id="colonia-fin"></div>
     </div>
-    <div class="form-group"><label>Precio base por día (Gs.)</label><input type="number" id="colonia-precio" placeholder="Ej: 300000"></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Precio por día (Gs.)</label><input type="number" id="colonia-precio-dia" placeholder="Ej: 120000"></div>
+      <div class="form-group"><label>Precio semanal (Gs.)</label><input type="number" id="colonia-precio-semana" placeholder="Ej: 500000"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-secondary);margin-top:-6px;margin-bottom:8px;">💡 Los hermanos tienen 15% de descuento — se aplica al inscribir cada niño.</div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-colonia')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarColonia()">Guardar</button>
     </div>
   </div>
+</div>
+
+<!-- MODAL INSCRIBIR NIÑO A COLONIA -->
+<div class="modal-overlay" id="modal-inscripto">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header"><h3 id="inscripto-modal-titulo">Inscribir niño</h3><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-inscripto')">✕</button></div>
+    <input type="hidden" id="inscripto-id">
+    <input type="hidden" id="inscripto-colonia-id">
+    <div class="form-group"><label>Nombre del niño</label><input id="inscripto-nombre" placeholder="Nombre completo"></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Modalidad</label>
+        <select id="inscripto-modalidad" onchange="calcularMontoInscripto()">
+          <option value="dia">Por día</option>
+          <option value="semana">Semanal</option>
+        </select>
+      </div>
+      <div class="form-group"><label id="inscripto-cantidad-label">Cantidad de días</label><input type="number" id="inscripto-cantidad" value="1" min="1" onchange="calcularMontoInscripto()"></div>
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="inscripto-hermano" onchange="calcularMontoInscripto()" style="width:auto;">
+      <label style="margin:0;">Es hermano de otro inscripto (15% de descuento)</label>
+    </div>
+    <div class="form-group"><label>Monto a cobrar (Gs.)</label><input type="number" id="inscripto-monto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-inscripto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarInscripto()">Guardar</button>
+    </div>
+  </div>
+</div>
 </div>
 
 <!-- MODAL HORARIO FIJO -->
@@ -6614,7 +6652,7 @@ async function guardarEmpleado() {
 var _guarderiaMes = new Date().getMonth() + 1;
 var _guarderiaAnio = new Date().getFullYear();
 var TURNOS_LABELS = { normal: 'Turno normal', extendido: 'Extendido', doble: 'Doble turno', excepcion: 'Excepción' };
-var DESCUENTO_LABELS = { socio_cit: '🏟 Socio CIT', tc_banco: '💳 TC Banco', exonerado: '⭐ Exonerado', ninguno: '' };
+var DESCUENTO_LABELS = { hermano: '👨‍👩‍👧‍👦 Hermano (15%)', socio_cit: '🏟 Socio CIT', tc_banco: '💳 TC Banco', exonerado: '⭐ Exonerado', ninguno: '' };
 
 function getGuarderiaLabel() {
   var meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -6633,11 +6671,21 @@ async function loadGuarderia() {
   var mesKey = _guarderiaAnio + '_' + String(_guarderiaMes).padStart(2,'0');
   try {
     var results = await Promise.all([
-      api('GET', 'guarderia_ninos', null, '?activo=eq.true&order=nombre.asc'),
+      api('GET', 'guarderia_ninos', null, '?order=nombre.asc'),
       api('GET', 'guarderia_pagos', null, '?mes=eq.' + mesKey),
       api('GET', 'colonias', null, '?activo=eq.true&order=fecha_inicio.desc')
     ]);
-    var ninos = results[0];
+    var inicioMes = _guarderiaAnio + '-' + String(_guarderiaMes).padStart(2,'0') + '-01';
+    var finMesDate = new Date(_guarderiaAnio, _guarderiaMes, 0);
+    var finMes = finMesDate.getFullYear() + '-' + String(finMesDate.getMonth()+1).padStart(2,'0') + '-' + String(finMesDate.getDate()).padStart(2,'0');
+    // Un niño aparece en un mes si ya había empezado (o no tiene fecha registrada, dato viejo)
+    // y todavía no se había dado de baja antes de ese mes.
+    var ninos = results[0].filter(function(n) {
+      if (n.fecha_inicio && n.fecha_inicio > finMes) return false;
+      if (n.fecha_baja && n.fecha_baja < inicioMes) return false;
+      if (n.activo === false && !n.fecha_baja) return false;
+      return true;
+    });
     var pagos = results[1];
     var colonias = results[2];
     var pagosMap = {};
@@ -6698,7 +6746,7 @@ async function loadGuarderia() {
       var rucNino = n.responsable_ruc || '';
       html += '<tr style="border-bottom:1px solid var(--border);">' +
         '<td style="padding:8px;">' +
-        '<div style="font-weight:500;">' + n.nombre + '</div>' +
+        '<div style="font-weight:500;">' + n.nombre + (n.fecha_baja ? ' <span style="font-size:10px;color:#C0392B;">🚫 Baja: ' + n.fecha_baja + '</span>' : '') + '</div>' +
         (responsableNombre ? '<div style="font-size:11px;color:var(--text-secondary);">' + responsableNombre + '</div>' : '') +
         (canSeeMontos && rucNino ? '<div style="font-size:10px;color:var(--text-tertiary);">RUC: ' + rucNino + '</div>' : '') +
         '</td>' +
@@ -6722,6 +6770,7 @@ async function loadGuarderia() {
         '<td style="padding:8px;"><div style="display:flex;gap:4px;">' +
         '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" data-cuota="' + cuotaFinal + '" onclick="registrarPagoGuarderia(this.dataset.nid,this.dataset.nombre,parseInt(this.dataset.cuota))" class="btn btn-secondary btn-sm">' + (pago ? '✏️' : '💰') + '</button>' +
         (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
+        (CU.rol === 'directora' && n.activo !== false ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="darDeBajaNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Dar de baja">🚫</button>' : '') +
         '</div></td></tr>';
     });
 
@@ -6733,9 +6782,11 @@ async function loadGuarderia() {
       colonias.forEach(function(c) {
         html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">' +
           '<div><div style="font-weight:600;">' + c.nombre + '</div>' +
-          '<div style="font-size:12px;color:var(--text-secondary);">' + (c.fecha_inicio||'') + ' al ' + (c.fecha_fin||'') + ' · Precio base: ' + fmtGs(c.precio_base||0) + '</div></div>' +
+          '<div style="font-size:12px;color:var(--text-secondary);">' + (c.fecha_inicio||'') + ' al ' + (c.fecha_fin||'') + ' · ' + fmtGs(c.precio_dia||c.precio_base||0) + '/día · ' + fmtGs(c.precio_semana||0) + '/semana</div></div>' +
+        '<div style="display:flex;gap:6px;">' +
         '<button data-cid="' + c.id + '" data-cnombre="' + c.nombre.replace(/"/g,'') + '" onclick="verColonia(this.dataset.cid,this.dataset.cnombre)" class="btn btn-secondary btn-sm">Ver inscriptos</button>' +
-          '</div>';
+        (CU.rol === 'directora' ? '<button data-cid="' + c.id + '" onclick="abrirModalColonia(this.dataset.cid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
+        '</div></div>';
       });
       if (CU.rol === 'directora') {
         html += '<button class="btn btn-secondary btn-sm" onclick="abrirModalColonia()">+ Nueva colonia</button>';
@@ -6827,6 +6878,8 @@ async function abrirModalNino(ninoId) {
     document.getElementById('nino-cuota').value = n.cuota_base;
     document.getElementById('nino-desc-tipo').value = n.descuento_tipo||'ninguno';
     document.getElementById('nino-desc-monto').value = n.descuento_monto||0;
+    document.getElementById('nino-fecha-inicio').value = n.fecha_inicio||'';
+    document.getElementById('nino-fecha-baja').value = n.fecha_baja||'';
   } else {
     document.getElementById('nino-id').value = '';
     document.getElementById('nino-nombre').value = '';
@@ -6837,8 +6890,27 @@ async function abrirModalNino(ninoId) {
     document.getElementById('nino-cuota').value = 1200000;
     document.getElementById('nino-desc-tipo').value = 'ninguno';
     document.getElementById('nino-desc-monto').value = 0;
+    document.getElementById('nino-fecha-inicio').value = today();
+    document.getElementById('nino-fecha-baja').value = '';
   }
   openModal('modal-nino');
+}
+
+function actualizarDescuentoNino() {
+  var tipo = document.getElementById('nino-desc-tipo').value;
+  if (tipo === 'hermano') {
+    var cuota = parseInt(document.getElementById('nino-cuota').value) || 0;
+    document.getElementById('nino-desc-monto').value = Math.round(cuota * 0.15);
+  }
+}
+
+async function darDeBajaNino(ninoId, nombre) {
+  if (!confirm('¿Dar de baja a ' + nombre + '? Ya no va a aparecer en los meses siguientes, pero se conserva su historial de pagos.')) return;
+  try {
+    await api('PATCH', 'guarderia_ninos', { activo: false, fecha_baja: today() }, '?id=eq.' + ninoId);
+    toast('Niño dado de baja');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 async function guardarNino() {
@@ -6854,7 +6926,9 @@ async function guardarNino() {
     cuota_base: parseInt(document.getElementById('nino-cuota').value)||0,
     descuento_tipo: descTipo !== 'ninguno' ? descTipo : null,
     descuento_monto: parseInt(document.getElementById('nino-desc-monto').value)||0,
-    activo: true
+    fecha_inicio: document.getElementById('nino-fecha-inicio').value || null,
+    fecha_baja: document.getElementById('nino-fecha-baja').value || null,
+    activo: !document.getElementById('nino-fecha-baja').value
   };
   if (!data.nombre) { alert('Ingresá el nombre'); return; }
   try {
@@ -6868,21 +6942,27 @@ async function guardarNino() {
 
 async function verColonia(coloniaId, nombre) {
   try {
+    var colonias = await api('GET', 'colonias', null, '?id=eq.' + coloniaId + '&limit=1');
+    window._coloniaActual = colonias[0] || null;
     var inscriptos = await api('GET', 'colonia_inscripciones', null, '?colonia_id=eq.' + coloniaId + '&order=nombre_nino.asc');
     var totalCobrado = inscriptos.filter(function(i) { return i.pagado; }).reduce(function(s,i) { return s+(i.monto||0); }, 0);
     var html = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
       '<div class="section-title" style="margin-bottom:0;">🏕️ ' + nombre + '</div>' +
-      '<div style="display:flex;gap:8px;"><button data-cid="' + coloniaId + '" onclick="agregarInscripto(this.dataset.cid)" class="btn btn-secondary btn-sm">+ Inscribir</button>' +
+      '<div style="display:flex;gap:8px;"><button data-cid="' + coloniaId + '" onclick="abrirModalInscripto(this.dataset.cid)" class="btn btn-secondary btn-sm">+ Inscribir</button>' +
       '<button class="btn btn-secondary btn-sm" onclick="loadGuarderia()">← Volver</button></div></div>' +
       '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Total cobrado: <strong style="color:#1B8A7A;">' + fmtGs(totalCobrado) + '</strong> · ' + inscriptos.filter(function(i){return i.pagado;}).length + ' de ' + inscriptos.length + ' pagaron</div>';
     if (inscriptos.length) {
-      html += '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);"><th style="padding:8px;text-align:left;font-size:11px;">Nombre</th><th style="padding:8px;text-align:center;font-size:11px;">Días</th><th style="padding:8px;text-align:right;font-size:11px;">Monto</th><th style="padding:8px;text-align:center;font-size:11px;">Estado</th><th></th></tr></thead><tbody>';
+      html += '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);"><th style="padding:8px;text-align:left;font-size:11px;">Nombre</th><th style="padding:8px;text-align:center;font-size:11px;">Modalidad</th><th style="padding:8px;text-align:right;font-size:11px;">Monto</th><th style="padding:8px;text-align:center;font-size:11px;">Estado</th><th></th></tr></thead><tbody>';
       inscriptos.forEach(function(i) {
-        html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;">' + i.nombre_nino + '</td>' +
-          '<td style="padding:8px;text-align:center;">' + (i.dias||'—') + '</td>' +
+        var modalidadLabel = (i.modalidad === 'semana' ? (i.cantidad||1) + ' sem.' : (i.cantidad||i.dias||1) + ' día(s)');
+        html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;">' + i.nombre_nino + (i.es_hermano ? ' <span style="font-size:10px;color:#1565C0;">👨‍👩‍👧‍👦 -15%</span>' : '') + '</td>' +
+          '<td style="padding:8px;text-align:center;font-size:12px;">' + modalidadLabel + '</td>' +
           '<td style="padding:8px;text-align:right;">' + fmtGs(i.monto||0) + '</td>' +
           '<td style="padding:8px;text-align:center;">' + (i.pagado ? '<span style="color:#1B8A7A;font-size:11px;">✅ Pagado</span>' : '<span style="color:#E65100;font-size:11px;">⏳ Pendiente</span>') + '</td>' +
-          '<td style="padding:8px;"><button data-iid="' + i.id + '" data-pagado="' + !i.pagado + '" onclick="marcarPagoColonia(this.dataset.iid,this.dataset.pagado===\'true\')" class="btn btn-ghost btn-sm">' + (i.pagado ? 'Deshacer' : '✅ Marcar pagado') + '</button></td></tr>';
+          '<td style="padding:8px;"><div style="display:flex;gap:4px;">' +
+          '<button data-iid="' + i.id + '" data-pagado="' + !i.pagado + '" onclick="marcarPagoColonia(this.dataset.iid,this.dataset.pagado===\'true\')" class="btn btn-ghost btn-sm">' + (i.pagado ? 'Deshacer' : '✅ Marcar pagado') + '</button>' +
+          '<button data-iid="' + i.id + '" onclick="abrirModalInscripto(' + JSON.stringify(coloniaId) + ',this.dataset.iid)" class="btn btn-ghost btn-sm">✏️</button>' +
+          '</div></td></tr>';
       });
       html += '</tbody></table>';
     } else {
@@ -6893,18 +6973,74 @@ async function verColonia(coloniaId, nombre) {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
-async function agregarInscripto(coloniaId) {
-  var nombre = prompt('Nombre del niño:');
-  if (!nombre) return;
-  var dias = prompt('Cantidad de días:');
-  var monto = prompt('Monto a cobrar (Gs.):');
-  if (!monto) return;
+async function abrirModalInscripto(coloniaId, inscriptoId) {
+  document.getElementById('inscripto-colonia-id').value = coloniaId;
+  document.getElementById('inscripto-id').value = '';
+  document.getElementById('inscripto-nombre').value = '';
+  document.getElementById('inscripto-modalidad').value = 'dia';
+  document.getElementById('inscripto-cantidad').value = 1;
+  document.getElementById('inscripto-hermano').checked = false;
+  document.getElementById('inscripto-modal-titulo').textContent = 'Inscribir niño';
+  if (inscriptoId) {
+    try {
+      var inscriptos = await api('GET', 'colonia_inscripciones', null, '?id=eq.' + inscriptoId + '&limit=1');
+      var i = inscriptos[0];
+      if (i) {
+        document.getElementById('inscripto-id').value = i.id;
+        document.getElementById('inscripto-nombre').value = i.nombre_nino;
+        document.getElementById('inscripto-modalidad').value = i.modalidad || 'dia';
+        document.getElementById('inscripto-cantidad').value = i.cantidad || i.dias || 1;
+        document.getElementById('inscripto-hermano').checked = !!i.es_hermano;
+        document.getElementById('inscripto-monto').value = i.monto || 0;
+        document.getElementById('inscripto-modal-titulo').textContent = 'Editar inscripción';
+      }
+    } catch(e) {}
+  }
+  actualizarLabelCantidadInscripto();
+  if (!inscriptoId) calcularMontoInscripto();
+  openModal('modal-inscripto');
+}
+
+function actualizarLabelCantidadInscripto() {
+  var modalidad = document.getElementById('inscripto-modalidad').value;
+  document.getElementById('inscripto-cantidad-label').textContent = modalidad === 'semana' ? 'Cantidad de semanas' : 'Cantidad de días';
+}
+
+function calcularMontoInscripto() {
+  actualizarLabelCantidadInscripto();
+  var c = window._coloniaActual;
+  if (!c) return;
+  var modalidad = document.getElementById('inscripto-modalidad').value;
+  var cantidad = parseInt(document.getElementById('inscripto-cantidad').value) || 1;
+  var esHermano = document.getElementById('inscripto-hermano').checked;
+  var precioUnit = modalidad === 'semana' ? (c.precio_semana || 0) : (c.precio_dia || c.precio_base || 0);
+  var monto = precioUnit * cantidad;
+  if (esHermano) monto = Math.round(monto * 0.85);
+  document.getElementById('inscripto-monto').value = monto;
+}
+
+async function guardarInscripto() {
+  var id = document.getElementById('inscripto-id').value;
+  var coloniaId = document.getElementById('inscripto-colonia-id').value;
+  var nombre = document.getElementById('inscripto-nombre').value.trim();
+  if (!nombre) { alert('Ingresá el nombre del niño'); return; }
+  var data = {
+    colonia_id: coloniaId,
+    nombre_nino: nombre,
+    modalidad: document.getElementById('inscripto-modalidad').value,
+    cantidad: parseInt(document.getElementById('inscripto-cantidad').value) || 1,
+    es_hermano: document.getElementById('inscripto-hermano').checked,
+    monto: parseInt(document.getElementById('inscripto-monto').value) || 0
+  };
   try {
-    await api('POST', 'colonia_inscripciones', {
-      colonia_id: coloniaId, nombre_nino: nombre.trim(),
-      dias: parseInt(dias)||null, monto: parseInt((monto||'0').replace(/[^0-9]/g,''))||0, pagado: false
-    });
-    toast('✅ Inscripto agregado');
+    if (id) {
+      await api('PATCH', 'colonia_inscripciones', data, '?id=eq.' + id);
+    } else {
+      data.pagado = false;
+      await api('POST', 'colonia_inscripciones', data);
+    }
+    closeModal('modal-inscripto');
+    toast('✅ Inscripción guardada');
     var colonias = await api('GET', 'colonias', null, '?id=eq.' + coloniaId + '&limit=1');
     verColonia(coloniaId, colonias[0] ? colonias[0].nombre : 'Colonia');
   } catch(e) { alert('Error: ' + e.message); }
@@ -6918,12 +7054,29 @@ async function marcarPagoColonia(inscId, pagado) {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
-async function abrirModalColonia() {
+async function abrirModalColonia(coloniaId) {
   document.getElementById('colonia-id').value = '';
   document.getElementById('colonia-nombre').value = '';
   document.getElementById('colonia-inicio').value = '';
   document.getElementById('colonia-fin').value = '';
-  document.getElementById('colonia-precio').value = '';
+  document.getElementById('colonia-precio-dia').value = 120000;
+  document.getElementById('colonia-precio-semana').value = 500000;
+  document.getElementById('colonia-modal-titulo').textContent = 'Nueva colonia';
+  if (coloniaId) {
+    try {
+      var colonias = await api('GET', 'colonias', null, '?id=eq.' + coloniaId + '&limit=1');
+      var c = colonias[0];
+      if (c) {
+        document.getElementById('colonia-id').value = c.id;
+        document.getElementById('colonia-nombre').value = c.nombre || '';
+        document.getElementById('colonia-inicio').value = c.fecha_inicio || '';
+        document.getElementById('colonia-fin').value = c.fecha_fin || '';
+        document.getElementById('colonia-precio-dia').value = c.precio_dia || c.precio_base || 0;
+        document.getElementById('colonia-precio-semana').value = c.precio_semana || 0;
+        document.getElementById('colonia-modal-titulo').textContent = 'Editar colonia';
+      }
+    } catch(e) {}
+  }
   openModal('modal-colonia');
 }
 
@@ -6933,7 +7086,8 @@ async function guardarColonia() {
     nombre: document.getElementById('colonia-nombre').value.trim(),
     fecha_inicio: document.getElementById('colonia-inicio').value || null,
     fecha_fin: document.getElementById('colonia-fin').value || null,
-    precio_base: parseInt(document.getElementById('colonia-precio').value)||0,
+    precio_dia: parseInt(document.getElementById('colonia-precio-dia').value)||0,
+    precio_semana: parseInt(document.getElementById('colonia-precio-semana').value)||0,
     activo: true
   };
   if (!data.nombre) { alert('Ingresá el nombre de la colonia'); return; }
