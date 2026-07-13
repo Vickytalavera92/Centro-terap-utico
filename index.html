@@ -4322,6 +4322,7 @@ async function loadCobros() {
 
     html += '<div id="cobros-table"></div>';
     el.innerHTML = html;
+    window._cobrosData = { pacConSesiones: pacConSesiones, turnosPorPac: turnosPorPac, cobrosMap: cobrosMap, tarifaMap: tarifaMap, mesKey: mesKey };
     renderCobrosTable(pacConSesiones, turnosPorPac, cobrosMap, tarifaMap, mesKey);
     
   } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
