@@ -6752,6 +6752,7 @@ async function loadGuarderia() {
       '</div>' +
       '<div style="display:flex;gap:8px;">' +
         (CU.rol === 'directora' ? '<button onclick="abrirModalNino()" class="btn btn-secondary btn-sm">+ Agregar niño</button>' : '') +
+        (CU.rol === 'directora' ? '<button onclick="abrirModalNinoPorDia()" class="btn btn-secondary btn-sm">+ Agregar por día</button>' : '') +
       '</div></div>';
 
     // Summary cards
@@ -6823,11 +6824,25 @@ async function loadGuarderia() {
 
     // Colonias section
     if (colonias.length) {
+      var coloniaIds = colonias.map(function(c) { return c.id; });
+      var todasInscripciones = [];
+      try { todasInscripciones = await api('GET', 'colonia_inscripciones', null, '?colonia_id=in.(' + coloniaIds.join(',') + ')'); } catch(eInsc) {}
+      var inscripcionesPorColonia = {};
+      todasInscripciones.forEach(function(i) {
+        if (!inscripcionesPorColonia[i.colonia_id]) inscripcionesPorColonia[i.colonia_id] = [];
+        inscripcionesPorColonia[i.colonia_id].push(i);
+      });
       html += '<div class="card"><div class="section-title mb-12">🏕️ Colonias</div>';
       colonias.forEach(function(c) {
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">' +
+        var inscs = inscripcionesPorColonia[c.id] || [];
+        var totalColoniaEsperado = inscs.reduce(function(s,i) { return s+(i.monto||0); }, 0);
+        var totalColoniaCobrado = inscs.filter(function(i) { return i.pagado; }).reduce(function(s,i) { return s+(i.monto||0); }, 0);
+        var pagaronColonia = inscs.filter(function(i) { return i.pagado; }).length;
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;flex-wrap:wrap;gap:8px;">' +
           '<div><div style="font-weight:600;">' + c.nombre + '</div>' +
-          '<div style="font-size:12px;color:var(--text-secondary);">' + (c.fecha_inicio||'') + ' al ' + (c.fecha_fin||'') + ' · ' + fmtGs(c.precio_dia||c.precio_base||0) + '/día · ' + fmtGs(c.precio_semana||0) + '/semana</div></div>' +
+          '<div style="font-size:12px;color:var(--text-secondary);">' + (c.fecha_inicio||'') + ' al ' + (c.fecha_fin||'') + ' · ' + fmtGs(c.precio_dia||c.precio_base||0) + '/día · ' + fmtGs(c.precio_semana||0) + '/semana</div>' +
+          (canSeeMontos ? '<div style="font-size:12px;margin-top:4px;">👶 ' + inscs.length + ' inscriptos · <span style="color:#1B8A7A;font-weight:600;">' + fmtGs(totalColoniaCobrado) + ' cobrado</span> de ' + fmtGs(totalColoniaEsperado) + ' (' + pagaronColonia + '/' + inscs.length + ' pagaron)</div>' : '') +
+          '</div>' +
         '<div style="display:flex;gap:6px;">' +
         '<button data-cid="' + c.id + '" data-cnombre="' + c.nombre.replace(/"/g,'') + '" onclick="verColonia(this.dataset.cid,this.dataset.cnombre)" class="btn btn-secondary btn-sm">Ver inscriptos</button>' +
         (CU.rol === 'directora' ? '<button data-cid="' + c.id + '" onclick="abrirModalColonia(this.dataset.cid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
@@ -6927,6 +6942,12 @@ async function eliminarPagoGuarderia() {
     toast('✅ Pago eliminado');
     loadGuarderia();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function abrirModalNinoPorDia() {
+  await abrirModalNino();
+  document.getElementById('nino-modalidad').value = 'por_dia';
+  toggleModalidadNino();
 }
 
 function toggleModalidadNino() {
