@@ -3974,12 +3974,19 @@ async function loadAdmin() {
       try {
         var pagosGuardData = await api('GET', 'guarderia_pagos', null, '?mes=eq.' + mesKey);
         pagosGuardData.forEach(function(pg) { ingresosGuarderia += (pg.monto || 0); });
-        var inscripcionesPagadas = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true');
-        var coloniasDelMes = await api('GET', 'colonias', null, '?fecha_inicio=gte.' + rng.first + '&fecha_inicio=lte.' + rng.last);
-        var coloniaIdsDelMes = coloniasDelMes.map(function(c) { return c.id; });
-        inscripcionesPagadas.forEach(function(insc) {
-          if (coloniaIdsDelMes.indexOf(insc.colonia_id) !== -1) ingresosGuarderia += (insc.monto || 0);
-        });
+        // Pagos de colonia con mes_pago ya registrado (flujo nuevo)
+        var inscripcionesDelMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=eq.' + mesKey);
+        inscripcionesDelMes.forEach(function(insc) { ingresosGuarderia += (insc.monto || 0); });
+        // Respaldo: pagos marcados ANTES de este arreglo, que no tienen mes_pago guardado.
+        // Se ubican por la fecha de inicio de la colonia (mejor esfuerzo).
+        var inscripcionesSinMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=is.null');
+        if (inscripcionesSinMes.length) {
+          var coloniasDelMes = await api('GET', 'colonias', null, '?fecha_inicio=gte.' + rng.first + '&fecha_inicio=lte.' + rng.last);
+          var coloniaIdsDelMes = coloniasDelMes.map(function(c) { return c.id; });
+          inscripcionesSinMes.forEach(function(insc) {
+            if (coloniaIdsDelMes.indexOf(insc.colonia_id) !== -1) ingresosGuarderia += (insc.monto || 0);
+          });
+        }
       } catch(eGuard) {}
       
       // Add sueldos fijos to balance
@@ -7181,7 +7188,16 @@ async function guardarInscripto() {
 
 async function marcarPagoColonia(inscId, pagado) {
   try {
-    await api('PATCH', 'colonia_inscripciones', { pagado: pagado }, '?id=eq.' + inscId);
+    var data = { pagado: pagado };
+    if (pagado) {
+      data.fecha_pago = today();
+      var now = new Date();
+      data.mes_pago = now.getFullYear() + '_' + String(now.getMonth()+1).padStart(2,'0');
+    } else {
+      data.fecha_pago = null;
+      data.mes_pago = null;
+    }
+    await api('PATCH', 'colonia_inscripciones', data, '?id=eq.' + inscId);
     toast(pagado ? '✅ Marcado como pagado' : 'Pago deshecho');
     loadGuarderia();
   } catch(e) { alert('Error: ' + e.message); }
