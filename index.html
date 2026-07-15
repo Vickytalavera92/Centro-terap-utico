@@ -3975,7 +3975,7 @@ async function loadAdmin() {
 
     // BALANCE GENERAL
     try {
-      var gastosData = await api('GET', 'gastos', null, '?fecha=gte.' + rng.first + '&fecha=lte.' + rng.last);
+      var gastosData = await api('GET', 'gastos', null, '?mes=eq.' + mesKey);
       var gastosTotales = 0;
       gastosData.forEach(function(g) { gastosTotales += (g.monto || 0); });
 
