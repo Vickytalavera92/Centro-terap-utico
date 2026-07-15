@@ -4010,10 +4010,11 @@ async function loadAdmin() {
           var pago = pagosEmpMap[emp.id];
           var ipsEmp = emp.tiene_ips ? Math.round(emp.salario_base * 0.09) : 0;
           var ipsPatronal = emp.tiene_ips ? Math.round(emp.salario_base * 0.165) : 0;
-          var adelanto = pago ? (pago.adelanto || 0) : 0;
           var otros = pago ? (pago.otros_descuentos || 0) : 0;
-          var neto = emp.salario_base - ipsEmp - adelanto - otros;
-          sueldosTotales += neto + ipsPatronal; // CREA pays: neto employee receives + patronal IPS
+          // Costo real para CREA este mes: sueldo bruto - IPS obrero (va al IPS, no es costo extra)
+          // - otros descuentos + IPS patronal. El anticipo NO se resta acá: es la misma plata
+          // pagada más temprano en el mes, sigue siendo un costo real, no una ganancia.
+          sueldosTotales += (emp.salario_base - ipsEmp - otros) + ipsPatronal;
         });
       } catch(eSuel) {}
       
