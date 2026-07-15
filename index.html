@@ -752,9 +752,14 @@ input[type="time"] { -webkit-appearance: none; }
       <label>Observación</label>
       <input id="pago-emp-obs" placeholder="Ej: adelanto quincena, descuento uniforme...">
     </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="pago-emp-pagado" style="width:auto;">
+      <label style="margin:0;">Marcar como pagado (sueldo completo del mes ya liquidado)</label>
+    </div>
+    <div style="font-size:11px;color:var(--text-secondary);margin-top:-6px;margin-bottom:8px;">💡 Si solo estás cargando un anticipo, dejá esto sin marcar — se guarda igual y se descuenta del neto cuando liquides el sueldo completo.</div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-pago-empleado')">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarPagoEmpleado()">💾 Registrar pago</button>
+      <button class="btn btn-primary" onclick="confirmarPagoEmpleado()">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -6606,6 +6611,7 @@ async function registrarPagoEmpleado(empId, nombre, salarioBase, tieneIps) {
   document.getElementById('pago-emp-adelanto').value = pago ? (pago.adelanto||0) : 0;
   document.getElementById('pago-emp-otros').value = pago ? (pago.otros_descuentos||0) : 0;
   document.getElementById('pago-emp-obs').value = pago ? (pago.observacion||'') : '';
+  document.getElementById('pago-emp-pagado').checked = pago ? !!pago.pagado : false;
   actualizarResumenPago();
   openModal('modal-pago-empleado');
 }
@@ -6640,9 +6646,10 @@ async function confirmarPagoEmpleado() {
   var adelanto = parseInt(document.getElementById('pago-emp-adelanto').value)||0;
   var otros = parseInt(document.getElementById('pago-emp-otros').value)||0;
   var obs = document.getElementById('pago-emp-obs').value || null;
+  var pagado = document.getElementById('pago-emp-pagado').checked;
   var data = {
     empleado_id: empId, mes: mesKey, salario_base: salario,
-    adelanto: adelanto, otros_descuentos: otros, observacion: obs, pagado: true
+    adelanto: adelanto, otros_descuentos: otros, observacion: obs, pagado: pagado
   };
   try {
     if (pagoId) { await api('PATCH', 'pagos_empleados', data, '?id=eq.' + pagoId); }
