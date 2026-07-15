@@ -3873,7 +3873,7 @@ async function loadAdmin() {
         '<div style="font-size:12px;color:var(--text-secondary);">' + (p.especialidad||'') + '</div></div></div>' +
         '<div style="text-align:right;display:flex;align-items:center;gap:12px;">' +
         (pb.pagado ? '<span style="background:#1B8A7A;color:white;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;">✅ Pagado</span>' : '<span style="background:#FAEEDA;color:#633806;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;">⏳ Pendiente</span>') +
-        '<div><div style="font-size:15px;font-weight:600;color:#C0392B;">' + fmtGs(pb.totalProf - pb.descuento - pb.adelanto) + '</div>' +
+        '<div><div id="total-top-' + p.id + '" style="font-size:15px;font-weight:600;color:#C0392B;">' + fmtGs(pb.totalProf - pb.descuento - pb.adelanto) + '</div>' +
         '<div style="font-size:11px;color:var(--text-secondary);">Total a pagar</div></div></div></div>' +
         '<table style="width:100%;border-collapse:collapse;">' +
         '<thead><tr>' +
@@ -3927,8 +3927,10 @@ async function loadAdmin() {
           '<td style="padding:6px 10px;text-align:right;color:#C0392B;font-size:12px;">- ' + fmtGs(pb.adelanto) + '</td><td></td></tr>';
       }
       var totalFinal = pb.totalProf - pb.descuento - pb.adelanto;
+      window._pbBaseData = window._pbBaseData || {};
+      window._pbBaseData[p.id] = { totalProf: pb.totalProf, descuento: pb.descuento };
       html += '<tr style="background:#FEF6E0;"><td colspan="3" style="padding:8px 10px;font-weight:700;">TOTAL A PAGAR</td>' +
-        '<td style="padding:8px 10px;text-align:right;font-weight:700;color:#C0392B;font-size:15px;">' + fmtGs(totalFinal) + '</td><td></td></tr>';
+        '<td id="total-bottom-' + p.id + '" style="padding:8px 10px;text-align:right;font-weight:700;color:#C0392B;font-size:15px;">' + fmtGs(totalFinal) + '</td><td></td></tr>';
 
       html += '</tbody></table>';
       // Facturacion detail
@@ -3956,7 +3958,7 @@ async function loadAdmin() {
       html += '<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
         '<div style="display:flex;gap:8px;">' +
         '<input placeholder="Observación..." value="' + (pb.observacion||'') + '" id="obs_' + p.id + '" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:200px;">' +
-        '<input type="text" placeholder="Ej: 500000" value="' + (pb.adelanto || '') + '" id="adel_' + p.id + '" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:150px;">' +
+        '<input type="text" placeholder="Ej: 500000" value="' + (pb.adelanto || '') + '" id="adel_' + p.id + '" oninput="recalcularTotalProf(\'' + p.id + '\')" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:150px;">' +
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
         (pb.pagado ? 
@@ -4192,6 +4194,18 @@ async function saveProfTarifas() {
 }
 
 
+function recalcularTotalProf(profId) {
+  var base = window._pbBaseData && window._pbBaseData[profId];
+  if (!base) return;
+  var adelantoRaw = (document.getElementById('adel_' + profId).value || '0').replace(/[^0-9]/g,'');
+  var adelanto = parseInt(adelantoRaw) || 0;
+  var totalFinal = base.totalProf - base.descuento - adelanto;
+  var elTop = document.getElementById('total-top-' + profId);
+  var elBottom = document.getElementById('total-bottom-' + profId);
+  if (elTop) elTop.textContent = fmtGs(totalFinal);
+  if (elBottom) elBottom.textContent = fmtGs(totalFinal);
+}
+
 async function guardarPagoMes(el) {
   var profId = el.getAttribute('data-pid');
   var mesKey = _adminAnio + '_' + String(_adminMes).padStart(2,'0');
@@ -4200,10 +4214,15 @@ async function guardarPagoMes(el) {
   var observacion = document.getElementById('obs_' + profId).value || '';
   try {
     var existing = await api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+    var resultado;
     if (existing.length) {
-      await api('PATCH', 'pagos_mes', { adelanto: adelanto, observacion: observacion }, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+      resultado = await api('PATCH', 'pagos_mes', { adelanto: adelanto, observacion: observacion }, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
     } else {
-      await api('POST', 'pagos_mes', { profesional_id: profId, mes: mesKey, adelanto: adelanto, observacion: observacion, pagado: false });
+      resultado = await api('POST', 'pagos_mes', { profesional_id: profId, mes: mesKey, adelanto: adelanto, observacion: observacion, pagado: false });
+    }
+    if (!resultado || !resultado.length) {
+      alert('⚠️ El sistema no guardó el cambio. Puede ser un problema de permisos en la base de datos (RLS) en la tabla "pagos_mes". Avisale a Claude para revisarlo.');
+      return;
     }
     toast('✅ Guardado');
     loadAdmin();
@@ -4215,10 +4234,15 @@ async function togglePago(el, pagado) {
   var mesKey = _adminAnio + '_' + String(_adminMes).padStart(2,'0');
   try {
     var existing = await api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+    var resultado;
     if (existing.length) {
-      await api('PATCH', 'pagos_mes', { pagado: pagado }, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+      resultado = await api('PATCH', 'pagos_mes', { pagado: pagado }, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
     } else {
-      await api('POST', 'pagos_mes', { profesional_id: profId, mes: mesKey, adelanto: 0, observacion: '', pagado: pagado });
+      resultado = await api('POST', 'pagos_mes', { profesional_id: profId, mes: mesKey, adelanto: 0, observacion: '', pagado: pagado });
+    }
+    if (!resultado || !resultado.length) {
+      alert('⚠️ El sistema no guardó el cambio. Puede ser un problema de permisos en la base de datos (RLS) en la tabla "pagos_mes". Avisale a Claude para revisarlo.');
+      return;
     }
     toast(pagado ? '✅ Marcado como pagado' : '↩ Marcado como pendiente');
     loadAdmin();
