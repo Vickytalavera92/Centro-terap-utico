@@ -3958,7 +3958,10 @@ async function loadAdmin() {
       html += '<div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
         '<div style="display:flex;gap:8px;">' +
         '<input placeholder="Observación..." value="' + (pb.observacion||'') + '" id="obs_' + p.id + '" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:200px;">' +
+        '<div style="display:flex;gap:4px;align-items:center;">' +
         '<input type="text" placeholder="Ej: 500000" value="' + (pb.adelanto || '') + '" id="adel_' + p.id + '" oninput="recalcularTotalProf(\'' + p.id + '\')" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:150px;">' +
+        (pb.adelanto > 0 ? '<button onclick="borrarAnticipoProf(\'' + p.id + '\')" class="btn btn-ghost btn-sm" title="Borrar anticipo" style="color:#C0392B;padding:6px 8px;">🗑</button>' : '') +
+        '</div>' +
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
         (pb.pagado ? 
@@ -4193,6 +4196,20 @@ async function saveProfTarifas() {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
+
+async function borrarAnticipoProf(profId) {
+  if (!confirm('¿Borrar el anticipo cargado para esta profesional este mes?')) return;
+  var mesKey = _adminAnio + '_' + String(_adminMes).padStart(2,'0');
+  try {
+    var resultado = await api('PATCH', 'pagos_mes', { adelanto: 0 }, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey);
+    if (!resultado || !resultado.length) {
+      alert('⚠️ El sistema no pudo borrar el anticipo. Puede ser un problema de permisos en la base de datos (RLS) en la tabla "pagos_mes". Avisale a Claude para revisarlo.');
+      return;
+    }
+    toast('✅ Anticipo borrado');
+    loadAdmin();
+  } catch(e) { alert('Error: ' + e.message); }
+}
 
 function recalcularTotalProf(profId) {
   var base = window._pbBaseData && window._pbBaseData[profId];
