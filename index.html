@@ -3982,6 +3982,8 @@ async function loadAdmin() {
       // Ingresos de guardería y colonia (cobrados este mes), separados
       var ingresosGuarderia = 0;
       var ingresosColonia = 0;
+      var esperadoGuarderia = 0;
+      var esperadoColonia = 0;
       try {
         var pagosGuardData = await api('GET', 'guarderia_pagos', null, '?mes=eq.' + mesKey);
         // Deduplicar por niño (por si quedó más de un pago cargado para el mismo niño el mismo mes,
@@ -3989,18 +3991,39 @@ async function loadAdmin() {
         var pagosGuardMap = {};
         pagosGuardData.forEach(function(pg) { pagosGuardMap[pg.nino_id] = pg; });
         Object.values(pagosGuardMap).forEach(function(pg) { ingresosGuarderia += (pg.monto || 0); });
+
+        // Total ESPERADO de guardería este mes (informativo, no se resta ni suma a la ganancia real):
+        // niños activos este mes según su fecha de inicio/baja, excluyendo modalidad "por día" (variable).
+        var todosNinosBal = await api('GET', 'guarderia_ninos', null, '?order=nombre.asc');
+        var inicioMesBal = mesKey.slice(0,4) + '-' + mesKey.slice(5,7) + '-01';
+        var finMesBalDate = new Date(parseInt(mesKey.slice(0,4)), parseInt(mesKey.slice(5,7)), 0);
+        var finMesBal = finMesBalDate.getFullYear() + '-' + String(finMesBalDate.getMonth()+1).padStart(2,'0') + '-' + String(finMesBalDate.getDate()).padStart(2,'0');
+        todosNinosBal.forEach(function(n) {
+          if (n.fecha_inicio && n.fecha_inicio > finMesBal) return;
+          if (n.fecha_baja && n.fecha_baja < inicioMesBal) return;
+          if (n.activo === false && !n.fecha_baja) return;
+          if (n.modalidad === 'por_dia') return;
+          esperadoGuarderia += (n.cuota_base - (n.descuento_monto || 0));
+        });
+
         // Pagos de colonia con mes_pago ya registrado (flujo nuevo)
         var inscripcionesDelMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=eq.' + mesKey);
         inscripcionesDelMes.forEach(function(insc) { ingresosColonia += (insc.monto || 0); });
         // Respaldo: pagos marcados ANTES de este arreglo, que no tienen mes_pago guardado.
         // Se ubican por la fecha de inicio de la colonia (mejor esfuerzo).
         var inscripcionesSinMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=is.null');
+        var coloniasDelMes = await api('GET', 'colonias', null, '?fecha_inicio=gte.' + rng.first + '&fecha_inicio=lte.' + rng.last);
+        var coloniaIdsDelMes = coloniasDelMes.map(function(c) { return c.id; });
         if (inscripcionesSinMes.length) {
-          var coloniasDelMes = await api('GET', 'colonias', null, '?fecha_inicio=gte.' + rng.first + '&fecha_inicio=lte.' + rng.last);
-          var coloniaIdsDelMes = coloniasDelMes.map(function(c) { return c.id; });
           inscripcionesSinMes.forEach(function(insc) {
             if (coloniaIdsDelMes.indexOf(insc.colonia_id) !== -1) ingresosColonia += (insc.monto || 0);
           });
+        }
+        // Total ESPERADO de colonia este mes: todas las inscripciones de colonias que empiezan este mes,
+        // pagadas o no.
+        if (coloniaIdsDelMes.length) {
+          var todasInscripcionesBal = await api('GET', 'colonia_inscripciones', null, '?colonia_id=in.(' + coloniaIdsDelMes.join(',') + ')');
+          todasInscripcionesBal.forEach(function(insc) { esperadoColonia += (insc.monto || 0); });
         }
       } catch(eGuard) {}
       
@@ -4034,10 +4057,12 @@ async function loadAdmin() {
         '<div style="padding:10px;background:#E3F2FD;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🧒 Ingresos guardería</div>' +
           '<div style="font-size:15px;font-weight:700;color:#1565C0;">' + fmtGs(ingresosGuarderia) + '</div>' +
+          (esperadoGuarderia > ingresosGuarderia ? '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Falta cobrar ' + fmtGs(esperadoGuarderia - ingresosGuarderia) + '</div>' : '') +
         '</div>' +
         '<div style="padding:10px;background:#E0F2F1;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🏕️ Ingresos colonia</div>' +
           '<div style="font-size:15px;font-weight:700;color:#00695C;">' + fmtGs(ingresosColonia) + '</div>' +
+          (esperadoColonia > ingresosColonia ? '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Falta cobrar ' + fmtGs(esperadoColonia - ingresosColonia) + '</div>' : '') +
         '</div>' +
         '<div style="padding:10px;background:#FFF3E0;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">👩‍⚕️ Honorarios prof.</div>' +
