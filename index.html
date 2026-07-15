@@ -3979,14 +3979,15 @@ async function loadAdmin() {
       var gastosTotales = 0;
       gastosData.forEach(function(g) { gastosTotales += (g.monto || 0); });
 
-      // Ingresos de guardería + colonia (cobrados este mes)
+      // Ingresos de guardería y colonia (cobrados este mes), separados
       var ingresosGuarderia = 0;
+      var ingresosColonia = 0;
       try {
         var pagosGuardData = await api('GET', 'guarderia_pagos', null, '?mes=eq.' + mesKey);
         pagosGuardData.forEach(function(pg) { ingresosGuarderia += (pg.monto || 0); });
         // Pagos de colonia con mes_pago ya registrado (flujo nuevo)
         var inscripcionesDelMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=eq.' + mesKey);
-        inscripcionesDelMes.forEach(function(insc) { ingresosGuarderia += (insc.monto || 0); });
+        inscripcionesDelMes.forEach(function(insc) { ingresosColonia += (insc.monto || 0); });
         // Respaldo: pagos marcados ANTES de este arreglo, que no tienen mes_pago guardado.
         // Se ubican por la fecha de inicio de la colonia (mejor esfuerzo).
         var inscripcionesSinMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=is.null');
@@ -3994,7 +3995,7 @@ async function loadAdmin() {
           var coloniasDelMes = await api('GET', 'colonias', null, '?fecha_inicio=gte.' + rng.first + '&fecha_inicio=lte.' + rng.last);
           var coloniaIdsDelMes = coloniasDelMes.map(function(c) { return c.id; });
           inscripcionesSinMes.forEach(function(insc) {
-            if (coloniaIdsDelMes.indexOf(insc.colonia_id) !== -1) ingresosGuarderia += (insc.monto || 0);
+            if (coloniaIdsDelMes.indexOf(insc.colonia_id) !== -1) ingresosColonia += (insc.monto || 0);
           });
         }
       } catch(eGuard) {}
@@ -4018,7 +4019,7 @@ async function loadAdmin() {
         });
       } catch(eSuel) {}
       
-      var balanceNeto = totalGenerado + ingresosGuarderia - totalProfs - gastosTotales - sueldosTotales;
+      var balanceNeto = totalGenerado + ingresosGuarderia + ingresosColonia - totalProfs - gastosTotales - sueldosTotales;
       html += '<div class="card" style="margin-top:16px;">' +
         '<div class="section-title mb-12">⚖️ Balance General del mes</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">' +
@@ -4029,6 +4030,10 @@ async function loadAdmin() {
         '<div style="padding:10px;background:#E3F2FD;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🧒 Ingresos guardería</div>' +
           '<div style="font-size:15px;font-weight:700;color:#1565C0;">' + fmtGs(ingresosGuarderia) + '</div>' +
+        '</div>' +
+        '<div style="padding:10px;background:#E0F2F1;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🏕️ Ingresos colonia</div>' +
+          '<div style="font-size:15px;font-weight:700;color:#00695C;">' + fmtGs(ingresosColonia) + '</div>' +
         '</div>' +
         '<div style="padding:10px;background:#FFF3E0;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">👩‍⚕️ Honorarios prof.</div>' +
@@ -4057,7 +4062,7 @@ async function loadAdmin() {
       if (metaMonto > 0) {
         var pct = Math.min(100, Math.round((balanceNeto / metaMonto) * 100));
         var barColor = pct >= 100 ? '#1B8A7A' : pct >= 75 ? '#F0A500' : '#C0392B';
-        html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Meta sobre ganancia neta CREA (ingresos terapias + guardería − honorarios − gastos − sueldos)</div>' +
+        html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Meta sobre ganancia neta CREA (ingresos terapias + guardería + colonia − honorarios − gastos − sueldos)</div>' +
           '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
           '<span>Ganancia: ' + fmtGs(balanceNeto) + ' de meta ' + fmtGs(metaMonto) + '</span>' +
           '<span style="font-weight:700;color:' + barColor + ';">' + pct + '%</span></div>' +
