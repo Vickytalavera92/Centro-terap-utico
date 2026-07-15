@@ -3984,7 +3984,11 @@ async function loadAdmin() {
       var ingresosColonia = 0;
       try {
         var pagosGuardData = await api('GET', 'guarderia_pagos', null, '?mes=eq.' + mesKey);
-        pagosGuardData.forEach(function(pg) { ingresosGuarderia += (pg.monto || 0); });
+        // Deduplicar por niño (por si quedó más de un pago cargado para el mismo niño el mismo mes,
+        // ej. por un doble clic al guardar) — mismo criterio que usa la propia página de Guardería.
+        var pagosGuardMap = {};
+        pagosGuardData.forEach(function(pg) { pagosGuardMap[pg.nino_id] = pg; });
+        Object.values(pagosGuardMap).forEach(function(pg) { ingresosGuarderia += (pg.monto || 0); });
         // Pagos de colonia con mes_pago ya registrado (flujo nuevo)
         var inscripcionesDelMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=eq.' + mesKey);
         inscripcionesDelMes.forEach(function(insc) { ingresosColonia += (insc.monto || 0); });
@@ -6936,9 +6940,11 @@ async function registrarPagoGuarderia(ninoId, nombre, cuotaFinal, modalidad, pre
   window._pagoGuardMesKey = mesKey;
   window._pagoGuardNinoId = ninoId;
   var pago = null;
+  var pagosDuplicados = [];
   try {
     var pagos = await api('GET', 'guarderia_pagos', null, '?nino_id=eq.' + ninoId + '&mes=eq.' + mesKey);
     pago = pagos[0] || null;
+    if (pagos.length > 1) pagosDuplicados = pagos.slice(1);
   } catch(e) {}
   document.getElementById('pago-guard-nino-id').value = ninoId;
   document.getElementById('pago-guard-pago-id').value = pago ? pago.id : '';
@@ -6956,14 +6962,34 @@ async function registrarPagoGuarderia(ninoId, nombre, cuotaFinal, modalidad, pre
   document.getElementById('pago-guard-metodo').value = pago ? (pago.metodo_pago||'efectivo') : 'efectivo';
   document.getElementById('pago-guard-obs').value = pago ? (pago.observacion||'') : '';
   document.getElementById('pago-guard-btn-eliminar').style.display = pago ? '' : 'none';
-  document.getElementById('pago-guard-resumen').innerHTML = esPorDia ?
+  var duplicadosHtml = '';
+  if (pagosDuplicados.length) {
+    duplicadosHtml = '<div style="background:#FCE4EC;border:1px solid #E57373;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;">' +
+      '<div style="font-weight:600;color:#C0392B;margin-bottom:6px;">⚠️ Hay ' + pagosDuplicados.length + ' pago(s) repetido(s) para este niño este mes — probablemente un doble clic al guardar. Borralos para que no se cuenten de más:</div>' +
+      pagosDuplicados.map(function(pd) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">' +
+          '<span>' + fmtGs(pd.monto) + ' · ' + (pd.fecha||'') + '</span>' +
+          '<button onclick="eliminarPagoGuarderiaDuplicado(\'' + pd.id + '\',\'' + ninoId + '\',' + JSON.stringify(nombre) + ',' + cuotaFinal + ',\'' + modalidad + '\',' + precioDia + ')" class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px;">🗑 Borrar</button>' +
+          '</div>';
+      }).join('') + '</div>';
+  }
+  document.getElementById('pago-guard-resumen').innerHTML = (esPorDia ?
     '<span style="color:var(--text-secondary);">Precio por día: </span><strong style="color:#1B8A7A;">' + fmtGs(precioDia||0) + '</strong>' +
     (pago ? ' · <span style="color:#1B8A7A;">✅ Pagado: ' + fmtGs(pago.monto) + '</span>' : ' · <span style="color:#E65100;">⏳ Pendiente</span>') :
     '<span style="color:var(--text-secondary);">Cuota a cobrar: </span>' +
     '<strong style="color:#1B8A7A;">' + fmtGs(cuotaFinal) + '</strong>' +
     (pago ? ' · <span style="color:#1B8A7A;">✅ Pagado: ' + fmtGs(pago.monto) + '</span>' : 
-      ' · <span style="color:#E65100;">⏳ Pendiente</span>');
+      ' · <span style="color:#E65100;">⏳ Pendiente</span>')) + duplicadosHtml;
   openModal('modal-pago-guarderia');
+}
+
+async function eliminarPagoGuarderiaDuplicado(pagoId, ninoId, nombre, cuotaFinal, modalidad, precioDia) {
+  if (!confirm('¿Borrar este pago repetido?')) return;
+  try {
+    await api('DELETE', 'guarderia_pagos', null, '?id=eq.' + pagoId);
+    toast('✅ Duplicado borrado');
+    registrarPagoGuarderia(ninoId, nombre, cuotaFinal, modalidad, precioDia);
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 function calcularMontoPagoGuarderiaPorDia() {
