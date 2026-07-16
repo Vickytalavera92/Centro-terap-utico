@@ -2028,7 +2028,7 @@ async function verProf(idxOrId) {
         var ECOLORS = { pendiente: '#F0A500', confirmado: '#1B8A7A', cancelado: '#C0392B', cancelado_hora: '#E8683A' };
         var est = a.estado || 'pendiente';
         var bc = ECOLORS[est] || '#F0A500';
-        var sel = '<select onchange="updateEstado(' + JSON.stringify(a.id) + ',this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid ' + bc + ';background:white;color:' + bc + ';font-weight:600;cursor:pointer;">';
+        var sel = '<select data-aid="' + a.id + '" onchange="updateEstado(this.dataset.aid,this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid ' + bc + ';background:white;color:' + bc + ';font-weight:600;cursor:pointer;">';
         sel += '<option value="pendiente"' + (est==='pendiente'?' selected':'') + '>🟡 Pendiente</option>';
         sel += '<option value="confirmado"' + (est==='confirmado'?' selected':'') + '>🟢 Asistio</option>';
         sel += '<option value="cancelado"' + (est==='cancelado'?' selected':'') + '>🔴 Cancelado</option>';
@@ -7003,7 +7003,7 @@ async function registrarPagoGuarderia(ninoId, nombre, cuotaFinal, modalidad, pre
       pagosDuplicados.map(function(pd) {
         return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">' +
           '<span>' + fmtGs(pd.monto) + ' · ' + (pd.fecha||'') + '</span>' +
-          '<button onclick="eliminarPagoGuarderiaDuplicado(\'' + pd.id + '\',\'' + ninoId + '\',' + JSON.stringify(nombre) + ',' + cuotaFinal + ',\'' + modalidad + '\',' + precioDia + ')" class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px;">🗑 Borrar</button>' +
+          '<button data-pid="' + pd.id + '" data-nid="' + ninoId + '" data-nombre="' + nombre.replace(/"/g,'') + '" data-cuota="' + cuotaFinal + '" data-modalidad="' + modalidad + '" data-preciodia="' + precioDia + '" onclick="eliminarPagoGuarderiaDuplicado(this.dataset.pid,this.dataset.nid,this.dataset.nombre,parseInt(this.dataset.cuota),this.dataset.modalidad,parseInt(this.dataset.preciodia))" class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px;">🗑 Borrar</button>' +
           '</div>';
       }).join('') + '</div>';
   }
@@ -7212,7 +7212,8 @@ async function verColonia(coloniaId, nombre) {
           '<td style="padding:8px;text-align:center;">' + (i.pagado ? '<span style="color:#1B8A7A;font-size:11px;">✅ Pagado</span>' : '<span style="color:#E65100;font-size:11px;">⏳ Pendiente</span>') + '</td>' +
           '<td style="padding:8px;"><div style="display:flex;gap:4px;">' +
           '<button data-iid="' + i.id + '" data-pagado="' + !i.pagado + '" onclick="marcarPagoColonia(this.dataset.iid,this.dataset.pagado===\'true\')" class="btn btn-ghost btn-sm">' + (i.pagado ? 'Deshacer' : '✅ Marcar pagado') + '</button>' +
-          '<button data-iid="' + i.id + '" onclick="abrirModalInscripto(' + JSON.stringify(coloniaId) + ',this.dataset.iid)" class="btn btn-ghost btn-sm">✏️</button>' +
+          '<button data-cid="' + coloniaId + '" data-iid="' + i.id + '" onclick="abrirModalInscripto(this.dataset.cid,this.dataset.iid)" class="btn btn-ghost btn-sm" title="Editar">✏️</button>' +
+          '<button data-iid="' + i.id + '" data-cid="' + coloniaId + '" data-cnombre="' + nombre.replace(/"/g,'') + '" onclick="eliminarInscripto(this.dataset.iid,this.dataset.cid,this.dataset.cnombre)" class="btn btn-ghost btn-sm" title="Eliminar" style="color:#C0392B;">🗑</button>' +
           '</div></td></tr>';
       });
       html += '</tbody></table>';
@@ -7297,6 +7298,15 @@ async function guardarInscripto() {
     toast('✅ Inscripción guardada');
     var colonias = await api('GET', 'colonias', null, '?id=eq.' + coloniaId + '&limit=1');
     verColonia(coloniaId, colonias[0] ? colonias[0].nombre : 'Colonia');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarInscripto(inscId, coloniaId, nombreColonia) {
+  if (!confirm('¿Eliminar esta inscripción de colonia? No se puede deshacer.')) return;
+  try {
+    await api('DELETE', 'colonia_inscripciones', null, '?id=eq.' + inscId);
+    toast('Inscripción eliminada');
+    verColonia(coloniaId, nombreColonia);
   } catch(e) { alert('Error: ' + e.message); }
 }
 
