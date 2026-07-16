@@ -4061,17 +4061,14 @@ async function loadAdmin() {
         '<div style="padding:10px;background:#E8F6F4;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">💰 Ingresos terapias</div>' +
           '<div style="font-size:15px;font-weight:700;color:#1B8A7A;">' + fmtGs(totalGenerado) + '</div>' +
-          '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Cobrado real: ' + fmtGs(cobradoTerapiasReal) + (totalGenerado > cobradoTerapiasReal ? ' (falta ' + fmtGs(totalGenerado - cobradoTerapiasReal) + ')' : '') + '</div>' +
         '</div>' +
         '<div style="padding:10px;background:#E3F2FD;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🧒 Ingresos guardería</div>' +
           '<div style="font-size:15px;font-weight:700;color:#1565C0;">' + fmtGs(ingresosGuarderia) + '</div>' +
-          (esperadoGuarderia > ingresosGuarderia ? '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Falta cobrar ' + fmtGs(esperadoGuarderia - ingresosGuarderia) + '</div>' : '') +
         '</div>' +
         '<div style="padding:10px;background:#E0F2F1;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🏕️ Ingresos colonia</div>' +
           '<div style="font-size:15px;font-weight:700;color:#00695C;">' + fmtGs(ingresosColonia) + '</div>' +
-          (esperadoColonia > ingresosColonia ? '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Falta cobrar ' + fmtGs(esperadoColonia - ingresosColonia) + '</div>' : '') +
         '</div>' +
         '<div style="padding:10px;background:#FFF3E0;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">👩‍⚕️ Honorarios prof.</div>' +
@@ -4089,7 +4086,26 @@ async function loadAdmin() {
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🏦 Ganancia neta CREA</div>' +
           '<div style="font-size:17px;font-weight:700;color:' + (balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(balanceNeto) + '</div>' +
         '</div></div>';
-      // META FINANCIERA
+
+      // COBRADO VS PROYECTADO — para rubros donde algunas familias pagan más tarde en el mes
+      function barraProgreso(label, cobrado, proyectado, color) {
+        var pct = proyectado > 0 ? Math.min(100, Math.round((cobrado / proyectado) * 100)) : 100;
+        return '<div style="margin-bottom:10px;">' +
+          '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">' +
+            '<span style="color:var(--text-secondary);">' + label + '</span>' +
+            '<span style="font-weight:600;">' + fmtGs(cobrado) + ' de ' + fmtGs(proyectado) + ' (' + pct + '%)</span>' +
+          '</div>' +
+          '<div style="background:var(--bg);border-radius:6px;height:8px;overflow:hidden;">' +
+            '<div style="background:' + color + ';height:100%;width:' + pct + '%;"></div>' +
+          '</div></div>';
+      }
+      html += '<div class="card" style="margin-top:12px;">' +
+        '<div class="section-title mb-12" style="font-size:13px;">📊 Cobrado vs proyectado del mes</div>' +
+        barraProgreso('💰 Terapias', cobradoTerapiasReal, totalGenerado, '#1B8A7A') +
+        barraProgreso('🧒 Guardería', ingresosGuarderia, esperadoGuarderia, '#1565C0') +
+        (esperadoColonia > 0 ? barraProgreso('🏕️ Colonia', ingresosColonia, esperadoColonia, '#00695C') : '') +
+        '<div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">Algunas familias pagan a fin de mes, así que esto se va completando con los días.</div>' +
+        '</div>';
       var metaKey = 'meta_' + _adminAnio + '_' + String(_adminMes).padStart(2,'0');
       var metaMonto = 0;
       try { var lsVal = localStorage.getItem(metaKey); metaMonto = lsVal ? (parseInt(lsVal)||0) : 0; } catch(e2) {}
