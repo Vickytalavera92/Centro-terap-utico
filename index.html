@@ -4054,14 +4054,14 @@ async function loadAdmin() {
         });
       } catch(eSuel) {}
       
-      var balanceNeto = cobradoTerapiasReal + ingresosGuarderia + ingresosColonia - totalProfs - gastosTotales - sueldosTotales;
+      var balanceNeto = totalGenerado + ingresosGuarderia + ingresosColonia - totalProfs - gastosTotales - sueldosTotales;
       html += '<div class="card" style="margin-top:16px;">' +
         '<div class="section-title mb-12">⚖️ Balance General del mes</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">' +
         '<div style="padding:10px;background:#E8F6F4;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">💰 Ingresos terapias</div>' +
-          '<div style="font-size:15px;font-weight:700;color:#1B8A7A;">' + fmtGs(cobradoTerapiasReal) + '</div>' +
-          (totalGenerado > cobradoTerapiasReal ? '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Proyectado: ' + fmtGs(totalGenerado) + ' (falta ' + fmtGs(totalGenerado - cobradoTerapiasReal) + ')</div>' : '') +
+          '<div style="font-size:15px;font-weight:700;color:#1B8A7A;">' + fmtGs(totalGenerado) + '</div>' +
+          '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Cobrado real: ' + fmtGs(cobradoTerapiasReal) + (totalGenerado > cobradoTerapiasReal ? ' (falta ' + fmtGs(totalGenerado - cobradoTerapiasReal) + ')' : '') + '</div>' +
         '</div>' +
         '<div style="padding:10px;background:#E3F2FD;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🧒 Ingresos guardería</div>' +
@@ -4100,7 +4100,7 @@ async function loadAdmin() {
       if (metaMonto > 0) {
         var pct = Math.min(100, Math.round((balanceNeto / metaMonto) * 100));
         var barColor = pct >= 100 ? '#1B8A7A' : pct >= 75 ? '#F0A500' : '#C0392B';
-        html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Meta sobre ganancia neta CREA (ingresos cobrados: terapias + guardería + colonia − honorarios − gastos − sueldos)</div>' +
+        html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Meta sobre ganancia neta CREA (terapias según sesiones dadas + guardería/colonia cobrado − honorarios − gastos − sueldos)</div>' +
           '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
           '<span>Ganancia: ' + fmtGs(balanceNeto) + ' de meta ' + fmtGs(metaMonto) + '</span>' +
           '<span style="font-weight:700;color:' + barColor + ';">' + pct + '%</span></div>' +
