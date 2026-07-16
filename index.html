@@ -1401,7 +1401,7 @@ async function login() {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
     // Hide static nav items (don't remove - they stay in DOM)
-    ['nav-instrumentos'].forEach(function(id) {
+    ['nav-instrumentos', 'nav-guarderia', 'nav-sueldos'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -1486,7 +1486,7 @@ function logout() {
     if (el && el.parentNode) el.parentNode.removeChild(el);
   });
   // Hide static nav items
-  ['nav-instrumentos'].forEach(function(id) {
+  ['nav-instrumentos', 'nav-guarderia', 'nav-sueldos'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -6821,6 +6821,10 @@ function cambiarMesGuarderia(dir) {
 
 async function loadGuarderia() {
   var el = document.getElementById('guarderia-content');
+  if (CU.rol === 'profesional') {
+    el.innerHTML = '<div class="empty-state">No tenés acceso a esta sección.</div>';
+    return;
+  }
   el.innerHTML = '<div class="loading">Cargando...</div>';
   var mesKey = _guarderiaAnio + '_' + String(_guarderiaMes).padStart(2,'0');
   try {
@@ -7202,6 +7206,10 @@ async function guardarNino() {
 }
 
 async function verColonia(coloniaId, nombre) {
+  if (CU.rol === 'profesional') {
+    document.getElementById('guarderia-content').innerHTML = '<div class="empty-state">No tenés acceso a esta sección.</div>';
+    return;
+  }
   document.getElementById('guarderia-content').innerHTML = '<div class="loading">Cargando...</div>';
   try {
     var results = await Promise.all([
