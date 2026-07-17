@@ -240,6 +240,15 @@ input[type="time"] { -webkit-appearance: none; }
   .stat-num { font-size: 15px !important; }
   .grid-4 { grid-template-columns: 1fr 1fr !important; }
 }
+
+/* Cualquier dispositivo táctil (celular O tablet), sin importar el ancho de pantalla:
+   los botones necesitan más alto para tocar cómodo con el dedo, aunque el layout
+   general ya sea el de escritorio (como pasa con un iPad en el punto de corte de 768px). */
+@media (hover: none) and (pointer: coarse) {
+  button { min-height: 34px !important; }
+  .btn-sm { padding: 8px 10px !important; min-height: 36px !important; }
+  .btn-ghost.btn-sm { min-width: 36px !important; padding: 8px !important; }
+}
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -3968,8 +3977,8 @@ async function loadAdmin() {
         (pb.adelanto > 0 ? '<button onclick="borrarAnticipoProf(\'' + p.id + '\')" class="btn btn-ghost btn-sm" title="Borrar anticipo" style="color:#C0392B;padding:6px 8px;">🗑</button>' : '') +
         '</div>' +
         '</div>' +
-        '<div style="display:flex;gap:8px;">' +
-        (pb.pagado ? 
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+        (pb.pagado ?
           '<button class="btn btn-secondary btn-sm" data-pid="' + p.id + '" onclick="togglePago(this,false)">↩ Marcar pendiente</button>' :
           '<button class="btn btn-primary btn-sm" data-pid="' + p.id + '" onclick="togglePago(this,true)">✅ Marcar pagado</button>'
         ) +
@@ -4025,17 +4034,18 @@ async function loadAdmin() {
         // Respaldo: pagos marcados ANTES de este arreglo, que no tienen mes_pago guardado.
         // Se ubican por la fecha de inicio de la colonia (mejor esfuerzo).
         var inscripcionesSinMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=is.null');
-        var coloniasDelMes = await api('GET', 'colonias', null, '?fecha_inicio=gte.' + rng.first + '&fecha_inicio=lte.' + rng.last);
-        var coloniaIdsDelMes = coloniasDelMes.map(function(c) { return c.id; });
+        var coloniasActivasBal = await api('GET', 'colonias', null, '?activo=eq.true');
+        var coloniaIdsActivas = coloniasActivasBal.map(function(c) { return c.id; });
         if (inscripcionesSinMes.length) {
           inscripcionesSinMes.forEach(function(insc) {
-            if (coloniaIdsDelMes.indexOf(insc.colonia_id) !== -1) ingresosColonia += (insc.monto || 0);
+            if (coloniaIdsActivas.indexOf(insc.colonia_id) !== -1) ingresosColonia += (insc.monto || 0);
           });
         }
-        // Total ESPERADO de colonia este mes: todas las inscripciones de colonias que empiezan este mes,
-        // pagadas o no.
-        if (coloniaIdsDelMes.length) {
-          var todasInscripcionesBal = await api('GET', 'colonia_inscripciones', null, '?colonia_id=in.(' + coloniaIdsDelMes.join(',') + ')');
+        // Total ESPERADO de colonia: todas las inscripciones de colonias activas, pagadas o no.
+        // No se limita al mes calendario en que "empieza" la colonia (esa fecha no siempre cae
+        // justo en el mes que se está mirando), así siempre se ve la proyección completa.
+        if (coloniaIdsActivas.length) {
+          var todasInscripcionesBal = await api('GET', 'colonia_inscripciones', null, '?colonia_id=in.(' + coloniaIdsActivas.join(',') + ')');
           todasInscripcionesBal.forEach(function(insc) { esperadoColonia += (insc.monto || 0); });
         }
       } catch(eGuard) {}
