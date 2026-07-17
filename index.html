@@ -4768,6 +4768,30 @@ async function loadGastos() {
     if (!gastos.length) {
       html += '<div class="card"><div class="empty-state">No hay gastos registrados para este mes.<br>Hacé clic en "+ Nuevo gasto" para agregar.</div></div>';
     } else {
+      // Detectar posibles duplicados: mismo tipo + categoría + descripción + monto este mes
+      // (suele pasar por un doble clic al guardar)
+      var gastosClaveMap = {};
+      gastos.forEach(function(g) {
+        var clave = g.tipo + '|' + g.categoria + '|' + (g.descripcion||'') + '|' + g.monto;
+        if (!gastosClaveMap[clave]) gastosClaveMap[clave] = [];
+        gastosClaveMap[clave].push(g);
+      });
+      var gruposDuplicados = Object.values(gastosClaveMap).filter(function(grupo) { return grupo.length > 1; });
+      if (gruposDuplicados.length) {
+        html += '<div class="card" style="border:2px solid #E57373;background:#FCE4EC;margin-bottom:16px;">' +
+          '<div style="font-weight:600;color:#C0392B;margin-bottom:8px;">⚠️ Posibles gastos repetidos este mes</div>' +
+          '<div style="font-size:12px;color:#6d1f1f;margin-bottom:10px;">Encontré ' + gruposDuplicados.length + ' gasto(s) que aparecen más de una vez con la misma categoría, descripción y monto — puede ser un doble clic al guardar. Revisalos y borrá el que sobre:</div>' +
+          gruposDuplicados.map(function(grupo) {
+            return '<div style="background:white;border-radius:8px;padding:8px 10px;margin-bottom:6px;">' +
+              '<div style="font-size:12px;font-weight:600;">' + grupo[0].categoria + (grupo[0].descripcion ? ' — ' + grupo[0].descripcion : '') + ' · ' + fmtGs(grupo[0].monto) + ' × ' + grupo.length + '</div>' +
+              grupo.map(function(g) {
+                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px;color:var(--text-secondary);">' +
+                  '<span>' + (g.fecha||'') + '</span>' +
+                  '<button data-gid="' + g.id + '" onclick="eliminarGastoDuplicado(this.dataset.gid)" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;">🗑 Borrar este</button>' +
+                  '</div>';
+              }).join('') + '</div>';
+          }).join('') + '</div>';
+      }
       // Group by tipo
 
       
@@ -4853,6 +4877,8 @@ async function editarGasto(id) {
 }
 
 async function guardarGasto() {
+  var btn = document.querySelector('#modal-gasto button.btn-primary');
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = 'Guardando...'; }
   var id = document.getElementById('gasto-id').value;
   var mesKey = window._gastosCurrentMes || (_gastosAnio + '_' + String(_gastosMes).padStart(2,'0'));
   var data = {
@@ -4873,6 +4899,16 @@ async function guardarGasto() {
     }
     closeModal('modal-gasto');
     toast('✅ Gasto guardado');
+    loadGastos();
+  } catch(e) { alert('Error: ' + e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; } }
+}
+
+async function eliminarGastoDuplicado(gastoId) {
+  if (!confirm('¿Borrar este gasto repetido?')) return;
+  try {
+    await api('DELETE', 'gastos', null, '?id=eq.' + gastoId);
+    toast('✅ Gasto duplicado borrado');
     loadGastos();
   } catch(e) { alert('Error: ' + e.message); }
 }
