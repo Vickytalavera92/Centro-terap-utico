@@ -195,7 +195,8 @@ input[type="time"] { -webkit-appearance: none; }
   .section-title { font-size: 13px !important; }
 
   /* ---- TABLAS ---- */
-  .pac-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; display: block !important; }
+  #pac-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.pac-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; display: block !important; }
   .pac-table { font-size: 11px !important; min-width: 480px !important; }
   .pac-table th, .pac-table td { padding: 5px 6px !important; }
 
@@ -226,7 +227,11 @@ input[type="time"] { -webkit-appearance: none; }
   .tab { display: inline-block !important; font-size: 11px !important; padding: 8px 10px !important; flex-shrink: 0 !important; }
 
   /* ---- BUTTONS ---- */
-  .btn-sm { padding: 5px 8px !important; font-size: 11px !important; }
+  /* Todo botón nativo (incluidos los con estilo en línea repartidos por el código)
+     recibe una altura mínima táctil decente en el celular. */
+  button { min-height: 34px !important; }
+  .btn-sm { padding: 8px 10px !important; font-size: 12px !important; min-height: 36px !important; }
+  .btn-ghost.btn-sm { min-width: 36px !important; padding: 8px !important; }
   .flex { flex-wrap: wrap !important; gap: 6px !important; }
 }
 
@@ -6887,7 +6892,8 @@ async function loadGuarderia() {
     // Ninos table
     var canSeeMontos = true; // All roles see individual amounts
     html += '<div class="card" style="margin-bottom:16px;"><div class="section-title mb-12">📋 Lista de niños</div>' +
-      '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:var(--bg);">' +
+      '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">' +
+      '<table style="width:100%;border-collapse:collapse;min-width:560px;"><thead><tr style="background:var(--bg);">' +
       '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Nombre / Responsable</th>' +
       '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Turno</th>' +
       (canSeeMontos ? '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);">Cuota base</th>' +
@@ -6939,7 +6945,7 @@ async function loadGuarderia() {
         '</div></td></tr>';
     });
 
-    html += '</tbody></table></div>';
+    html += '</tbody></table></div></div>';
 
     // Colonias section
     if (colonias.length) {
