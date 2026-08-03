@@ -1204,6 +1204,20 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL DETALLE DE MEZCLA -->
+<div class="modal-overlay" id="modal-detalle-mezcla">
+  <div class="modal" style="width:480px;max-height:80vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3 id="modal-detalle-mezcla-title">Detalle</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-detalle-mezcla')">✕</button>
+    </div>
+    <div id="modal-detalle-mezcla-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-detalle-mezcla')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR PACIENTE -->
 <div class="modal-overlay" id="modal-edit-pac">
   <div class="modal" style="max-height:90vh;overflow-y:auto;">
@@ -3854,7 +3868,7 @@ async function loadAdmin() {
       totalCrea += ganCrea;
 
       if (profBreakdown[t.profesional_id]) {
-        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0, minPrice: valorTotal, maxPrice: valorTotal, pagoProfConfigurado: pagoProfSinPaciente, minPagoProf: pagoProf, maxPagoProf: pagoProf };
+        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0, minPrice: valorTotal, maxPrice: valorTotal, pagoProfConfigurado: pagoProfSinPaciente, minPagoProf: pagoProf, maxPagoProf: pagoProf, porPaciente: {} };
         profBreakdown[t.profesional_id].tipos[tipo].cant++;
         if (t.estado === 'cancelado_hora') profBreakdown[t.profesional_id].tipos[tipo].cancHora++;
         profBreakdown[t.profesional_id].tipos[tipo].totalGen += valorTotal;
@@ -3863,6 +3877,16 @@ async function loadAdmin() {
         if (valorTotal > profBreakdown[t.profesional_id].tipos[tipo].maxPrice) profBreakdown[t.profesional_id].tipos[tipo].maxPrice = valorTotal;
         if (pagoProf < profBreakdown[t.profesional_id].tipos[tipo].minPagoProf) profBreakdown[t.profesional_id].tipos[tipo].minPagoProf = pagoProf;
         if (pagoProf > profBreakdown[t.profesional_id].tipos[tipo].maxPagoProf) profBreakdown[t.profesional_id].tipos[tipo].maxPagoProf = pagoProf;
+        // Desglose por paciente, para poder mostrar el detalle si hay mezcla de precios
+        var claveDesglose = t.paciente_id || 'sin_paciente_' + t.id;
+        if (!profBreakdown[t.profesional_id].tipos[tipo].porPaciente[claveDesglose]) {
+          var pacDesglose = pacientesMap[t.paciente_id];
+          profBreakdown[t.profesional_id].tipos[tipo].porPaciente[claveDesglose] = {
+            nombre: pacDesglose ? (pacDesglose.nombre + ' ' + pacDesglose.apellido) : (t.paciente_nombre || 'Turno libre'),
+            cant: 0, valorTotal: valorTotal, pagoProf: pagoProf
+          };
+        }
+        profBreakdown[t.profesional_id].tipos[tipo].porPaciente[claveDesglose].cant++;
         profBreakdown[t.profesional_id].totalGen += valorTotal;
         profBreakdown[t.profesional_id].totalProf += pagoProf;
         profBreakdown[t.profesional_id].totalCrea += ganCrea;
@@ -3917,14 +3941,17 @@ async function loadAdmin() {
         var esperadoSinMezcla = unitGen * t.cant;
         var hayDiferenciaVsBase = t.totalGen !== esperadoSinMezcla;
         var hayMezclaReal = t.minPrice !== t.maxPrice;
+        var hayMezclaPago = t.minPagoProf !== t.maxPagoProf;
+        window._detalleMezcla = window._detalleMezcla || {};
+        var claveMezcla = p.id + '__' + tipo;
+        if (hayMezclaReal || hayMezclaPago) window._detalleMezcla[claveMezcla] = { nombreProf: p.nombre, tipoLabel: TIPO_LABELS[tipo]||tipo, porPaciente: t.porPaciente };
         var avisoPrecio = '';
         if (hayMezclaReal) {
-          avisoPrecio = '<div title="Dentro de este tipo, distintos pacientes pagan distinto — algunos tienen tarifa personalizada (valor_sesion propio) en su ficha." style="font-size:9px;color:#E65100;cursor:help;">⚠ mezcla: ' + fmtGs(t.minPrice) + ' – ' + fmtGs(t.maxPrice) + '</div>';
+          avisoPrecio = '<div data-clave="' + claveMezcla + '" onclick="verDetalleMezcla(this.dataset.clave)" title="Clic para ver qué paciente tiene la tarifa distinta" style="font-size:9px;color:#E65100;cursor:pointer;text-decoration:underline;">⚠ mezcla: ' + fmtGs(t.minPrice) + ' – ' + fmtGs(t.maxPrice) + '</div>';
         } else if (hayDiferenciaVsBase) {
           avisoPrecio = '<div title="Todos los turnos de este tipo tienen el mismo precio, pero distinto a la tarifa base configurada — el/los paciente(s) tienen un valor_sesion propio en su ficha." style="font-size:9px;color:#1565C0;cursor:help;">ℹ todos a ' + fmtGs(t.minPrice) + '</div>';
         }
-        var hayMezclaPago = t.minPagoProf !== t.maxPagoProf;
-        var avisoPago = hayMezclaPago ? '<div title="Al menos un paciente tiene un pago a la profesional personalizado (pago_profesional_custom) distinto a la tarifa configurada." style="font-size:9px;color:#E65100;cursor:help;">⚠ mezcla: ' + fmtGs(t.minPagoProf) + ' – ' + fmtGs(t.maxPagoProf) + '</div>' : '';
+        var avisoPago = hayMezclaPago ? '<div data-clave="' + claveMezcla + '" onclick="verDetalleMezcla(this.dataset.clave)" title="Clic para ver qué paciente tiene el pago distinto" style="font-size:9px;color:#E65100;cursor:pointer;text-decoration:underline;">⚠ mezcla: ' + fmtGs(t.minPagoProf) + ' – ' + fmtGs(t.maxPagoProf) + '</div>' : '';
         html += '<tr>' +
           '<td style="padding:8px 10px;border-bottom:1px solid var(--border);">' +
           '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:6px;"></span>' +
@@ -4233,6 +4260,32 @@ function abrirMisTarifas() {
     }
   };
   configProfTarifas(fakeEl);
+}
+
+function verDetalleMezcla(clave) {
+  var d = window._detalleMezcla && window._detalleMezcla[clave];
+  if (!d) return;
+  document.getElementById('modal-detalle-mezcla-title').textContent = d.nombreProf + ' — ' + d.tipoLabel;
+  var pacientesArr = Object.values(d.porPaciente).sort(function(a,b) { return b.valorTotal - a.valorTotal; });
+  var html = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Estos son los pacientes agendados como "' + d.tipoLabel + '" con esta profesional, y lo que paga/cobra cada uno. El que tenga un valor distinto a los demás es el que está generando la mezcla:</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+    '<thead><tr style="background:var(--bg);">' +
+    '<th style="padding:6px 8px;text-align:left;">Paciente</th>' +
+    '<th style="padding:6px 8px;text-align:center;">Cant.</th>' +
+    '<th style="padding:6px 8px;text-align:right;">Tarifa familia</th>' +
+    '<th style="padding:6px 8px;text-align:right;">Pago prof.</th>' +
+    '</tr></thead><tbody>';
+  pacientesArr.forEach(function(p) {
+    html += '<tr style="border-bottom:1px solid var(--border);">' +
+      '<td style="padding:6px 8px;">' + p.nombre + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;">' + p.cant + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;">' + fmtGs(p.valorTotal) + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;">' + fmtGs(p.pagoProf) + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('modal-detalle-mezcla-body').innerHTML = html;
+  openModal('modal-detalle-mezcla');
 }
 
 async function configProfTarifas(el) {
