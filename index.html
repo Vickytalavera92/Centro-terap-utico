@@ -1251,8 +1251,22 @@ input[type="time"] { -webkit-appearance: none; }
     <!-- Campos administrativos - SOLO directora/admin/recepcionista -->
     <div id="edit-pac-admin-fields" style="display:none;">
       <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-bottom:10px;padding-top:8px;border-top:1px solid var(--border);">Datos administrativos</div>
-      <div class="form-group"><label>💰 Precio sesión personalizado (Gs.)</label><input type="number" id="edit-pac-valor" placeholder="Dejar vacío para precio estándar"></div>
-      <div class="form-group"><label>💸 Pago profesional personalizado (Gs.)</label><input type="number" id="edit-pac-pago-prof" placeholder="Ej: 60000"></div>
+      <div class="form-group"><label>💰 Precio sesión personalizado (Gs.)</label><input type="number" id="edit-pac-valor" placeholder="Dejar vacío para precio estándar" oninput="toggleTiposPrecioWrap()"></div>
+      <div class="form-group"><label>💸 Pago profesional personalizado (Gs.)</label><input type="number" id="edit-pac-pago-prof" placeholder="Ej: 60000" oninput="toggleTiposPrecioWrap()"></div>
+      <div class="form-group" id="edit-pac-tipos-wrap" style="display:none;">
+        <label>¿A qué tipos de turno aplica este precio personalizado?</label>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Por defecto aplica a todos. Destildá los que querés que siempre cobren la tarifa estándar (ej: Reunión de colegio).</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="sesion" checked style="width:auto;"> Sesión normal</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="preferencial" checked style="width:auto;"> Preferencial</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="devolucion" checked style="width:auto;"> Devolución</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="devolucion_compartida" checked style="width:auto;"> Devolución compartida</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="captada" checked style="width:auto;"> Entrevista captada</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="colegio" checked style="width:auto;"> Reunión de colegio</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="compartida" checked style="width:auto;"> Reunión compartida</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="reunion_padres" checked style="width:auto;"> Reunión con padres</label>
+        </div>
+      </div>
       <div class="form-group"><label>👤 Responsable (para factura)</label><input id="edit-pac-responsable" placeholder="Nombre del padre/madre"></div>
       <div class="form-group"><label>🪪 RUC / CI del responsable</label><input id="edit-pac-ruc" placeholder="Ej: 1048676-3"></div>
       <div class="form-group"><label>🔗 Link Google Drive</label><input id="edit-pac-drive" placeholder="https://drive.google.com/..."></div>
@@ -1718,11 +1732,12 @@ async function loadDashboard() {
       var tipo = t.tipo || 'sesion';
       var valorTotal = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
       var cp = pacMapDash[t.paciente_id];
-      if (cp && cp.valor_sesion) valorTotal = cp.valor_sesion;
+      var aplicaPrecioPropioDash = !cp || !cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1;
+      if (cp && cp.valor_sesion && aplicaPrecioPropioDash) valorTotal = cp.valor_sesion;
       facturacionMes += valorTotal;
       var profTar = profTarifas.find(function(pt) { return pt.profesional_id === t.profesional_id && pt.tipo === tipo; });
       var pago = profTar ? profTar.pago_profesional : (DEFAULT_PAGO_DASH[tipo] || 130000);
-      if (cp && cp.pago_profesional_custom) pago = cp.pago_profesional_custom;
+      if (cp && cp.pago_profesional_custom && aplicaPrecioPropioDash) pago = cp.pago_profesional_custom;
       honorariosMes += pago;
     });
     var gananciaMes = facturacionMes - honorariosMes;
@@ -2729,10 +2744,11 @@ async function loadAgendaMes() {
       pagables.forEach(function(t) {
         var tipo = t.tipo || 'sesion';
         if (!tipoData[tipo]) tipoData[tipo] = { cant: 0, totalGen: 0, totalProf: 0 };
-        // Use custom patient price if set
+        // Use custom patient price if set (salvo que el paciente restrinja a qué tipos aplica)
         var cp = pacMapMes[t.paciente_id];
-        var unitGen = (cp && cp.valor_sesion) ? cp.valor_sesion : (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000);
-        var unitProf = (cp && cp.pago_profesional_custom) ? cp.pago_profesional_custom : 
+        var aplicaPrecioPropioMes = !cp || !cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1;
+        var unitGen = (cp && cp.valor_sesion && aplicaPrecioPropioMes) ? cp.valor_sesion : (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000);
+        var unitProf = (cp && cp.pago_profesional_custom && aplicaPrecioPropioMes) ? cp.pago_profesional_custom : 
                        (profTarLocalMap[tipo] !== undefined ? profTarLocalMap[tipo] : (DEFAULT_PAGO_MES[tipo] || 130000));
         tipoData[tipo].cant++;
         tipoData[tipo].totalGen += unitGen;
@@ -3118,6 +3134,13 @@ async function openEditPac(pacId) {
     document.getElementById('edit-pac-responsable').value = p.responsable_nombre || '';
     document.getElementById('edit-pac-ruc').value = p.ruc || '';
     document.getElementById('edit-pac-pago-prof').value = p.pago_profesional_custom || '';
+    // Tipos a los que aplica el precio personalizado: si el paciente no tiene la lista guardada
+    // (pacientes ya existentes), por defecto quedan TODOS tildados para no cambiar el comportamiento actual.
+    var tiposGuardados = p.tipos_precio_personalizado;
+    document.querySelectorAll('.edit-pac-tipo-check').forEach(function(chk) {
+      chk.checked = tiposGuardados ? tiposGuardados.indexOf(chk.value) !== -1 : true;
+    });
+    toggleTiposPrecioWrap();
     // Campos administrativos (precio personalizado, pago profesional, responsable, RUC, drive) - solo directora/administrador/recepcionista
     var isAdminRolePac = (CU.rol === 'directora' || CU.rol === 'administrador' || CU.rol === 'recepcionista');
     document.getElementById('edit-pac-admin-fields').style.display = isAdminRolePac ? '' : 'none';
@@ -3143,12 +3166,25 @@ async function eliminarPac(pacId) {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
+function toggleTiposPrecioWrap() {
+  var valorSesion = document.getElementById('edit-pac-valor').value;
+  var pagoProfCustom = document.getElementById('edit-pac-pago-prof').value;
+  document.getElementById('edit-pac-tipos-wrap').style.display = (valorSesion || pagoProfCustom) ? '' : 'none';
+}
+
 async function saveEditPac() {
   var id = document.getElementById('edit-pac-id').value;
   if (!id) { alert('Error: no se encontró el ID del paciente'); return; }
   try {
     var valorSesion = document.getElementById('edit-pac-valor') ? document.getElementById('edit-pac-valor').value : '';
     var pagoProfCustom = document.getElementById('edit-pac-pago-prof') ? document.getElementById('edit-pac-pago-prof').value : '';
+    var tipoChecks = document.querySelectorAll('.edit-pac-tipo-check');
+    var tiposMarcados = [];
+    var tiposDesmarcados = 0;
+    tipoChecks.forEach(function(chk) { if (chk.checked) tiposMarcados.push(chk.value); else tiposDesmarcados++; });
+    // Si están todos tildados (comportamiento por defecto), guardamos null para no complicar el dato.
+    // Si destildó alguno, guardamos la lista exacta de a qué tipos sí aplica.
+    var tiposPrecioPersonalizado = tiposDesmarcados > 0 ? tiposMarcados : null;
     await api('PATCH', 'pacientes', {
       nombre: document.getElementById('edit-pac-nombre').value.trim(),
       apellido: document.getElementById('edit-pac-apellido').value.trim(),
@@ -3163,7 +3199,8 @@ async function saveEditPac() {
       responsable_nombre: document.getElementById('edit-pac-responsable').value || null,
       ruc: document.getElementById('edit-pac-ruc').value || null,
       valor_sesion: valorSesion ? parseInt(valorSesion.replace(/[^0-9]/g,'')) : null,
-      pago_profesional_custom: pagoProfCustom ? parseInt(pagoProfCustom.replace(/[^0-9]/g,'')) : null
+      pago_profesional_custom: pagoProfCustom ? parseInt(pagoProfCustom.replace(/[^0-9]/g,'')) : null,
+      tipos_precio_personalizado: tiposPrecioPersonalizado
     }, '?id=eq.' + id);
     // Update asignaciones - delete all and re-insert
     await api('DELETE', 'asignaciones', null, '?paciente_id=eq.' + id);
@@ -3855,10 +3892,15 @@ async function loadAdmin() {
       // Custom patient price: valor_sesion changes what patient pays (affects CREA income)
       // pago_profesional_custom overrides what prof earns
       // valor_sesion alone does NOT change prof pago - prof always earns their fixed rate
+      // Si el paciente tiene tipos_precio_personalizado configurado, el precio propio solo
+      // se aplica a esos tipos puntuales (ej: sesión sí, reunión de colegio no).
       if (pacientesMap[t.paciente_id]) {
         var cp = pacientesMap[t.paciente_id];
-        if (cp.valor_sesion) valorTotal = cp.valor_sesion;
-        if (cp.pago_profesional_custom) pagoProf = cp.pago_profesional_custom;
+        var aplicaPrecioPropio = !cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1;
+        if (aplicaPrecioPropio) {
+          if (cp.valor_sesion) valorTotal = cp.valor_sesion;
+          if (cp.pago_profesional_custom) pagoProf = cp.pago_profesional_custom;
+        }
         // No ratio recalculation - prof pago stays as per profTarifaMap or DEFAULT_PAGO
       }
       
@@ -3883,6 +3925,7 @@ async function loadAdmin() {
           var pacDesglose = pacientesMap[t.paciente_id];
           profBreakdown[t.profesional_id].tipos[tipo].porPaciente[claveDesglose] = {
             nombre: pacDesglose ? (pacDesglose.nombre + ' ' + pacDesglose.apellido) : (t.paciente_nombre || 'Turno libre'),
+            pacienteId: t.paciente_id || null,
             cant: 0, valorTotal: valorTotal, pagoProf: pagoProf
           };
         }
@@ -3944,12 +3987,12 @@ async function loadAdmin() {
         var hayMezclaPago = t.minPagoProf !== t.maxPagoProf;
         window._detalleMezcla = window._detalleMezcla || {};
         var claveMezcla = p.id + '__' + tipo;
-        if (hayMezclaReal || hayMezclaPago) window._detalleMezcla[claveMezcla] = { nombreProf: p.nombre, tipoLabel: TIPO_LABELS[tipo]||tipo, porPaciente: t.porPaciente };
+        if (hayMezclaReal || hayMezclaPago || hayDiferenciaVsBase) window._detalleMezcla[claveMezcla] = { nombreProf: p.nombre, tipoLabel: TIPO_LABELS[tipo]||tipo, porPaciente: t.porPaciente };
         var avisoPrecio = '';
         if (hayMezclaReal) {
           avisoPrecio = '<div data-clave="' + claveMezcla + '" onclick="verDetalleMezcla(this.dataset.clave)" title="Clic para ver qué paciente tiene la tarifa distinta" style="font-size:9px;color:#E65100;cursor:pointer;text-decoration:underline;">⚠ mezcla: ' + fmtGs(t.minPrice) + ' – ' + fmtGs(t.maxPrice) + '</div>';
         } else if (hayDiferenciaVsBase) {
-          avisoPrecio = '<div title="Todos los turnos de este tipo tienen el mismo precio, pero distinto a la tarifa base configurada — el/los paciente(s) tienen un valor_sesion propio en su ficha." style="font-size:9px;color:#1565C0;cursor:help;">ℹ todos a ' + fmtGs(t.minPrice) + '</div>';
+          avisoPrecio = '<div data-clave="' + claveMezcla + '" onclick="verDetalleMezcla(this.dataset.clave)" title="Clic para ver qué paciente tiene un precio distinto a la tarifa base" style="font-size:9px;color:#1565C0;cursor:pointer;text-decoration:underline;">ℹ todos a ' + fmtGs(t.minPrice) + '</div>';
         }
         var avisoPago = hayMezclaPago ? '<div data-clave="' + claveMezcla + '" onclick="verDetalleMezcla(this.dataset.clave)" title="Clic para ver qué paciente tiene el pago distinto" style="font-size:9px;color:#E65100;cursor:pointer;text-decoration:underline;">⚠ mezcla: ' + fmtGs(t.minPagoProf) + ' – ' + fmtGs(t.maxPagoProf) + '</div>' : '';
         html += '<tr>' +
@@ -3997,7 +4040,8 @@ async function loadAdmin() {
           var pac2 = pacientesMap[t2.paciente_id];
           if (!pac2) return '';
           var tipo2 = t2.tipo || 'sesion';
-          var val2 = pac2.valor_sesion || tarifaMap[tipo2] || TARIFA_FALLBACK[tipo2] || 220000;
+          var aplicaPrecioPropio2 = !pac2.tipos_precio_personalizado || pac2.tipos_precio_personalizado.indexOf(tipo2) !== -1;
+          var val2 = (pac2.valor_sesion && aplicaPrecioPropio2) ? pac2.valor_sesion : (tarifaMap[tipo2] || TARIFA_FALLBACK[tipo2] || 220000);
           return '<tr><td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;">' + (pac2.nombre||'') + ' ' + (pac2.apellido||'') + '</td>' +
             '<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-secondary);">' + (pac2.responsable_nombre||'—') + '</td>' +
             '<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-secondary);">' + (pac2.ruc||'—') + '</td>' +
@@ -4267,13 +4311,14 @@ function verDetalleMezcla(clave) {
   if (!d) return;
   document.getElementById('modal-detalle-mezcla-title').textContent = d.nombreProf + ' — ' + d.tipoLabel;
   var pacientesArr = Object.values(d.porPaciente).sort(function(a,b) { return b.valorTotal - a.valorTotal; });
-  var html = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Estos son los pacientes agendados como "' + d.tipoLabel + '" con esta profesional, y lo que paga/cobra cada uno. El que tenga un valor distinto a los demás es el que está generando la mezcla:</div>';
+  var html = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Estos son los pacientes agendados como "' + d.tipoLabel + '" con esta profesional, y lo que paga/cobra cada uno. El que tenga un valor distinto a los demás es el que está generando la diferencia — tocá "✏️ Editar" para ir directo a su ficha y ajustar a qué tipos aplica su precio personalizado:</div>';
   html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
     '<thead><tr style="background:var(--bg);">' +
     '<th style="padding:6px 8px;text-align:left;">Paciente</th>' +
     '<th style="padding:6px 8px;text-align:center;">Cant.</th>' +
     '<th style="padding:6px 8px;text-align:right;">Tarifa familia</th>' +
     '<th style="padding:6px 8px;text-align:right;">Pago prof.</th>' +
+    '<th></th>' +
     '</tr></thead><tbody>';
   pacientesArr.forEach(function(p) {
     html += '<tr style="border-bottom:1px solid var(--border);">' +
@@ -4281,6 +4326,7 @@ function verDetalleMezcla(clave) {
       '<td style="padding:6px 8px;text-align:center;">' + p.cant + '</td>' +
       '<td style="padding:6px 8px;text-align:right;">' + fmtGs(p.valorTotal) + '</td>' +
       '<td style="padding:6px 8px;text-align:right;">' + fmtGs(p.pagoProf) + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;">' + (p.pacienteId ? '<button data-pid="' + p.pacienteId + '" onclick="closeModal(\'modal-detalle-mezcla\');openEditPac(this.dataset.pid)" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;">✏️ Editar</button>' : '') + '</td>' +
       '</tr>';
   });
   html += '</tbody></table>';
@@ -4482,7 +4528,8 @@ async function loadCobros() {
     pacConSesiones.forEach(function(p) {
       var ts = turnosPorPac[p.id] || [];
       var montoTotal = ts.reduce(function(sum, t) {
-        return sum + (p.valor_sesion || tarifaPorTipo(tarifaMap, t.tipo));
+        var aplicaPrecioPropioCob = !p.tipos_precio_personalizado || p.tipos_precio_personalizado.indexOf(t.tipo) !== -1;
+        return sum + ((p.valor_sesion && aplicaPrecioPropioCob) ? p.valor_sesion : tarifaPorTipo(tarifaMap, t.tipo));
       }, 0);
       totalFacturar += montoTotal;
       var cobro = cobrosMap[p.id];
@@ -4553,7 +4600,10 @@ function renderCobrosTable(pacientes, turnosPorPac, cobrosMap, tarifaMap, mesKey
   
   filtered.forEach(function(p) {
     var ts = turnosPorPac[p.id] || [];
-    var montoTotal = ts.reduce(function(sum, t) { return sum + (p.valor_sesion || tarifaPorTipo(tarifaMap, t.tipo)); }, 0);
+    var montoTotal = ts.reduce(function(sum, t) {
+      var aplicaPrecioPropioCob2 = !p.tipos_precio_personalizado || p.tipos_precio_personalizado.indexOf(t.tipo) !== -1;
+      return sum + ((p.valor_sesion && aplicaPrecioPropioCob2) ? p.valor_sesion : tarifaPorTipo(tarifaMap, t.tipo));
+    }, 0);
     var cobro = cobrosMap[p.id];
     var cobrado = cobro ? (cobro.monto || 0) : 0;
     var saldo = montoTotal - cobrado;
@@ -5085,10 +5135,11 @@ async function loadResumen() {
       var s = stats[t.profesional_id];
       var tipo = t.tipo || 'sesion';
       var cp = pacMap[t.paciente_id];
-      var valorTotal = (cp && cp.valor_sesion) ? cp.valor_sesion : (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000);
+      var aplicaPrecioPropioRes = !cp || !cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1;
+      var valorTotal = (cp && cp.valor_sesion && aplicaPrecioPropioRes) ? cp.valor_sesion : (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000);
       var ptMap = profTarMap[t.profesional_id] || {};
       var pago = ptMap[tipo] !== undefined ? ptMap[tipo] : (DEFAULT_PAGO[tipo] || 130000);
-      if (cp && cp.pago_profesional_custom) pago = cp.pago_profesional_custom;
+      if (cp && cp.pago_profesional_custom && aplicaPrecioPropioRes) pago = cp.pago_profesional_custom;
 
       if (t.estado === 'confirmado') { s.confirmados++; s.ingresos += valorTotal; s.honorarios += pago; }
       else if (t.estado === 'cancelado_hora') { s.cancHora++; s.ingresos += valorTotal; s.honorarios += pago; }
