@@ -3909,6 +3909,8 @@ async function loadAdmin() {
         // Precio unitario = tarifa base del tipo (referencia). El total real está en "Total pac."
         var unitGen = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
         var unitProf = t.cant > 0 ? Math.round(t.totalProf / t.cant) : 0;
+        var esperadoSinMezcla = unitGen * t.cant;
+        var hayPreciosMixtos = t.totalGen !== esperadoSinMezcla;
         html += '<tr>' +
           '<td style="padding:8px 10px;border-bottom:1px solid var(--border);">' +
           '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:6px;"></span>' +
@@ -3917,7 +3919,9 @@ async function loadAdmin() {
           (t.cancHora > 0 ? '<span style="font-size:10px;background:#FF8C0020;color:#FF8C00;border:1px solid #FF8C00;border-radius:4px;padding:1px 5px;margin-left:4px;">🟠 ' + t.cancHora + '</span>' : '') +
           '</td>' +
           '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:11px;">' + fmtGs(unitGen) + ' / u.</td>' +
-          '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.totalGen) + '</td>' +
+          '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.totalGen) +
+          (hayPreciosMixtos ? '<div title="Hay al menos un paciente con tarifa personalizada (valor_sesion propio) en este grupo." style="font-size:9px;color:#E65100;cursor:help;">⚠ mixto: ' + fmtGs(t.minPrice) + ' – ' + fmtGs(t.maxPrice) + '</div>' : '') +
+          '</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);font-size:11px;">' + fmtGs(unitProf) + ' / u.</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);">' + fmtGs(t.totalProf) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#1B8A7A;border-bottom:1px solid var(--border);">' + fmtGs(ganCrea) + '</td>' +
