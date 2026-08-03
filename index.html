@@ -3834,6 +3834,9 @@ async function loadAdmin() {
       if (tipo === 'compartida' && !(profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo])) {
         pagoProf = 65000;
       }
+      // Tarifa realmente configurada para esta profesional en este tipo (antes de aplicar
+      // cualquier override puntual por paciente) — esto es "lo que dice la configuración".
+      var pagoProfSinPaciente = pagoProf;
       
       // Custom patient price: valor_sesion changes what patient pays (affects CREA income)
       // pago_profesional_custom overrides what prof earns
@@ -3851,13 +3854,15 @@ async function loadAdmin() {
       totalCrea += ganCrea;
 
       if (profBreakdown[t.profesional_id]) {
-        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0, minPrice: valorTotal, maxPrice: valorTotal };
+        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0, minPrice: valorTotal, maxPrice: valorTotal, pagoProfConfigurado: pagoProfSinPaciente, minPagoProf: pagoProf, maxPagoProf: pagoProf };
         profBreakdown[t.profesional_id].tipos[tipo].cant++;
         if (t.estado === 'cancelado_hora') profBreakdown[t.profesional_id].tipos[tipo].cancHora++;
         profBreakdown[t.profesional_id].tipos[tipo].totalGen += valorTotal;
         profBreakdown[t.profesional_id].tipos[tipo].totalProf += pagoProf;
         if (valorTotal < profBreakdown[t.profesional_id].tipos[tipo].minPrice) profBreakdown[t.profesional_id].tipos[tipo].minPrice = valorTotal;
         if (valorTotal > profBreakdown[t.profesional_id].tipos[tipo].maxPrice) profBreakdown[t.profesional_id].tipos[tipo].maxPrice = valorTotal;
+        if (pagoProf < profBreakdown[t.profesional_id].tipos[tipo].minPagoProf) profBreakdown[t.profesional_id].tipos[tipo].minPagoProf = pagoProf;
+        if (pagoProf > profBreakdown[t.profesional_id].tipos[tipo].maxPagoProf) profBreakdown[t.profesional_id].tipos[tipo].maxPagoProf = pagoProf;
         profBreakdown[t.profesional_id].totalGen += valorTotal;
         profBreakdown[t.profesional_id].totalProf += pagoProf;
         profBreakdown[t.profesional_id].totalCrea += ganCrea;
@@ -3908,7 +3913,7 @@ async function loadAdmin() {
         // Si hay precios mixtos (ej: 1 pac preferencial en grupo sesión) → mostrar la tarifa base configurada
         // Precio unitario = tarifa base del tipo (referencia). El total real está en "Total pac."
         var unitGen = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
-        var unitProf = t.cant > 0 ? Math.round(t.totalProf / t.cant) : 0;
+        var unitProf = t.pagoProfConfigurado;
         var esperadoSinMezcla = unitGen * t.cant;
         var hayDiferenciaVsBase = t.totalGen !== esperadoSinMezcla;
         var hayMezclaReal = t.minPrice !== t.maxPrice;
@@ -3918,6 +3923,8 @@ async function loadAdmin() {
         } else if (hayDiferenciaVsBase) {
           avisoPrecio = '<div title="Todos los turnos de este tipo tienen el mismo precio, pero distinto a la tarifa base configurada — el/los paciente(s) tienen un valor_sesion propio en su ficha." style="font-size:9px;color:#1565C0;cursor:help;">ℹ todos a ' + fmtGs(t.minPrice) + '</div>';
         }
+        var hayMezclaPago = t.minPagoProf !== t.maxPagoProf;
+        var avisoPago = hayMezclaPago ? '<div title="Al menos un paciente tiene un pago a la profesional personalizado (pago_profesional_custom) distinto a la tarifa configurada." style="font-size:9px;color:#E65100;cursor:help;">⚠ mezcla: ' + fmtGs(t.minPagoProf) + ' – ' + fmtGs(t.maxPagoProf) + '</div>' : '';
         html += '<tr>' +
           '<td style="padding:8px 10px;border-bottom:1px solid var(--border);">' +
           '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:6px;"></span>' +
@@ -3927,7 +3934,7 @@ async function loadAdmin() {
           '</td>' +
           '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:11px;">' + fmtGs(unitGen) + ' / u.</td>' +
           '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);">' + fmtGs(t.totalGen) + avisoPrecio + '</td>' +
-          '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);font-size:11px;">' + fmtGs(unitProf) + ' / u.</td>' +
+          '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);font-size:11px;">' + fmtGs(unitProf) + ' / u.' + avisoPago + '</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#C0392B;border-bottom:1px solid var(--border);">' + fmtGs(t.totalProf) + '</td>' +
           '<td style="padding:8px 10px;text-align:right;font-weight:500;color:#1B8A7A;border-bottom:1px solid var(--border);">' + fmtGs(ganCrea) + '</td>' +
           '</tr>';
