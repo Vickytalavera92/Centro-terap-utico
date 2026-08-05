@@ -249,6 +249,7 @@ input[type="time"] { -webkit-appearance: none; }
   .btn-sm { padding: 8px 10px !important; min-height: 36px !important; }
   .btn-ghost.btn-sm { min-width: 36px !important; padding: 8px !important; }
 }
+.cal-day-match { outline: 3px solid #1B8A7A !important; outline-offset: -2px; }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -501,6 +502,10 @@ input[type="time"] { -webkit-appearance: none; }
           <select id="agenda-mes-filter-prof" onchange="loadAgendaMes()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;display:none;">
             <option value="">Todas las profesionales</option>
           </select>
+        </div>
+        <div style="margin-bottom:12px;">
+          <input id="agenda-mes-buscar-pac" oninput="filtrarAgendaMesPorPaciente()" placeholder="🔍 Buscar niño/paciente en este mes..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+          <div id="agenda-mes-buscar-resultado" style="font-size:12px;color:var(--text-secondary);margin-top:4px;"></div>
         </div>
         <div id="agenda-mes-wrap"></div>
       </div>
@@ -2592,6 +2597,35 @@ function limpiarFiltrosAgenda() {
   loadAgenda();
 }
 
+function filtrarAgendaMesPorPaciente() {
+  var input = document.getElementById('agenda-mes-buscar-pac');
+  var resultadoEl = document.getElementById('agenda-mes-buscar-resultado');
+  if (!input || !resultadoEl) return;
+  var texto = input.value.trim().toLowerCase();
+  // Sacar el resaltado anterior
+  document.querySelectorAll('.cal-day-match').forEach(function(el) { el.classList.remove('cal-day-match'); });
+  if (!texto) { resultadoEl.innerHTML = ''; return; }
+  var turnos = window._agendaMesTurnos || [];
+  var encontrados = turnos.filter(function(t) {
+    return (t.paciente_nombre || '').toLowerCase().indexOf(texto) !== -1;
+  });
+  if (!encontrados.length) {
+    resultadoEl.innerHTML = '<span style="color:#C0392B;">Sin turnos que coincidan con "' + input.value + '" este mes.</span>';
+    return;
+  }
+  encontrados.sort(function(a,b) { return a.fecha.localeCompare(b.fecha); });
+  var fechas = encontrados.map(function(t) {
+    var partes = t.fecha.split('-');
+    return partes[2] + '/' + partes[1];
+  });
+  // Resaltar los días con coincidencia en el calendario
+  encontrados.forEach(function(t) {
+    var cell = document.querySelector('.cal-day[data-date="' + t.fecha + '"]');
+    if (cell) cell.classList.add('cal-day-match');
+  });
+  resultadoEl.innerHTML = '<span style="color:#1B8A7A;font-weight:600;">✅ ' + encontrados.length + ' turno' + (encontrados.length===1?'':'s') + ' este mes:</span> ' + fechas.join(', ');
+}
+
 function cambiarMesAgenda(dir) {
   if (dir === 0) { _agendaMesOffset = 0; }
   else { _agendaMesOffset += dir; }
@@ -2649,6 +2683,8 @@ async function loadAgendaMes() {
     
     var filterProf = profFilter ? profFilter.value : '';
     if (filterProf) turnos = turnos.filter(function(t) { return t.profesional_id === filterProf; });
+    window._agendaMesTurnos = turnos;
+    filtrarAgendaMesPorPaciente();
     
     var profMap = {};
     profs.forEach(function(p) { profMap[p.id] = p; });
@@ -2838,6 +2874,7 @@ async function loadAgendaMes() {
     document.querySelectorAll('.cal-day').forEach(function(el) {
       el.addEventListener('click', function() { irADia(this.getAttribute('data-date')); });
     });
+    filtrarAgendaMesPorPaciente();
   } catch(e) { console.error(e); }
 }
 
