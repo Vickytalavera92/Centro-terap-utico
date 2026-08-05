@@ -1228,6 +1228,20 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL GANANCIA ACUMULADA -->
+<div class="modal-overlay" id="modal-ganancia-acumulada">
+  <div class="modal" style="width:480px;max-height:80vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3 id="modal-ganancia-acumulada-title">Ganancia acumulada</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-ganancia-acumulada')">✕</button>
+    </div>
+    <div id="modal-ganancia-acumulada-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-ganancia-acumulada')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR PACIENTE -->
 <div class="modal-overlay" id="modal-edit-pac">
   <div class="modal" style="max-height:90vh;overflow-y:auto;">
@@ -3883,6 +3897,130 @@ function fmtGs(n) {
   return 'Gs. ' + Math.round(n).toLocaleString('es-PY');
 }
 
+// Calcula el balance de un mes puntual, de forma independiente y liviana, para poder
+// sumar varios meses en "Ganancia acumulada" sin tocar el cálculo grande de loadAdmin().
+async function calcularGananciaMesSimple(anio, mes) {
+  var mesKeyX = anio + '_' + String(mes).padStart(2,'0');
+  var firstX = anio + '-' + String(mes).padStart(2,'0') + '-01';
+  var lastDateX = new Date(anio, mes, 0);
+  var lastX = anio + '-' + String(mes).padStart(2,'0') + '-' + String(lastDateX.getDate()).padStart(2,'0');
+
+  var results = await Promise.all([
+    api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&fecha=gte.' + firstX + '&fecha=lte.' + lastX).catch(function(){return [];}),
+    api('GET', 'pacientes', null, '?select=id,valor_sesion,pago_profesional_custom,tipos_precio_personalizado').catch(function(){return [];}),
+    api('GET', 'tarifas', null, '').catch(function(){return [];}),
+    api('GET', 'profesional_tarifas', null, '').catch(function(){return [];}),
+    api('GET', 'gastos', null, '?mes=eq.' + mesKeyX).catch(function(){return [];}),
+    api('GET', 'empleados', null, '?activo=eq.true').catch(function(){return [];}),
+    api('GET', 'guarderia_ninos', null, '?order=nombre.asc').catch(function(){return [];}),
+    api('GET', 'guarderia_pagos', null, '?mes=eq.' + mesKeyX).catch(function(){return [];}),
+    api('GET', 'colonias', null, '?activo=eq.true').catch(function(){return [];})
+  ]);
+  var turnos = results[0], pacientes = results[1], tarifasBase = results[2], profTarifas = results[3],
+      gastosData = results[4], empleadosData = results[5], ninosData = results[6], pagosGuardData = results[7], coloniasData = results[8];
+
+  var tarifaMap = {}; tarifasBase.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+  var profTarifaMap = {};
+  profTarifas.forEach(function(pt) { if (!profTarifaMap[pt.profesional_id]) profTarifaMap[pt.profesional_id] = {}; profTarifaMap[pt.profesional_id][pt.tipo] = pt.pago_profesional; });
+  var pacientesMap = {}; pacientes.forEach(function(p) { pacientesMap[p.id] = p; });
+  var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000 };
+
+  var totalGenerado = 0, totalProfs = 0;
+  turnos.forEach(function(t) {
+    var tipo = t.tipo || 'sesion';
+    var valorTotal = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
+    var pagoProf = (profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo] !== undefined) ? profTarifaMap[t.profesional_id][tipo] : (DEFAULT_PAGO[tipo] || 130000);
+    if (tipo === 'compartida' && !(profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo] !== undefined)) pagoProf = 65000;
+    if (pacientesMap[t.paciente_id]) {
+      var cp = pacientesMap[t.paciente_id];
+      var aplicaPrecioPropioX = !cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1;
+      if (aplicaPrecioPropioX) {
+        if (cp.valor_sesion) valorTotal = cp.valor_sesion;
+        if (cp.pago_profesional_custom) pagoProf = cp.pago_profesional_custom;
+      }
+    }
+    if (tipo === 'devolucion_excepcional') {
+      if (t.monto_familia_custom) valorTotal = t.monto_familia_custom;
+      if (t.monto_profesional_custom) pagoProf = t.monto_profesional_custom;
+    }
+    totalGenerado += valorTotal;
+    totalProfs += pagoProf;
+  });
+
+  var gastosTotales = 0;
+  gastosData.forEach(function(g) { gastosTotales += (g.monto || 0); });
+
+  var sueldosTotales = 0;
+  empleadosData.forEach(function(emp) {
+    var ipsEmp = emp.tiene_ips ? Math.round(emp.salario_base * 0.09) : 0;
+    var ipsPatronal = emp.tiene_ips ? Math.round(emp.salario_base * 0.165) : 0;
+    sueldosTotales += (emp.salario_base - ipsEmp) + ipsPatronal;
+  });
+
+  var esperadoGuarderia = 0;
+  ninosData.forEach(function(n) {
+    if (n.fecha_inicio && n.fecha_inicio > lastX) return;
+    if (n.fecha_baja && n.fecha_baja < firstX) return;
+    if (n.activo === false && !n.fecha_baja) return;
+    if (n.modalidad === 'por_dia') return;
+    esperadoGuarderia += (n.cuota_base - (n.descuento_monto || 0));
+  });
+  // Si hubo pagos "por día" registrados este mes, sumarlos también (no tienen cuota fija)
+  pagosGuardData.forEach(function(pg) {
+    var ninoPg = ninosData.find(function(n) { return n.id === pg.nino_id; });
+    if (ninoPg && ninoPg.modalidad === 'por_dia') esperadoGuarderia += (pg.monto || 0);
+  });
+
+  var esperadoColonia = 0;
+  var coloniasDelMesX = coloniasData.filter(function(c) {
+    if (!c.fecha_inicio) return false;
+    if (c.fecha_inicio > lastX) return false;
+    if (c.fecha_fin && c.fecha_fin < firstX) return false;
+    return true;
+  });
+  if (coloniasDelMesX.length) {
+    var idsX = coloniasDelMesX.map(function(c) { return c.id; });
+    var inscX = await api('GET', 'colonia_inscripciones', null, '?colonia_id=in.(' + idsX.join(',') + ')').catch(function() { return []; });
+    inscX.forEach(function(i) { esperadoColonia += (i.monto || 0); });
+  }
+
+  var balanceNeto = totalGenerado + esperadoGuarderia + esperadoColonia - totalProfs - gastosTotales - sueldosTotales;
+  return { mesKey: mesKeyX, anio: anio, mes: mes, totalGenerado: totalGenerado, esperadoGuarderia: esperadoGuarderia, esperadoColonia: esperadoColonia, totalProfs: totalProfs, gastosTotales: gastosTotales, sueldosTotales: sueldosTotales, balanceNeto: balanceNeto };
+}
+
+async function verGananciaAcumulada(cantidadMeses) {
+  var modalBody = document.getElementById('modal-ganancia-acumulada-body');
+  document.getElementById('modal-ganancia-acumulada-title').textContent = 'Ganancia acumulada — últimos ' + cantidadMeses + ' meses';
+  modalBody.innerHTML = '<div class="loading">Calculando ' + cantidadMeses + ' meses, puede tardar unos segundos...</div>';
+  openModal('modal-ganancia-acumulada');
+  try {
+    var meses = [];
+    var a = _adminAnio, m = _adminMes;
+    for (var i = 0; i < cantidadMeses; i++) {
+      meses.unshift({ anio: a, mes: m });
+      m--; if (m < 1) { m = 12; a--; }
+    }
+    var resultados = [];
+    for (var j = 0; j < meses.length; j++) {
+      resultados.push(await calcularGananciaMesSimple(meses[j].anio, meses[j].mes));
+    }
+    var totalAcumulado = resultados.reduce(function(s, r) { return s + r.balanceNeto; }, 0);
+    var nombresMes = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr style="background:var(--bg);"><th style="padding:8px;text-align:left;">Mes</th><th style="padding:8px;text-align:right;">Ganancia neta</th></tr></thead><tbody>';
+    resultados.forEach(function(r) {
+      html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;">' + nombresMes[r.mes-1] + ' ' + r.anio + '</td>' +
+        '<td style="padding:8px;text-align:right;font-weight:600;color:' + (r.balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(r.balanceNeto) + '</td></tr>';
+    });
+    html += '<tr style="background:#FEF6E0;"><td style="padding:8px;font-weight:700;">TOTAL ACUMULADO</td>' +
+      '<td style="padding:8px;text-align:right;font-weight:700;font-size:15px;color:' + (totalAcumulado >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(totalAcumulado) + '</td></tr>';
+    html += '</tbody></table>';
+    modalBody.innerHTML = html;
+  } catch(e) {
+    modalBody.innerHTML = '<div class="empty-state">Error al calcular: ' + e.message + '</div>';
+  }
+}
+
 async function loadAdmin() {
   var el = document.getElementById('admin-content');
   el.innerHTML = '<div class="loading">Cargando...</div>';
@@ -4216,21 +4354,27 @@ async function loadAdmin() {
         // Pagos de colonia con mes_pago ya registrado (flujo nuevo)
         var inscripcionesDelMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=eq.' + mesKey);
         inscripcionesDelMes.forEach(function(insc) { ingresosColonia += (insc.monto || 0); });
-        // Respaldo: pagos marcados ANTES de este arreglo, que no tienen mes_pago guardado.
-        // Se ubican por la fecha de inicio de la colonia (mejor esfuerzo).
+        // Colonias que corresponden a ESTE mes: su rango de fechas se superpone con el mes que se está viendo
+        // (no que "empiece" justo ese mes — así una colonia de fin de junio a mitad de julio cuenta en los dos).
+        var coloniasTodasBal = await api('GET', 'colonias', null, '?activo=eq.true');
+        var coloniasDelMesBal = coloniasTodasBal.filter(function(c) {
+          if (!c.fecha_inicio) return false;
+          if (c.fecha_inicio > finMesBal) return false;
+          if (c.fecha_fin && c.fecha_fin < inicioMesBal) return false;
+          return true;
+        });
+        var coloniaIdsDelMesBal = coloniasDelMesBal.map(function(c) { return c.id; });
+        // Respaldo: pagos marcados ANTES de que existiera mes_pago, que no lo tienen guardado.
+        // Se ubican por la fecha de la colonia (mejor esfuerzo).
         var inscripcionesSinMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=is.null');
-        var coloniasActivasBal = await api('GET', 'colonias', null, '?activo=eq.true');
-        var coloniaIdsActivas = coloniasActivasBal.map(function(c) { return c.id; });
         if (inscripcionesSinMes.length) {
           inscripcionesSinMes.forEach(function(insc) {
-            if (coloniaIdsActivas.indexOf(insc.colonia_id) !== -1) ingresosColonia += (insc.monto || 0);
+            if (coloniaIdsDelMesBal.indexOf(insc.colonia_id) !== -1) ingresosColonia += (insc.monto || 0);
           });
         }
-        // Total ESPERADO de colonia: todas las inscripciones de colonias activas, pagadas o no.
-        // No se limita al mes calendario en que "empieza" la colonia (esa fecha no siempre cae
-        // justo en el mes que se está mirando), así siempre se ve la proyección completa.
-        if (coloniaIdsActivas.length) {
-          var todasInscripcionesBal = await api('GET', 'colonia_inscripciones', null, '?colonia_id=in.(' + coloniaIdsActivas.join(',') + ')');
+        // Total ESPERADO de colonia ESTE MES: inscripciones de las colonias que corresponden a este mes.
+        if (coloniaIdsDelMesBal.length) {
+          var todasInscripcionesBal = await api('GET', 'colonia_inscripciones', null, '?colonia_id=in.(' + coloniaIdsDelMesBal.join(',') + ')');
           todasInscripcionesBal.forEach(function(insc) { esperadoColonia += (insc.monto || 0); });
         }
       } catch(eGuard) {}
@@ -4307,6 +4451,12 @@ async function loadAdmin() {
         barraProgreso('🧒 Guardería', ingresosGuarderia, esperadoGuarderia, '#1565C0') +
         (esperadoColonia > 0 ? barraProgreso('🏕️ Colonia', ingresosColonia, esperadoColonia, '#00695C') : '') +
         '<div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">Algunas familias pagan a fin de mes, así que esto se va completando con los días.</div>' +
+        '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">' +
+        '<span style="font-size:11px;color:var(--text-secondary);align-self:center;">📊 Ver ganancia acumulada:</span>' +
+        '<button class="btn btn-secondary btn-sm" onclick="verGananciaAcumulada(3)">3 meses</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="verGananciaAcumulada(6)">6 meses</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="verGananciaAcumulada(12)">12 meses</button>' +
+        '</div>' +
         '</div>';
       var metaKey = 'meta_' + _adminAnio + '_' + String(_adminMes).padStart(2,'0');
       var metaMonto = 0;
