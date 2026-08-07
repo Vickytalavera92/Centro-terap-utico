@@ -434,6 +434,7 @@ input[type="time"] { -webkit-appearance: none; }
           <span style="font-size:11px;background:#AD1457;color:white;padding:2px 8px;border-radius:4px;">Devolución compartida</span>
           <span style="font-size:11px;background:#FF7043;color:white;padding:2px 8px;border-radius:4px;">Refuerzo escolar</span>
           <span style="font-size:11px;background:#FF5722;color:white;padding:2px 8px;border-radius:4px;">Excepcional</span>
+          <span style="font-size:11px;background:#009688;color:white;padding:2px 8px;border-radius:4px;">ADOS/ADIR</span>
         </div>
         <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;display:block;"><div id="semanal-wrap"></div></div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
@@ -476,6 +477,7 @@ input[type="time"] { -webkit-appearance: none; }
             <option value="reunion_padres">Reunión con padres</option>
             <option value="refuerzo_escolar">Refuerzo escolar</option>
             <option value="devolucion_excepcional">Excepcional</option>
+            <option value="ados_adir">ADOS/ADIR</option>
           </select>
           <button class="btn btn-secondary btn-sm" onclick="limpiarFiltrosAgenda()">✕ Limpiar</button>
         </div>
@@ -1322,6 +1324,7 @@ input[type="time"] { -webkit-appearance: none; }
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="compartida" checked style="width:auto;"> Reunión compartida</label>
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="reunion_padres" checked style="width:auto;"> Reunión con padres</label>
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="refuerzo_escolar" checked style="width:auto;"> Refuerzo escolar</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" class="edit-pac-tipo-check" value="ados_adir" checked style="width:auto;"> ADOS/ADIR</label>
         </div>
       </div>
       <div class="form-group"><label>👤 Responsable (para factura)</label><input id="edit-pac-responsable" placeholder="Nombre del padre/madre"></div>
@@ -1386,6 +1389,7 @@ input[type="time"] { -webkit-appearance: none; }
         <option value="compartida">🩷 Reunión compartida</option>
         <option value="reunion_padres">👪 Reunión con padres</option>
         <option value="refuerzo_escolar">📚 Refuerzo escolar</option>
+        <option value="ados_adir">🧩 ADOS/ADIR (2 profesionales)</option>
       </select>
     </div>
     <div class="grid-2" id="edit-turno-monto-excepcional-wrap" style="display:none;">
@@ -1423,6 +1427,7 @@ input[type="time"] { -webkit-appearance: none; }
         <option value="compartida">🩷 Reunión compartida</option>
         <option value="reunion_padres">👪 Reunión con padres</option>
         <option value="refuerzo_escolar">📚 Refuerzo escolar</option>
+        <option value="ados_adir">🧩 ADOS/ADIR (2 profesionales)</option>
       </select>
     </div>
     <div class="grid-2" id="turno-monto-excepcional-wrap" style="display:none;">
@@ -1794,7 +1799,7 @@ async function loadDashboard() {
     var pendientesHoy = turnosHoy.filter(function(t) { return t.estado === 'pendiente'; });
 
     // Financiero proyectado
-    var DEFAULT_PAGO_DASH = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000 };
+    var DEFAULT_PAGO_DASH = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
     var facturacionMes = 0;
     var honorariosMes = 0;
     confirmadosMes.forEach(function(t) {
@@ -2747,7 +2752,7 @@ async function loadAgendaMes() {
       turnosByDate[key].push(t);
     });
     
-    var TIPO_COLORS = { sesion:'#4CAF50', preferencial:'#1B5E20', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548', entrevista_plus:'#FFD700', reunion_padres:'#3F51B5', devolucion_compartida:'#AD1457', refuerzo_escolar:'#FF7043', devolucion_excepcional:'#FF5722' };
+    var TIPO_COLORS = { sesion:'#4CAF50', preferencial:'#1B5E20', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548', entrevista_plus:'#FFD700', reunion_padres:'#3F51B5', devolucion_compartida:'#AD1457', refuerzo_escolar:'#FF7043', devolucion_excepcional:'#FF5722', ados_adir:'#009688' };
     var ESTADO_COLORS = { pendiente:'#F0A500', confirmado:'#1B8A7A', cancelado:'#C0392B', cancelado_hora:'#FF8C00' };
     
     var html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">';
@@ -2820,7 +2825,7 @@ async function loadAgendaMes() {
     // Solo cantidades, sin montos - visible para directora, recepcionista y la propia profesional
     var pagables = turnos.filter(function(t) { return t.estado === 'confirmado' || t.estado === 'cancelado_hora'; });
     if (pagables.length) {
-      var TIPO_LABELS_MES = { sesion:'Sesión', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación', libre:'Libre', entrevista_plus:'Entrevista plus', reunion_padres:'Reunión padres', devolucion_compartida:'Devolución compartida', refuerzo_escolar:'Refuerzo escolar', devolucion_excepcional:'Excepcional' };
+      var TIPO_LABELS_MES = { sesion:'Sesión', preferencial:'Preferencial', devolucion:'Devolución', captada:'Captada', premium:'Premium', nueva:'Normal nueva', colegio:'Reunión colegio', compartida:'Compartida', evaluacion:'Evaluación', libre:'Libre', entrevista_plus:'Entrevista plus', reunion_padres:'Reunión padres', devolucion_compartida:'Devolución compartida', refuerzo_escolar:'Refuerzo escolar', devolucion_excepcional:'Excepcional', ados_adir:'ADOS/ADIR' };
       var contTipos = {};
       pagables.forEach(function(t) {
         var tipo = t.tipo || 'sesion';
@@ -2837,7 +2842,7 @@ async function loadAgendaMes() {
       }
       var profTarLocalMap = {};
       profTarifasLocal.forEach(function(pt) { profTarLocalMap[pt.tipo] = pt.pago_profesional; });
-      var DEFAULT_PAGO_MES = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000 };
+      var DEFAULT_PAGO_MES = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
 
       // Build per-tipo data with amounts
       var tipoData = {};
@@ -3500,7 +3505,7 @@ async function filtrarPacsPorProf() {
 // TURNO_TIPO_OPTIONS_AGENDA: lista simplificada para agendar nuevos turnos
 // ==================
 // Tarifas por defecto cuando el tipo no está configurado en la tabla 'tarifas' de Supabase
-var TARIFA_FALLBACK = { sesion:220000, evaluacion:220000, preferencial:220000, devolucion:250000, captada:220000, premium:220000, nueva:220000, colegio:220000, compartida:220000, entrevista_plus:220000, libre:0, reunion_padres:220000, devolucion_compartida:250000, refuerzo_escolar:120000, devolucion_excepcional:250000 };
+var TARIFA_FALLBACK = { sesion:220000, evaluacion:220000, preferencial:220000, devolucion:250000, captada:220000, premium:220000, nueva:220000, colegio:220000, compartida:220000, entrevista_plus:220000, libre:0, reunion_padres:220000, devolucion_compartida:250000, refuerzo_escolar:120000, devolucion_excepcional:250000, ados_adir:1000000 };
 function tarifaPorTipo(tarifaMap, tipo) { return (tarifaMap && tarifaMap[tipo]) || TARIFA_FALLBACK[tipo] || 220000; }
 
 var TURNO_TIPO_OPTIONS_ALL = [
@@ -3517,6 +3522,7 @@ var TURNO_TIPO_OPTIONS_ALL = [
   { v: 'devolucion_compartida', l: '💜 Devolución compartida' },
   { v: 'devolucion_excepcional', l: '🔶 Excepcional' },
   { v: 'refuerzo_escolar', l: '📚 Refuerzo escolar' },
+  { v: 'ados_adir', l: '🧩 ADOS/ADIR (2 profesionales)' },
   { v: 'entrevista_plus', l: '⭐ Entrevista plus' },
   { v: 'libre', l: '⬛ Libre' }
 ];
@@ -3531,7 +3537,8 @@ var TURNO_TIPO_OPTIONS_AGENDA = [
   { v: 'colegio', l: '🩵 Reunión de colegio' },
   { v: 'compartida', l: '🩷 Reunión compartida' },
   { v: 'reunion_padres', l: '👪 Reunión con padres' },
-  { v: 'refuerzo_escolar', l: '📚 Refuerzo escolar' }
+  { v: 'refuerzo_escolar', l: '📚 Refuerzo escolar' },
+  { v: 'ados_adir', l: '🧩 ADOS/ADIR (2 profesionales)' }
 ];
 
 function toggleMontoExcepcional(prefix) {
@@ -3724,7 +3731,8 @@ var TIPO_COLORS = {
   reunion_padres: '#3F51B5',
   devolucion_compartida: '#AD1457',
   refuerzo_escolar: '#FF7043',
-  devolucion_excepcional: '#FF5722'
+  devolucion_excepcional: '#FF5722',
+  ados_adir: '#009688'
 };
 
 var TIPO_LABELS = {
@@ -3732,7 +3740,7 @@ var TIPO_LABELS = {
   captada: 'Captada', premium: 'Premium', nueva: 'Normal nueva',
   colegio: 'Colegio', compartida: 'Compartida', libre: 'Libre', evaluacion: 'Evaluación',
   reunion_padres: 'Reunión padres', devolucion_compartida: 'Devolución compartida', refuerzo_escolar: 'Refuerzo escolar',
-  devolucion_excepcional: 'Excepcional'
+  devolucion_excepcional: 'Excepcional', ados_adir: 'ADOS/ADIR'
 };
 
 var _semanaOffset = 0;
@@ -3955,7 +3963,7 @@ async function calcularGananciaMesSimple(anio, mes) {
   var profTarifaMap = {};
   profTarifas.forEach(function(pt) { if (!profTarifaMap[pt.profesional_id]) profTarifaMap[pt.profesional_id] = {}; profTarifaMap[pt.profesional_id][pt.tipo] = pt.pago_profesional; });
   var pacientesMap = {}; pacientes.forEach(function(p) { pacientesMap[p.id] = p; });
-  var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000 };
+  var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
 
   var totalGenerado = 0, totalProfs = 0;
   turnos.forEach(function(t) {
@@ -4104,7 +4112,7 @@ async function loadAdmin() {
     var DEFAULT_PAGO = {
       sesion: 130000, preferencial: 110000, devolucion: 150000,
       captada: 220000, premium: 145000, nueva: 110000,
-      colegio: 130000, compartida: 65000, evaluacion: 130000, reunion_padres: 130000, devolucion_compartida: 75000, refuerzo_escolar: 90000, devolucion_excepcional: 150000
+      colegio: 130000, compartida: 65000, evaluacion: 130000, reunion_padres: 130000, devolucion_compartida: 75000, refuerzo_escolar: 90000, devolucion_excepcional: 150000, ados_adir: 666667
     };
 
     // Load deposits for caja summary
@@ -4542,7 +4550,7 @@ async function loadAdmin() {
   } catch(e) { console.error(e); el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
 
-var TIPO_LABELS_TARBASE = { sesion:'Sesión normal', devolucion:'Devolución', devolucion_compartida:'Devolución compartida', captada:'Entrevista captada', colegio:'Reunión de colegio', compartida:'Reunión compartida', reunion_padres:'Reunión con padres', refuerzo_escolar:'Refuerzo escolar' };
+var TIPO_LABELS_TARBASE = { sesion:'Sesión normal', devolucion:'Devolución', devolucion_compartida:'Devolución compartida', captada:'Entrevista captada', colegio:'Reunión de colegio', compartida:'Reunión compartida', reunion_padres:'Reunión con padres', refuerzo_escolar:'Refuerzo escolar', ados_adir:'ADOS/ADIR (por profesional)' };
 
 async function loadAdminTarifas() {
   try {
@@ -4559,7 +4567,7 @@ async function loadAdminTarifas() {
       '<th style="padding:8px;text-align:right;font-size:11px;color:var(--text-secondary);border-bottom:1px solid var(--border);">Pago prof. estándar</th>' +
       '</tr></thead><tbody>';
 
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000 };
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
 
     tiposBase.forEach(function(tipo) {
       var t = tarifaMapBase[tipo];
@@ -4646,8 +4654,8 @@ async function configProfTarifas(el) {
     var profTarifas = await api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
     var profMap = {};
     profTarifas.forEach(function(pt) { profMap[pt.tipo] = pt.pago_profesional; });
-    var DEFAULT_PAGO = { sesion:130000, devolucion:150000, devolucion_compartida:75000, captada:220000, colegio:130000, compartida:65000, reunion_padres:130000, refuerzo_escolar:90000 };
-    var TIPO_LABELS = { sesion:'Sesión normal', devolucion:'Devolución', devolucion_compartida:'Devolución compartida', captada:'Entrevista captada', colegio:'Reunión de colegio', compartida:'Reunión compartida', reunion_padres:'Reunión con padres', refuerzo_escolar:'Refuerzo escolar' };
+    var DEFAULT_PAGO = { sesion:130000, devolucion:150000, devolucion_compartida:75000, captada:220000, colegio:130000, compartida:65000, reunion_padres:130000, refuerzo_escolar:90000, ados_adir:666667 };
+    var TIPO_LABELS = { sesion:'Sesión normal', devolucion:'Devolución', devolucion_compartida:'Devolución compartida', captada:'Entrevista captada', colegio:'Reunión de colegio', compartida:'Reunión compartida', reunion_padres:'Reunión con padres', refuerzo_escolar:'Refuerzo escolar', ados_adir:'ADOS/ADIR' };
 
     var tipos = Object.keys(DEFAULT_PAGO);
     var rows = tipos.map(function(tipo) {
@@ -4675,7 +4683,7 @@ async function configProfTarifas(el) {
 async function saveProfTarifas() {
   var profId = window._configProfId;
   if (!profId) return;
-  var tipos = ['sesion','devolucion','devolucion_compartida','captada','colegio','compartida','reunion_padres','refuerzo_escolar'];
+  var tipos = ['sesion','devolucion','devolucion_compartida','captada','colegio','compartida','reunion_padres','refuerzo_escolar','ados_adir'];
   try {
     // Delete existing and reinsert
     await api('DELETE', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
@@ -5406,7 +5414,7 @@ async function loadResumen() {
       if (!profTarMap[pt.profesional_id]) profTarMap[pt.profesional_id] = {};
       profTarMap[pt.profesional_id][pt.tipo] = pt.pago_profesional;
     });
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000 };
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
 
     // Count pacientes per prof
     // Only count ACTIVE patients per prof
@@ -5709,7 +5717,7 @@ async function loadHonorariosProfStat(profId) {
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
     var profTarMap = {};
     profTarifas.forEach(function(pt) { profTarMap[pt.tipo] = pt.pago_profesional; });
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000 };
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
     
     var totalHonorarios = turnos.reduce(function(sum, t) {
       var tipo = t.tipo || 'sesion';
@@ -5757,7 +5765,7 @@ async function loadHonorariosProfTab(profId) {
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
     var profTarMap = {};
     profTarifas.forEach(function(pt) { profTarMap[pt.tipo] = pt.pago_profesional; });
-    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000 };
+    var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
     var pagosMesMap = {};
     pagosMes.forEach(function(pm) { pagosMesMap[pm.mes] = pm; });
     
@@ -6783,7 +6791,7 @@ async function loadProfAgendaMes(profId) {
     var tarifaMap = {};
     tarifasBase.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
     
-    var TIPO_COLORS_PM = { sesion:'#4CAF50', preferencial:'#FFC107', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548', entrevista_plus:'#FFD700', reunion_padres:'#3F51B5', devolucion_compartida:'#AD1457', refuerzo_escolar:'#FF7043', devolucion_excepcional:'#FF5722' };
+    var TIPO_COLORS_PM = { sesion:'#4CAF50', preferencial:'#FFC107', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548', entrevista_plus:'#FFD700', reunion_padres:'#3F51B5', devolucion_compartida:'#AD1457', refuerzo_escolar:'#FF7043', devolucion_excepcional:'#FF5722', ados_adir:'#009688' };
     var ESTADO_COLORS_PM = { pendiente:'#F0A500', confirmado:'#1B8A7A', cancelado:'#C0392B', cancelado_hora:'#FF8C00' };
     
     var html = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">' +
