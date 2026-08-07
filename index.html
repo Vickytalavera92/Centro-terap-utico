@@ -1242,6 +1242,38 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL VENTA DE REMERA -->
+<div class="modal-overlay" id="modal-remera">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header">
+      <h3 id="remera-modal-titulo">Nueva venta de remera</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-remera')">✕</button>
+    </div>
+    <input type="hidden" id="remera-id">
+    <div class="form-group"><label>Nombre del comprador</label><input id="remera-nombre" placeholder="Nombre completo"></div>
+    <div class="form-group"><label>Tipo de comprador</label>
+      <select id="remera-tipo">
+        <option value="nino_guarderia">🧒 Niño de guardería</option>
+        <option value="profesional">👩‍⚕️ Profesional / personal de CREA</option>
+        <option value="otro">👤 Otro</option>
+      </select>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Talle</label><input id="remera-talle" placeholder="Ej: M, 8, 10"></div>
+      <div class="form-group"><label>Cantidad</label><input type="number" id="remera-cantidad" value="1" min="1" onchange="calcularMontoRemera()"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Precio unitario (Gs.)</label><input type="number" id="remera-precio-unit" placeholder="Ej: 80000" onchange="calcularMontoRemera()"></div>
+      <div class="form-group"><label>Monto total (Gs.)</label><input type="number" id="remera-monto"></div>
+    </div>
+    <div class="form-group"><label>Fecha</label><input type="date" id="remera-fecha"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-remera')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarRemera()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EDITAR PACIENTE -->
 <div class="modal-overlay" id="modal-edit-pac">
   <div class="modal" style="max-height:90vh;overflow-y:auto;">
@@ -3984,8 +4016,14 @@ async function calcularGananciaMesSimple(anio, mes) {
     inscX.forEach(function(i) { esperadoColonia += (i.monto || 0); });
   }
 
-  var balanceNeto = totalGenerado + esperadoGuarderia + esperadoColonia - totalProfs - gastosTotales - sueldosTotales;
-  return { mesKey: mesKeyX, anio: anio, mes: mes, totalGenerado: totalGenerado, esperadoGuarderia: esperadoGuarderia, esperadoColonia: esperadoColonia, totalProfs: totalProfs, gastosTotales: gastosTotales, sueldosTotales: sueldosTotales, balanceNeto: balanceNeto };
+  var esperadoRemeras = 0;
+  try {
+    var remerasX = await api('GET', 'remeras_ventas', null, '?fecha=gte.' + firstX + '&fecha=lte.' + lastX);
+    remerasX.forEach(function(r) { esperadoRemeras += (r.monto_total || 0); });
+  } catch(eRemX) {}
+
+  var balanceNeto = totalGenerado + esperadoGuarderia + esperadoColonia + esperadoRemeras - totalProfs - gastosTotales - sueldosTotales;
+  return { mesKey: mesKeyX, anio: anio, mes: mes, totalGenerado: totalGenerado, esperadoGuarderia: esperadoGuarderia, esperadoColonia: esperadoColonia, esperadoRemeras: esperadoRemeras, totalProfs: totalProfs, gastosTotales: gastosTotales, sueldosTotales: sueldosTotales, balanceNeto: balanceNeto };
 }
 
 async function verGananciaAcumulada(cantidadMeses) {
@@ -4378,6 +4416,17 @@ async function loadAdmin() {
           todasInscripcionesBal.forEach(function(insc) { esperadoColonia += (insc.monto || 0); });
         }
       } catch(eGuard) {}
+
+      // Ingresos de remeras/uniformes este mes
+      var ingresosRemeras = 0;
+      var esperadoRemeras = 0;
+      try {
+        var remerasDelMesBal = await api('GET', 'remeras_ventas', null, '?fecha=gte.' + inicioMesBal + '&fecha=lte.' + finMesBal);
+        remerasDelMesBal.forEach(function(r) {
+          esperadoRemeras += (r.monto_total || 0);
+          if (r.pagado) ingresosRemeras += (r.monto_total || 0);
+        });
+      } catch(eRemBal) {}
       
       // Add sueldos fijos to balance
       var sueldosTotales = 0;
@@ -4398,7 +4447,7 @@ async function loadAdmin() {
         });
       } catch(eSuel) {}
       
-      var balanceNeto = totalGenerado + esperadoGuarderia + esperadoColonia - totalProfs - gastosTotales - sueldosTotales;
+      var balanceNeto = totalGenerado + esperadoGuarderia + esperadoColonia + esperadoRemeras - totalProfs - gastosTotales - sueldosTotales;
       html += '<div class="card" style="margin-top:16px;">' +
         '<div class="section-title mb-12">⚖️ Balance General del mes</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">' +
@@ -4415,6 +4464,11 @@ async function loadAdmin() {
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🏕️ Ingresos colonia</div>' +
           '<div style="font-size:15px;font-weight:700;color:#00695C;">' + fmtGs(esperadoColonia) + '</div>' +
           (esperadoColonia > ingresosColonia ? '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Cobrado real: ' + fmtGs(ingresosColonia) + '</div>' : '') +
+        '</div>' +
+        '<div style="padding:10px;background:#FFF8E1;border-radius:8px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">🎽 Ingresos remeras</div>' +
+          '<div style="font-size:15px;font-weight:700;color:#F57F17;">' + fmtGs(esperadoRemeras) + '</div>' +
+          (esperadoRemeras > ingresosRemeras ? '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">Cobrado real: ' + fmtGs(ingresosRemeras) + '</div>' : '') +
         '</div>' +
         '<div style="padding:10px;background:#FFF3E0;border-radius:8px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">👩‍⚕️ Honorarios prof.</div>' +
@@ -4450,6 +4504,7 @@ async function loadAdmin() {
         barraProgreso('💰 Terapias', cobradoTerapiasReal, totalGenerado, '#1B8A7A') +
         barraProgreso('🧒 Guardería', ingresosGuarderia, esperadoGuarderia, '#1565C0') +
         (esperadoColonia > 0 ? barraProgreso('🏕️ Colonia', ingresosColonia, esperadoColonia, '#00695C') : '') +
+        (esperadoRemeras > 0 ? barraProgreso('🎽 Remeras', ingresosRemeras, esperadoRemeras, '#F57F17') : '') +
         '<div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">Algunas familias pagan a fin de mes, así que esto se va completando con los días.</div>' +
         '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">' +
         '<span style="font-size:11px;color:var(--text-secondary);align-self:center;">📊 Ver ganancia acumulada:</span>' +
@@ -4468,7 +4523,7 @@ async function loadAdmin() {
       if (metaMonto > 0) {
         var pct = Math.min(100, Math.round((balanceNeto / metaMonto) * 100));
         var barColor = pct >= 100 ? '#1B8A7A' : pct >= 75 ? '#F0A500' : '#C0392B';
-        html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Meta sobre ganancia neta CREA (terapias, guardería y colonia según lo proyectado − honorarios − gastos − sueldos)</div>' +
+        html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Meta sobre ganancia neta CREA (terapias, guardería, colonia y remeras según lo proyectado − honorarios − gastos − sueldos)</div>' +
           '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
           '<span>Ganancia: ' + fmtGs(balanceNeto) + ' de meta ' + fmtGs(metaMonto) + '</span>' +
           '<span style="font-weight:700;color:' + barColor + ';">' + pct + '%</span></div>' +
@@ -7402,6 +7457,44 @@ async function loadGuarderia() {
         '</div>';
     }
 
+    // Remeras / Uniformes section
+    var remeras = [];
+    try { remeras = await api('GET', 'remeras_ventas', null, '?order=fecha.desc'); } catch(eRem) {}
+    var totalRemerasEsperado = remeras.reduce(function(s,r) { return s+(r.monto_total||0); }, 0);
+    var totalRemerasCobrado = remeras.filter(function(r) { return r.pagado; }).reduce(function(s,r) { return s+(r.monto_total||0); }, 0);
+    var pendientesRemeras = remeras.filter(function(r) { return !r.pagado; }).length;
+    html += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">' +
+      '<div class="section-title" style="margin-bottom:0;">🎽 Remeras / Uniformes</div>' +
+      (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button class="btn btn-secondary btn-sm" onclick="abrirModalRemera()">+ Nueva venta</button>' : '') +
+      '</div>';
+    if (remeras.length && canSeeMontos) {
+      html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">' +
+        '<span style="color:#1B8A7A;font-weight:600;">' + fmtGs(totalRemerasCobrado) + ' cobrado</span> de ' + fmtGs(totalRemerasEsperado) +
+        (pendientesRemeras ? ' · <span style="color:#E65100;">' + pendientesRemeras + ' pendiente' + (pendientesRemeras===1?'':'s') + '</span>' : '') + '</div>';
+    }
+    if (remeras.length) {
+      html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table style="width:100%;border-collapse:collapse;min-width:520px;font-size:13px;">' +
+        '<thead><tr style="background:var(--bg);"><th style="padding:6px 8px;text-align:left;">Comprador</th><th style="padding:6px 8px;text-align:center;">Talle</th><th style="padding:6px 8px;text-align:center;">Cant.</th><th style="padding:6px 8px;text-align:right;">Monto</th><th style="padding:6px 8px;text-align:center;">Estado</th><th></th></tr></thead><tbody>';
+      remeras.forEach(function(r) {
+        var tipoIcon = r.comprador_tipo === 'nino_guarderia' ? '🧒' : r.comprador_tipo === 'profesional' ? '👩‍⚕️' : '👤';
+        html += '<tr style="border-bottom:1px solid var(--border);">' +
+          '<td style="padding:6px 8px;">' + tipoIcon + ' ' + r.comprador_nombre + '</td>' +
+          '<td style="padding:6px 8px;text-align:center;">' + (r.talle||'—') + '</td>' +
+          '<td style="padding:6px 8px;text-align:center;">' + r.cantidad + '</td>' +
+          '<td style="padding:6px 8px;text-align:right;font-weight:600;">' + fmtGs(r.monto_total||0) + '</td>' +
+          '<td style="padding:6px 8px;text-align:center;">' + (r.pagado ? '<span style="color:#1B8A7A;font-size:11px;">✅ Pagado</span>' : '<span style="color:#E65100;font-size:11px;">⏳ Pendiente</span>') + '</td>' +
+          '<td style="padding:6px 8px;"><div style="display:flex;gap:4px;justify-content:flex-end;">' +
+          '<button data-rid="' + r.id + '" data-pagado="' + !r.pagado + '" onclick="marcarPagoRemera(this.dataset.rid,this.dataset.pagado===\'true\')" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;">' + (r.pagado ? 'Deshacer' : '✅ Cobrar') + '</button>' +
+          (CU.rol === 'directora' ? '<button data-rid="' + r.id + '" onclick="abrirModalRemera(this.dataset.rid)" class="btn btn-ghost btn-sm" style="padding:3px 6px;font-size:11px;">✏️</button>' : '') +
+          (CU.rol === 'directora' ? '<button data-rid="' + r.id + '" onclick="eliminarRemera(this.dataset.rid)" class="btn btn-ghost btn-sm" style="padding:3px 6px;font-size:11px;color:#C0392B;">🗑</button>' : '') +
+          '</div></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div style="color:var(--text-secondary);font-size:13px;">Sin ventas registradas.</div>';
+    }
+    html += '</div>';
+
     el.innerHTML = html;
   } catch(e) {
     el.innerHTML = '<div class="empty-state">⚠️ Error: ' + e.message +
@@ -7771,6 +7864,97 @@ async function marcarPagoColonia(inscId, pagado) {
     }
     await api('PATCH', 'colonia_inscripciones', data, '?id=eq.' + inscId);
     toast(pagado ? '✅ Marcado como pagado' : 'Pago deshecho');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================
+// REMERAS / UNIFORMES
+// ==================
+async function abrirModalRemera(remeraId) {
+  document.getElementById('remera-id').value = '';
+  document.getElementById('remera-nombre').value = '';
+  document.getElementById('remera-tipo').value = 'nino_guarderia';
+  document.getElementById('remera-talle').value = '';
+  document.getElementById('remera-cantidad').value = 1;
+  document.getElementById('remera-precio-unit').value = '';
+  document.getElementById('remera-monto').value = '';
+  document.getElementById('remera-fecha').value = today();
+  document.getElementById('remera-modal-titulo').textContent = 'Nueva venta de remera';
+  if (remeraId) {
+    try {
+      var remeras = await api('GET', 'remeras_ventas', null, '?id=eq.' + remeraId + '&limit=1');
+      var r = remeras[0];
+      if (r) {
+        document.getElementById('remera-id').value = r.id;
+        document.getElementById('remera-nombre').value = r.comprador_nombre || '';
+        document.getElementById('remera-tipo').value = r.comprador_tipo || 'nino_guarderia';
+        document.getElementById('remera-talle').value = r.talle || '';
+        document.getElementById('remera-cantidad').value = r.cantidad || 1;
+        document.getElementById('remera-precio-unit').value = r.precio_unitario || '';
+        document.getElementById('remera-monto').value = r.monto_total || '';
+        document.getElementById('remera-fecha').value = r.fecha || today();
+        document.getElementById('remera-modal-titulo').textContent = 'Editar venta de remera';
+      }
+    } catch(e) {}
+  }
+  openModal('modal-remera');
+}
+
+function calcularMontoRemera() {
+  var precio = parseInt(document.getElementById('remera-precio-unit').value) || 0;
+  var cant = parseInt(document.getElementById('remera-cantidad').value) || 1;
+  document.getElementById('remera-monto').value = precio * cant;
+}
+
+async function guardarRemera() {
+  var id = document.getElementById('remera-id').value;
+  var nombre = document.getElementById('remera-nombre').value.trim();
+  if (!nombre) { alert('Ingresá el nombre del comprador'); return; }
+  var data = {
+    comprador_nombre: nombre,
+    comprador_tipo: document.getElementById('remera-tipo').value,
+    talle: document.getElementById('remera-talle').value || null,
+    cantidad: parseInt(document.getElementById('remera-cantidad').value) || 1,
+    precio_unitario: parseInt(document.getElementById('remera-precio-unit').value) || 0,
+    monto_total: parseInt(document.getElementById('remera-monto').value) || 0,
+    fecha: document.getElementById('remera-fecha').value || today()
+  };
+  try {
+    if (id) {
+      await api('PATCH', 'remeras_ventas', data, '?id=eq.' + id);
+    } else {
+      data.pagado = false;
+      await api('POST', 'remeras_ventas', data);
+    }
+    closeModal('modal-remera');
+    toast('✅ Venta guardada');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function marcarPagoRemera(remeraId, pagado) {
+  try {
+    var data = { pagado: pagado };
+    if (pagado) {
+      data.fecha_pago = today();
+      var now = new Date();
+      data.mes_pago = now.getFullYear() + '_' + String(now.getMonth()+1).padStart(2,'0');
+    } else {
+      data.fecha_pago = null;
+      data.mes_pago = null;
+    }
+    await api('PATCH', 'remeras_ventas', data, '?id=eq.' + remeraId);
+    toast(pagado ? '✅ Marcado como cobrado' : 'Marcado como pendiente');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarRemera(remeraId) {
+  if (!confirm('¿Eliminar esta venta? No se puede deshacer.')) return;
+  try {
+    await api('DELETE', 'remeras_ventas', null, '?id=eq.' + remeraId);
+    toast('Venta eliminada');
     loadGuarderia();
   } catch(e) { alert('Error: ' + e.message); }
 }
