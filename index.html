@@ -7505,6 +7505,11 @@ async function loadGuarderia() {
 
     el.innerHTML = html;
   } catch(e) {
+    if (e.message && (e.message.indexOf('JWT') !== -1 || e.message.indexOf('expired') !== -1)) {
+      el.innerHTML = '<div class="empty-state">⏰ Tu sesión venció.<br><small style="color:var(--text-secondary);">Pasó bastante tiempo desde que iniciaste sesión. Cerrá sesión y volvé a entrar para renovarla.</small>' +
+        '<br><button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="logout()">Cerrar sesión</button></div>';
+      return;
+    }
     el.innerHTML = '<div class="empty-state">⚠️ Error: ' + e.message +
       '<br><small style="color:var(--text-secondary);">Si dice \"permission denied\" corré en Supabase SQL Editor:<br>' +
       'ALTER TABLE guarderia_ninos DISABLE ROW LEVEL SECURITY;<br>' +
