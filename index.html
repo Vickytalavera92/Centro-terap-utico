@@ -930,6 +930,14 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="form-group"><label>Motivo del descuento</label><input id="inscripto-descuento-motivo" placeholder="Ej: Hermano, Caso excepcional"></div>
     </div>
     <div class="form-group"><label>Monto a cobrar (Gs.)</label><input type="number" id="inscripto-monto"></div>
+    <div class="form-group"><label>Método de pago</label>
+      <select id="inscripto-metodo">
+        <option value="efectivo">💵 Efectivo</option>
+        <option value="transferencia">🏦 Transferencia</option>
+        <option value="pos">💳 POS / Tarjeta</option>
+        <option value="qr">📱 QR</option>
+      </select>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-inscripto')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarInscripto()">Guardar</button>
@@ -1268,7 +1276,17 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="form-group"><label>Precio unitario (Gs.)</label><input type="number" id="remera-precio-unit" placeholder="Ej: 80000" onchange="calcularMontoRemera()"></div>
       <div class="form-group"><label>Monto total (Gs.)</label><input type="number" id="remera-monto"></div>
     </div>
-    <div class="form-group"><label>Fecha</label><input type="date" id="remera-fecha"></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Fecha</label><input type="date" id="remera-fecha"></div>
+      <div class="form-group"><label>Método de pago</label>
+        <select id="remera-metodo">
+          <option value="efectivo">💵 Efectivo</option>
+          <option value="transferencia">🏦 Transferencia</option>
+          <option value="pos">💳 POS / Tarjeta</option>
+          <option value="qr">📱 QR</option>
+        </select>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-remera')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarRemera()">Guardar</button>
@@ -5146,11 +5164,48 @@ async function loadGastos() {
     var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
 
     // CAJA CHICA SUMMARY - visible for directora and recepcionista
-    var cobrosEfectivo = 0;
+    var cobrosEfectivoTerapias = 0, cobrosEfectivoGuarderia = 0, cobrosEfectivoColonia = 0, cobrosEfectivoRemeras = 0;
+    var detalleEfectivo = [];
     try {
       var cobrosEf = await api('GET', 'cobros', null, '?mes=eq.' + mesKey + '&metodo=eq.efectivo');
-      cobrosEfectivo = cobrosEf.reduce(function(s,c) { return s + (c.monto||0); }, 0);
+      cobrosEfectivoTerapias = cobrosEf.reduce(function(s,c) { return s + (c.monto||0); }, 0);
+      if (cobrosEf.length) {
+        var pacIdsEf = cobrosEf.map(function(c) { return c.paciente_id; }).filter(Boolean);
+        var pacsEf = pacIdsEf.length ? await api('GET', 'pacientes', null, '?id=in.(' + pacIdsEf.join(',') + ')&select=id,nombre,apellido').catch(function(){return [];}) : [];
+        var pacsEfMap = {}; pacsEf.forEach(function(p) { pacsEfMap[p.id] = p.nombre + ' ' + p.apellido; });
+        cobrosEf.forEach(function(c) {
+          detalleEfectivo.push({ fecha: c.fecha, origen: '💰 Terapia', descripcion: pacsEfMap[c.paciente_id] || 'Paciente', monto: c.monto||0 });
+        });
+      }
     } catch(eef) {}
+    try {
+      var guardEf = await api('GET', 'guarderia_pagos', null, '?mes=eq.' + mesKey + '&metodo_pago=eq.efectivo');
+      cobrosEfectivoGuarderia = guardEf.reduce(function(s,g) { return s + (g.monto||0); }, 0);
+      if (guardEf.length) {
+        var ninoIdsEf = guardEf.map(function(g) { return g.nino_id; }).filter(Boolean);
+        var ninosEf = ninoIdsEf.length ? await api('GET', 'guarderia_ninos', null, '?id=in.(' + ninoIdsEf.join(',') + ')&select=id,nombre').catch(function(){return [];}) : [];
+        var ninosEfMap = {}; ninosEf.forEach(function(n) { ninosEfMap[n.id] = n.nombre; });
+        guardEf.forEach(function(g) {
+          detalleEfectivo.push({ fecha: g.fecha || '', origen: '🧒 Guardería', descripcion: ninosEfMap[g.nino_id] || 'Niño', monto: g.monto||0 });
+        });
+      }
+    } catch(eefG) {}
+    try {
+      var colEf = await api('GET', 'colonia_inscripciones', null, '?mes_pago=eq.' + mesKey + '&pagado=eq.true&metodo_pago=eq.efectivo');
+      cobrosEfectivoColonia = colEf.reduce(function(s,c) { return s + (c.monto||0); }, 0);
+      colEf.forEach(function(c) {
+        detalleEfectivo.push({ fecha: c.fecha_pago || '', origen: '🏕️ Colonia', descripcion: c.nombre_nino || 'Niño', monto: c.monto||0 });
+      });
+    } catch(eefC) {}
+    try {
+      var remEf = await api('GET', 'remeras_ventas', null, '?mes_pago=eq.' + mesKey + '&pagado=eq.true&metodo_pago=eq.efectivo');
+      cobrosEfectivoRemeras = remEf.reduce(function(s,r) { return s + (r.monto_total||0); }, 0);
+      remEf.forEach(function(r) {
+        detalleEfectivo.push({ fecha: r.fecha_pago || '', origen: '🎽 Remera', descripcion: r.comprador_nombre || 'Comprador', monto: r.monto_total||0 });
+      });
+    } catch(eefR) {}
+    detalleEfectivo.sort(function(a,b) { return (a.fecha||'').localeCompare(b.fecha||''); });
+    var cobrosEfectivo = cobrosEfectivoTerapias + cobrosEfectivoGuarderia + cobrosEfectivoColonia + cobrosEfectivoRemeras;
     var gastosEfectivo = gastos.filter(function(g) { return (g.metodo_pago||'efectivo') === 'efectivo'; })
       .reduce(function(s,g) { return s + (g.monto||0); }, 0);
     var totalDepositos = depositos.reduce(function(s,d) { return s + (d.monto||0); }, 0);
@@ -5162,6 +5217,9 @@ async function loadGastos() {
       (CU.rol !== 'recepcionista' ? '' : '') +
       '<button class="btn btn-secondary btn-sm" onclick="registrarDeposito()">🏦 Registrar depósito</button>' +
       '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Efectivo cobrado este mes, de todas las fuentes: ' +
+      '<strong>Terapias</strong> ' + fmtGs(cobrosEfectivoTerapias) + ' · <strong>Guardería</strong> ' + fmtGs(cobrosEfectivoGuarderia) +
+      ' · <strong>Colonia</strong> ' + fmtGs(cobrosEfectivoColonia) + ' · <strong>Remeras</strong> ' + fmtGs(cobrosEfectivoRemeras) + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px;">' +
       '<div style="padding:10px;background:#FFF8E1;border-radius:8px;text-align:center;">' +
         '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">💵 Cobrado efectivo</div>' +
@@ -5182,6 +5240,14 @@ async function loadGastos() {
       (depositos.length ? '<div style="font-size:11px;color:var(--text-secondary);padding:8px;background:var(--bg);border-radius:6px;">🏦 Depósitos: ' +
         depositos.map(function(d) { return d.fecha + ' — ' + fmtGs(d.monto) + (d.descripcion ? ' (' + d.descripcion + ')' : ''); }).join(' · ') +
         '</div>' : '<div style="font-size:12px;color:var(--text-tertiary);">Sin depósitos registrados este mes</div>') +
+      (detalleEfectivo.length ? '<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;color:var(--text-secondary);font-weight:600;">📋 Ver detalle (' + detalleEfectivo.length + ' pago' + (detalleEfectivo.length===1?'':'s') + ' en efectivo)</summary>' +
+        '<div style="margin-top:8px;max-height:260px;overflow-y:auto;">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+        '<thead><tr style="background:var(--bg);"><th style="padding:5px 8px;text-align:left;">Fecha</th><th style="padding:5px 8px;text-align:left;">Origen</th><th style="padding:5px 8px;text-align:left;">Quién</th><th style="padding:5px 8px;text-align:right;">Monto</th></tr></thead><tbody>' +
+        detalleEfectivo.map(function(d) {
+          return '<tr style="border-bottom:1px solid var(--border);"><td style="padding:5px 8px;">' + (d.fecha||'—') + '</td><td style="padding:5px 8px;">' + d.origen + '</td><td style="padding:5px 8px;">' + d.descripcion + '</td><td style="padding:5px 8px;text-align:right;font-weight:600;">' + fmtGs(d.monto) + '</td></tr>';
+        }).join('') +
+        '</tbody></table></div></details>' : '') +
       '</div>';
 
     if (CU.rol === 'recepcionista') {
@@ -7787,6 +7853,7 @@ async function abrirModalInscripto(coloniaId, inscriptoId) {
   document.getElementById('inscripto-cantidad').value = 1;
   document.getElementById('inscripto-descuento-pct').value = 0;
   document.getElementById('inscripto-descuento-motivo').value = '';
+  document.getElementById('inscripto-metodo').value = 'efectivo';
   document.getElementById('inscripto-modal-titulo').textContent = 'Inscribir niño';
   if (inscriptoId) {
     try {
@@ -7800,6 +7867,7 @@ async function abrirModalInscripto(coloniaId, inscriptoId) {
         document.getElementById('inscripto-descuento-pct').value = i.descuento_porcentaje != null ? i.descuento_porcentaje : (i.es_hermano ? 15 : 0);
         document.getElementById('inscripto-descuento-motivo').value = i.descuento_motivo || (i.es_hermano ? 'Hermano' : '');
         document.getElementById('inscripto-monto').value = i.monto || 0;
+        document.getElementById('inscripto-metodo').value = i.metodo_pago || 'efectivo';
         document.getElementById('inscripto-modal-titulo').textContent = 'Editar inscripción';
       }
     } catch(e) {}
@@ -7839,7 +7907,8 @@ async function guardarInscripto() {
     cantidad: parseInt(document.getElementById('inscripto-cantidad').value) || 1,
     descuento_porcentaje: parseFloat(document.getElementById('inscripto-descuento-pct').value) || 0,
     descuento_motivo: document.getElementById('inscripto-descuento-motivo').value.trim() || null,
-    monto: parseInt(document.getElementById('inscripto-monto').value) || 0
+    monto: parseInt(document.getElementById('inscripto-monto').value) || 0,
+    metodo_pago: document.getElementById('inscripto-metodo').value || 'efectivo'
   };
   try {
     if (id) {
@@ -7893,6 +7962,7 @@ async function abrirModalRemera(remeraId) {
   document.getElementById('remera-precio-unit').value = '';
   document.getElementById('remera-monto').value = '';
   document.getElementById('remera-fecha').value = today();
+  document.getElementById('remera-metodo').value = 'efectivo';
   document.getElementById('remera-modal-titulo').textContent = 'Nueva venta de remera';
   if (remeraId) {
     try {
@@ -7907,6 +7977,7 @@ async function abrirModalRemera(remeraId) {
         document.getElementById('remera-precio-unit').value = r.precio_unitario || '';
         document.getElementById('remera-monto').value = r.monto_total || '';
         document.getElementById('remera-fecha').value = r.fecha || today();
+        document.getElementById('remera-metodo').value = r.metodo_pago || 'efectivo';
         document.getElementById('remera-modal-titulo').textContent = 'Editar venta de remera';
       }
     } catch(e) {}
@@ -7931,7 +8002,8 @@ async function guardarRemera() {
     cantidad: parseInt(document.getElementById('remera-cantidad').value) || 1,
     precio_unitario: parseInt(document.getElementById('remera-precio-unit').value) || 0,
     monto_total: parseInt(document.getElementById('remera-monto').value) || 0,
-    fecha: document.getElementById('remera-fecha').value || today()
+    fecha: document.getElementById('remera-fecha').value || today(),
+    metodo_pago: document.getElementById('remera-metodo').value || 'efectivo'
   };
   try {
     if (id) {
