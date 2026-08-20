@@ -818,9 +818,12 @@ input[type="time"] { -webkit-appearance: none; }
           <option value="extendido">Extendido (1.650.000)</option>
           <option value="doble">Doble turno (1.950.000)</option>
           <option value="excepcion">Excepción (1.450.000)</option>
+          <option value="personalizado">🔧 Personalizado</option>
         </select>
       </div>
-      <div class="form-group"><label id="nino-cuota-label">Cuota base (Gs.)</label><input type="number" id="nino-cuota" placeholder="1200000"></div>
+      <div class="form-group"><label id="nino-cuota-label">Cuota base (Gs.)</label><input type="number" id="nino-cuota" placeholder="1200000">
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Podés escribir cualquier monto acá, sin importar el turno elegido arriba.</div>
+      </div>
     </div>
     <div class="grid-2">
       <div class="form-group"><label>Tipo de descuento</label>
@@ -863,6 +866,10 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="form-group">
       <label>Monto cobrado (Gs.)</label>
       <input type="number" id="pago-guard-monto" placeholder="0">
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="pago-guard-exonerado" onchange="toggleExoneradoGuarderia()" style="width:auto;">
+      <label style="margin:0;">Eximir este mes (no corresponde cobrarle — ej: se fue a mitad de mes)</label>
     </div>
     <div class="form-group">
       <label>Método de pago</label>
@@ -7427,8 +7434,11 @@ async function loadGuarderia() {
       '</div></div>';
 
     // Summary cards
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">' +
-      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + ninos.length + '</div><div class="stat-label">Niños activos</div></div>' +
+    var totalHistoricoNinos = results[0].length;
+    var totalDeBajaNinos = results[0].filter(function(n) { return !!n.fecha_baja; }).length;
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">👶 <strong>' + totalHistoricoNinos + '</strong> niños registrados en total en el sistema' + (totalDeBajaNinos ? ' (' + totalDeBajaNinos + ' dados de baja en algún momento)' : '') + '.</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">' +
+      '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;">' + ninos.length + '</div><div class="stat-label">Activos este mes</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#2196F3;">' + pagados + '</div><div class="stat-label">Pagaron este mes</div></div>' +
       '<div class="stat-card"><div class="stat-num" style="color:#F0A500;">' + (ninos.length - pagados) + '</div><div class="stat-label">Pendientes</div></div>' +
       (isAdminGuard ? '<div class="stat-card"><div class="stat-num" style="color:#1B8A7A;font-size:16px;">' + fmtGs(totalCobrado) + '</div><div class="stat-label">Total cobrado</div></div>' +
@@ -7438,7 +7448,7 @@ async function loadGuarderia() {
 
     // Ninos table
     var canSeeMontos = true; // All roles see individual amounts
-    html += '<div class="card" style="margin-bottom:16px;"><div class="section-title mb-12">📋 Lista de niños</div>' +
+    html += '<div class="card" style="margin-bottom:16px;"><div class="section-title mb-12">📋 Lista de niños (' + ninos.length + ')</div>' +
       '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">' +
       '<table style="width:100%;border-collapse:collapse;min-width:560px;"><thead><tr style="background:var(--bg);">' +
       '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Nombre / Responsable</th>' +
@@ -7504,7 +7514,7 @@ async function loadGuarderia() {
         if (!inscripcionesPorColonia[i.colonia_id]) inscripcionesPorColonia[i.colonia_id] = [];
         inscripcionesPorColonia[i.colonia_id].push(i);
       });
-      html += '<div class="card"><div class="section-title mb-12">🏕️ Colonias</div>';
+      html += '<div class="card"><div class="section-title mb-12">🏕️ Colonias (' + colonias.length + ')</div>';
       colonias.forEach(function(c) {
         var inscs = inscripcionesPorColonia[c.id] || [];
         var totalColoniaEsperado = inscs.reduce(function(s,i) { return s+(i.monto||0); }, 0);
@@ -7538,7 +7548,7 @@ async function loadGuarderia() {
     var totalRemerasCobrado = remeras.filter(function(r) { return r.pagado; }).reduce(function(s,r) { return s+(r.monto_total||0); }, 0);
     var pendientesRemeras = remeras.filter(function(r) { return !r.pagado; }).length;
     html += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">' +
-      '<div class="section-title" style="margin-bottom:0;">🎽 Remeras / Uniformes</div>' +
+      '<div class="section-title" style="margin-bottom:0;">🎽 Remeras / Uniformes (' + remeras.length + ')</div>' +
       (CU.rol === 'directora' || CU.rol === 'recepcionista' ? '<button class="btn btn-secondary btn-sm" onclick="abrirModalRemera()">+ Nueva venta</button>' : '') +
       '</div>';
     if (remeras.length && canSeeMontos) {
@@ -7612,6 +7622,10 @@ async function registrarPagoGuarderia(ninoId, nombre, cuotaFinal, modalidad, pre
   document.getElementById('pago-guard-metodo').value = pago ? (pago.metodo_pago||'efectivo') : 'efectivo';
   document.getElementById('pago-guard-obs').value = pago ? (pago.observacion||'') : '';
   document.getElementById('pago-guard-btn-eliminar').style.display = pago ? '' : 'none';
+  document.getElementById('pago-guard-exonerado').checked = pago ? (pago.monto === 0) : false;
+  document.getElementById('pago-guard-monto').disabled = false;
+  document.getElementById('pago-guard-metodo').closest('.form-group').style.display = '';
+  if (pago && pago.monto === 0) toggleExoneradoGuarderia();
   var duplicadosHtml = '';
   if (pagosDuplicados.length) {
     duplicadosHtml = '<div style="background:#FCE4EC;border:1px solid #E57373;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;">' +
@@ -7648,12 +7662,29 @@ function calcularMontoPagoGuarderiaPorDia() {
   document.getElementById('pago-guard-monto').value = precioDia * dias;
 }
 
+function toggleExoneradoGuarderia() {
+  var exonerado = document.getElementById('pago-guard-exonerado').checked;
+  var montoInput = document.getElementById('pago-guard-monto');
+  var metodoWrap = document.getElementById('pago-guard-metodo').closest('.form-group');
+  if (exonerado) {
+    montoInput.value = 0;
+    montoInput.disabled = true;
+    if (metodoWrap) metodoWrap.style.display = 'none';
+    var obsEl = document.getElementById('pago-guard-obs');
+    if (!obsEl.value) obsEl.value = 'Exonerado este mes';
+  } else {
+    montoInput.disabled = false;
+    if (metodoWrap) metodoWrap.style.display = '';
+  }
+}
+
 async function confirmarPagoGuarderia() {
   var ninoId = document.getElementById('pago-guard-nino-id').value;
   var pagoId = document.getElementById('pago-guard-pago-id').value;
   var mesKey = window._pagoGuardMesKey;
+  var exonerado = document.getElementById('pago-guard-exonerado').checked;
   var monto = parseInt(document.getElementById('pago-guard-monto').value)||0;
-  if (!monto) { alert('Ingresá un monto válido'); return; }
+  if (!monto && !exonerado) { alert('Ingresá un monto válido (o tildá "Eximir este mes" si no corresponde cobrarle)'); return; }
   var metodo = document.getElementById('pago-guard-metodo').value;
   var obs = document.getElementById('pago-guard-obs').value || null;
   var dias = document.getElementById('pago-guard-dias-wrap').style.display !== 'none' ?
