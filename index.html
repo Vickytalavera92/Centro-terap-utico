@@ -4025,7 +4025,7 @@ async function calcularGananciaMesSimple(anio, mes) {
   var esperadoGuarderia = 0;
   ninosData.forEach(function(n) {
     if (n.fecha_inicio && n.fecha_inicio > lastX) return;
-    if (n.fecha_baja && n.fecha_baja < firstX) return;
+    if (n.fecha_baja && n.fecha_baja <= lastX) return;
     if (n.activo === false && !n.fecha_baja) return;
     if (n.modalidad === 'por_dia') return;
     esperadoGuarderia += (n.cuota_base - (n.descuento_monto || 0));
@@ -4416,7 +4416,7 @@ async function loadAdmin() {
         var finMesBal = finMesBalDate.getFullYear() + '-' + String(finMesBalDate.getMonth()+1).padStart(2,'0') + '-' + String(finMesBalDate.getDate()).padStart(2,'0');
         todosNinosBal.forEach(function(n) {
           if (n.fecha_inicio && n.fecha_inicio > finMesBal) return;
-          if (n.fecha_baja && n.fecha_baja < inicioMesBal) return;
+          if (n.fecha_baja && n.fecha_baja <= finMesBal) return;
           if (n.activo === false && !n.fecha_baja) return;
           if (n.modalidad === 'por_dia') return;
           esperadoGuarderia += (n.cuota_base - (n.descuento_monto || 0));
@@ -7396,10 +7396,11 @@ async function loadGuarderia() {
     var finMesDate = new Date(_guarderiaAnio, _guarderiaMes, 0);
     var finMes = finMesDate.getFullYear() + '-' + String(finMesDate.getMonth()+1).padStart(2,'0') + '-' + String(finMesDate.getDate()).padStart(2,'0');
     // Un niño aparece en un mes si ya había empezado (o no tiene fecha registrada, dato viejo)
-    // y todavía no se había dado de baja antes de ese mes.
+    // y no se dio de baja en o antes de ese mes. Una vez dado de baja, desaparece de ese mes en
+    // adelante (ya no figura como pendiente de pago).
     var ninos = results[0].filter(function(n) {
       if (n.fecha_inicio && n.fecha_inicio > finMes) return false;
-      if (n.fecha_baja && n.fecha_baja < inicioMes) return false;
+      if (n.fecha_baja && n.fecha_baja <= finMes) return false;
       if (n.activo === false && !n.fecha_baja) return false;
       return true;
     });
@@ -7449,6 +7450,8 @@ async function loadGuarderia() {
     // Ninos table
     var canSeeMontos = true; // All roles see individual amounts
     html += '<div class="card" style="margin-bottom:16px;"><div class="section-title mb-12">📋 Lista de niños (' + ninos.length + ')</div>' +
+      '<input id="guarderia-buscar-nino" oninput="filtrarNinosGuarderia()" placeholder="🔍 Buscar niño por nombre..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;margin-bottom:10px;">' +
+      '<div id="guarderia-buscar-sin-resultado" style="display:none;font-size:12px;color:var(--text-secondary);margin-bottom:8px;">Sin niños que coincidan con la búsqueda.</div>' +
       '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">' +
       '<table style="width:100%;border-collapse:collapse;min-width:560px;"><thead><tr style="background:var(--bg);">' +
       '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Nombre / Responsable</th>' +
@@ -7459,7 +7462,7 @@ async function loadGuarderia() {
       '<th style="padding:8px;text-align:center;font-size:11px;color:var(--text-secondary);">Estado pago</th>' +
       '<th style="padding:8px;text-align:left;font-size:11px;color:var(--text-secondary);">Factura / Método</th>' +
       '<th style="padding:8px;"></th>' +
-      '</tr></thead><tbody>';
+      '</tr></thead><tbody id="guarderia-ninos-tbody">';
 
     ninos.forEach(function(n) {
       var pago = pagosMap[n.id];
@@ -7470,7 +7473,7 @@ async function loadGuarderia() {
 
       var responsableNombre = n.responsable_nombre || n.responsable || '';
       var rucNino = n.responsable_ruc || '';
-      html += '<tr style="border-bottom:1px solid var(--border);">' +
+      html += '<tr data-nombre-nino="' + n.nombre.toLowerCase().replace(/"/g,'') + '" style="border-bottom:1px solid var(--border);">' +
         '<td style="padding:8px;">' +
         '<div style="font-weight:500;">' + n.nombre + (n.fecha_baja ? ' <span style="font-size:10px;color:#C0392B;">🚫 Baja: ' + n.fecha_baja + '</span>' : '') + '</div>' +
         (responsableNombre ? '<div style="font-size:11px;color:var(--text-secondary);">' + responsableNombre + '</div>' : '') +
@@ -7732,6 +7735,19 @@ function toggleModalidadNino() {
     turnoFormGroup.style.display = '';
     cuotaLabel.textContent = 'Cuota base (Gs.)';
   }
+}
+
+function filtrarNinosGuarderia() {
+  var texto = (document.getElementById('guarderia-buscar-nino').value || '').trim().toLowerCase();
+  var filas = document.querySelectorAll('#guarderia-ninos-tbody tr[data-nombre-nino]');
+  var visibles = 0;
+  filas.forEach(function(tr) {
+    var coincide = !texto || tr.getAttribute('data-nombre-nino').indexOf(texto) !== -1;
+    tr.style.display = coincide ? '' : 'none';
+    if (coincide) visibles++;
+  });
+  var sinResultado = document.getElementById('guarderia-buscar-sin-resultado');
+  if (sinResultado) sinResultado.style.display = (texto && visibles === 0) ? '' : 'none';
 }
 
 async function abrirModalNino(ninoId) {
