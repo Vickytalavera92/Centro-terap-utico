@@ -1259,6 +1259,39 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL BALANCE HISTÓRICO -->
+<div class="modal-overlay" id="modal-balance-historico">
+  <div class="modal" style="width:460px;">
+    <div class="modal-header">
+      <h3 id="balance-historico-titulo">Cargar balance histórico</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-balance-historico')">✕</button>
+    </div>
+    <input type="hidden" id="balhist-mes-key">
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Cargá los totales de ese mes desde tu Excel — no hace falta cargar cada cobro suelto, solo el total de cada rubro.</div>
+    <div class="grid-2">
+      <div class="form-group"><label>💰 Ingresos terapias (Gs.)</label><input type="number" id="balhist-terapias" placeholder="0" oninput="calcularBalanceHistoricoPreview()"></div>
+      <div class="form-group"><label>🧒 Ingresos guardería (Gs.)</label><input type="number" id="balhist-guarderia" placeholder="0" oninput="calcularBalanceHistoricoPreview()"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>🏕️ Ingresos colonia (Gs.)</label><input type="number" id="balhist-colonia" placeholder="0" oninput="calcularBalanceHistoricoPreview()"></div>
+      <div class="form-group"><label>🎽 Ingresos remeras (Gs.)</label><input type="number" id="balhist-remeras" placeholder="0" oninput="calcularBalanceHistoricoPreview()"></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>👩‍⚕️ Honorarios profesionales (Gs.)</label><input type="number" id="balhist-honorarios" placeholder="0" oninput="calcularBalanceHistoricoPreview()"></div>
+      <div class="form-group"><label>🧾 Gastos (Gs.)</label><input type="number" id="balhist-gastos" placeholder="0" oninput="calcularBalanceHistoricoPreview()"></div>
+    </div>
+    <div class="form-group"><label>👥 Sueldos fijos (Gs.)</label><input type="number" id="balhist-sueldos" placeholder="0" oninput="calcularBalanceHistoricoPreview()"></div>
+    <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text-secondary);">Ganancia neta de este mes</div>
+      <div id="balhist-preview" style="font-size:18px;font-weight:700;">Gs. 0</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-balance-historico')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarBalanceHistorico()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL VENTA DE REMERA -->
 <div class="modal-overlay" id="modal-remera">
   <div class="modal" style="width:420px;">
@@ -3964,8 +3997,90 @@ function fmtGs(n) {
 
 // Calcula el balance de un mes puntual, de forma independiente y liviana, para poder
 // sumar varios meses en "Ganancia acumulada" sin tocar el cálculo grande de loadAdmin().
+// ==================
+// BALANCE HISTÓRICO (meses anteriores a que existiera el sistema)
+// ==================
+async function abrirModalBalanceHistorico(anio, mes) {
+  var mesKeyH = anio + '_' + String(mes).padStart(2,'0');
+  var nombresMesH = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('balance-historico-titulo').textContent = 'Balance histórico — ' + nombresMesH[mes-1] + ' ' + anio;
+  document.getElementById('balhist-mes-key').value = mesKeyH;
+  ['terapias','guarderia','colonia','remeras','honorarios','gastos','sueldos'].forEach(function(campo) {
+    document.getElementById('balhist-' + campo).value = '';
+  });
+  try {
+    var rows = await api('GET', 'balance_historico', null, '?mes=eq.' + mesKeyH + '&limit=1');
+    if (rows && rows.length) {
+      var h = rows[0];
+      document.getElementById('balhist-terapias').value = h.ingresos_terapias || '';
+      document.getElementById('balhist-guarderia').value = h.ingresos_guarderia || '';
+      document.getElementById('balhist-colonia').value = h.ingresos_colonia || '';
+      document.getElementById('balhist-remeras').value = h.ingresos_remeras || '';
+      document.getElementById('balhist-honorarios').value = h.honorarios || '';
+      document.getElementById('balhist-gastos').value = h.gastos || '';
+      document.getElementById('balhist-sueldos').value = h.sueldos || '';
+    }
+  } catch(e) {}
+  calcularBalanceHistoricoPreview();
+  openModal('modal-balance-historico');
+}
+
+function calcularBalanceHistoricoPreview() {
+  var val = function(id) { return parseInt(document.getElementById(id).value) || 0; };
+  var neto = val('balhist-terapias') + val('balhist-guarderia') + val('balhist-colonia') + val('balhist-remeras')
+    - val('balhist-honorarios') - val('balhist-gastos') - val('balhist-sueldos');
+  var el = document.getElementById('balhist-preview');
+  el.textContent = fmtGs(neto);
+  el.style.color = neto >= 0 ? '#1B8A7A' : '#C0392B';
+}
+
+async function guardarBalanceHistorico() {
+  var val = function(id) { return parseInt(document.getElementById(id).value) || 0; };
+  var mesKeyH = document.getElementById('balhist-mes-key').value;
+  var data = {
+    mes: mesKeyH,
+    ingresos_terapias: val('balhist-terapias'),
+    ingresos_guarderia: val('balhist-guarderia'),
+    ingresos_colonia: val('balhist-colonia'),
+    ingresos_remeras: val('balhist-remeras'),
+    honorarios: val('balhist-honorarios'),
+    gastos: val('balhist-gastos'),
+    sueldos: val('balhist-sueldos')
+  };
+  try {
+    var existing = await api('GET', 'balance_historico', null, '?mes=eq.' + mesKeyH + '&limit=1');
+    if (existing && existing.length) {
+      await api('PATCH', 'balance_historico', data, '?mes=eq.' + mesKeyH);
+    } else {
+      await api('POST', 'balance_historico', data);
+    }
+    closeModal('modal-balance-historico');
+    toast('✅ Balance histórico guardado');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 async function calcularGananciaMesSimple(anio, mes) {
   var mesKeyX = anio + '_' + String(mes).padStart(2,'0');
+
+  // Si este mes tiene un balance histórico cargado a mano (ej: meses anteriores a que
+  // existiera el sistema, importados desde Excel), se usa ese en vez de calcularlo desde
+  // turnos/gastos — porque esos datos no existen en el sistema para ese mes.
+  try {
+    var histRows = await api('GET', 'balance_historico', null, '?mes=eq.' + mesKeyX + '&limit=1');
+    if (histRows && histRows.length) {
+      var h = histRows[0];
+      var totalGeneradoH = (h.ingresos_terapias||0);
+      var esperadoGuarderiaH = (h.ingresos_guarderia||0);
+      var esperadoColoniaH = (h.ingresos_colonia||0);
+      var esperadoRemerasH = (h.ingresos_remeras||0);
+      var totalProfsH = (h.honorarios||0);
+      var gastosTotalesH = (h.gastos||0);
+      var sueldosTotalesH = (h.sueldos||0);
+      var balanceNetoH = totalGeneradoH + esperadoGuarderiaH + esperadoColoniaH + esperadoRemerasH - totalProfsH - gastosTotalesH - sueldosTotalesH;
+      return { mesKey: mesKeyX, anio: anio, mes: mes, totalGenerado: totalGeneradoH, esperadoGuarderia: esperadoGuarderiaH, esperadoColonia: esperadoColoniaH, esperadoRemeras: esperadoRemerasH, totalProfs: totalProfsH, gastosTotales: gastosTotalesH, sueldosTotales: sueldosTotalesH, balanceNeto: balanceNetoH, esHistorico: true };
+    }
+  } catch(eHist) {}
+
   var firstX = anio + '-' + String(mes).padStart(2,'0') + '-01';
   var lastDateX = new Date(anio, mes, 0);
   var lastX = anio + '-' + String(mes).padStart(2,'0') + '-' + String(lastDateX.getDate()).padStart(2,'0');
@@ -4077,14 +4192,16 @@ async function verGananciaAcumulada(cantidadMeses) {
     }
     var totalAcumulado = resultados.reduce(function(s, r) { return s + r.balanceNeto; }, 0);
     var nombresMes = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
-      '<thead><tr style="background:var(--bg);"><th style="padding:8px;text-align:left;">Mes</th><th style="padding:8px;text-align:right;">Ganancia neta</th></tr></thead><tbody>';
+    var html = '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">📥 = mes cargado a mano (histórico, antes de junio 2026)</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr style="background:var(--bg);"><th style="padding:8px;text-align:left;">Mes</th><th style="padding:8px;text-align:right;">Ganancia neta</th><th></th></tr></thead><tbody>';
     resultados.forEach(function(r) {
-      html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;">' + nombresMes[r.mes-1] + ' ' + r.anio + '</td>' +
-        '<td style="padding:8px;text-align:right;font-weight:600;color:' + (r.balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(r.balanceNeto) + '</td></tr>';
+      html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px;">' + (r.esHistorico ? '📥 ' : '') + nombresMes[r.mes-1] + ' ' + r.anio + '</td>' +
+        '<td style="padding:8px;text-align:right;font-weight:600;color:' + (r.balanceNeto >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(r.balanceNeto) + '</td>' +
+        '<td style="padding:8px;text-align:right;"><button data-anio="' + r.anio + '" data-mes="' + r.mes + '" onclick="closeModal(\'modal-ganancia-acumulada\');abrirModalBalanceHistorico(parseInt(this.dataset.anio),parseInt(this.dataset.mes))" class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 6px;">' + (r.esHistorico ? '✏️' : '📥 Cargar') + '</button></td></tr>';
     });
     html += '<tr style="background:#FEF6E0;"><td style="padding:8px;font-weight:700;">TOTAL ACUMULADO</td>' +
-      '<td style="padding:8px;text-align:right;font-weight:700;font-size:15px;color:' + (totalAcumulado >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(totalAcumulado) + '</td></tr>';
+      '<td style="padding:8px;text-align:right;font-weight:700;font-size:15px;color:' + (totalAcumulado >= 0 ? '#1B8A7A' : '#C0392B') + ';">' + fmtGs(totalAcumulado) + '</td><td></td></tr>';
     html += '</tbody></table>';
     modalBody.innerHTML = html;
   } catch(e) {
@@ -4479,9 +4596,33 @@ async function loadAdmin() {
           sueldosTotales += (emp.salario_base - ipsEmp - otros) + ipsPatronal;
         });
       } catch(eSuel) {}
-      
+
+      // Si este mes tiene un balance histórico cargado a mano (meses anteriores a junio 2026,
+      // importados desde Excel), se pisan los valores calculados (que estarían en cero,
+      // ya que no hay turnos/gastos cargados en el sistema para esos meses).
+      var esMesHistorico = false;
+      try {
+        var histRowsAdmin = await api('GET', 'balance_historico', null, '?mes=eq.' + mesKey + '&limit=1');
+        if (histRowsAdmin && histRowsAdmin.length) {
+          esMesHistorico = true;
+          var hAdmin = histRowsAdmin[0];
+          totalGenerado = hAdmin.ingresos_terapias || 0;
+          cobradoTerapiasReal = totalGenerado;
+          esperadoGuarderia = hAdmin.ingresos_guarderia || 0;
+          ingresosGuarderia = esperadoGuarderia;
+          esperadoColonia = hAdmin.ingresos_colonia || 0;
+          ingresosColonia = esperadoColonia;
+          esperadoRemeras = hAdmin.ingresos_remeras || 0;
+          ingresosRemeras = esperadoRemeras;
+          totalProfs = hAdmin.honorarios || 0;
+          gastosTotales = hAdmin.gastos || 0;
+          sueldosTotales = hAdmin.sueldos || 0;
+        }
+      } catch(eHistAdmin) {}
+
       var balanceNeto = totalGenerado + esperadoGuarderia + esperadoColonia + esperadoRemeras - totalProfs - gastosTotales - sueldosTotales;
-      html += '<div class="card" style="margin-top:16px;">' +
+      html += (esMesHistorico ? '<div style="background:#E3F2FD;color:#1565C0;padding:8px 12px;border-radius:8px;font-size:12px;margin-top:16px;">📥 Este mes está cargado a mano desde tu Excel (histórico) — <button onclick="abrirModalBalanceHistorico(' + _adminAnio + ',' + _adminMes + ')" class="btn btn-ghost btn-sm" style="padding:0 4px;font-size:11px;text-decoration:underline;">editar</button></div>' : '') +
+      '<div class="card" style="margin-top:' + (esMesHistorico ? '8px' : '16px') + ';">' +
         '<div class="section-title mb-12">⚖️ Balance General del mes</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">' +
         '<div style="padding:10px;background:#E8F6F4;border-radius:8px;text-align:center;">' +
@@ -5218,9 +5359,45 @@ async function loadGastos() {
     var totalDepositos = depositos.reduce(function(s,d) { return s + (d.monto||0); }, 0);
     var saldoCaja = cobrosEfectivo - gastosEfectivo - totalDepositos;
 
+    // SALDO ACUMULADO REAL EN CAJA — a diferencia de arriba (que es solo este mes),
+    // esto junta TODO el historial (todos los meses) más los ajustes manuales, para saber
+    // cuánto hay físicamente en la caja ahora mismo, listo para depositar.
+    var saldoAcumulado = 0, ajustes = [];
+    try {
+      var totCobEf = await api('GET', 'cobros', null, '?metodo=eq.efectivo&select=monto').catch(function(){return [];});
+      var totGuardEf = await api('GET', 'guarderia_pagos', null, '?metodo_pago=eq.efectivo&select=monto').catch(function(){return [];});
+      var totColEf = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&metodo_pago=eq.efectivo&select=monto').catch(function(){return [];});
+      var totRemEf = await api('GET', 'remeras_ventas', null, '?pagado=eq.true&metodo_pago=eq.efectivo&select=monto_total').catch(function(){return [];});
+      var totGastosEf = await api('GET', 'gastos', null, '?select=monto,metodo_pago').catch(function(){return [];});
+      var totDepositosAll = await api('GET', 'depositos', null, '?select=monto').catch(function(){return [];});
+      ajustes = await api('GET', 'caja_ajustes', null, '?order=fecha.desc').catch(function(){return [];});
+      var totalCobradoHist = totCobEf.reduce(function(s,c){return s+(c.monto||0);},0) +
+        totGuardEf.reduce(function(s,g){return s+(g.monto||0);},0) +
+        totColEf.reduce(function(s,c){return s+(c.monto||0);},0) +
+        totRemEf.reduce(function(s,r){return s+(r.monto_total||0);},0);
+      var totalGastadoHist = totGastosEf.filter(function(g){return (g.metodo_pago||'efectivo')==='efectivo';}).reduce(function(s,g){return s+(g.monto||0);},0);
+      var totalDepositadoHist = totDepositosAll.reduce(function(s,d){return s+(d.monto||0);},0);
+      var totalAjustes = ajustes.reduce(function(s,a){return s+(a.monto||0);},0);
+      saldoAcumulado = totalCobradoHist - totalGastadoHist - totalDepositadoHist + totalAjustes;
+    } catch(eSaldoAcum) {}
+
+    html += '<div class="card" style="margin-bottom:16px;border:2px solid #FF8C00;background:#FFF8E1;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+      '<div>' +
+      '<div style="font-size:12px;color:var(--text-secondary);">💰 Saldo acumulado real en caja (todo lo cobrado en efectivo, menos gastos y depósitos, más ajustes)</div>' +
+      '<div style="font-size:22px;font-weight:700;color:#FF8C00;">' + fmtGs(saldoAcumulado) + '</div>' +
+      '</div>' +
+      '<button class="btn btn-secondary btn-sm" onclick="registrarAjusteCaja()">⚖️ Registrar ajuste</button>' +
+      '</div>' +
+      (ajustes.length ? '<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;padding-top:8px;border-top:1px solid #FFE0B2;">Ajustes cargados: ' +
+        ajustes.map(function(a) { return a.fecha + ' — ' + (a.monto>=0?'+':'') + fmtGs(a.monto) + (a.descripcion ? ' (' + a.descripcion + ')' : '') +
+          ' <span onclick="eliminarAjusteCaja(\'' + a.id + '\')" style="cursor:pointer;color:#C0392B;">✕</span>'; }).join(' · ') +
+        '</div>' : '') +
+      '</div>';
+
     html += '<div class="card" style="margin-bottom:16px;border-left:4px solid #FF8C00;">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-      '<div style="font-weight:600;font-size:14px;">💵 Control de Caja Chica</div>' +
+      '<div style="font-weight:600;font-size:14px;">💵 Control de Caja Chica (este mes)</div>' +
       (CU.rol !== 'recepcionista' ? '' : '') +
       '<button class="btn btn-secondary btn-sm" onclick="registrarDeposito()">🏦 Registrar depósito</button>' +
       '</div>' +
@@ -7118,6 +7295,36 @@ async function editarMeta() {
 // ==================
 // DEPOSITOS CAJA CHICA
 // ==================
+async function registrarAjusteCaja() {
+  var desc = prompt('¿Qué ajuste querés registrar? (ej: "Saldo en caja antes de junio 2026")');
+  if (desc === null) return;
+  var monto = prompt('Monto del ajuste (Gs.). Usá un número negativo si es para restar (ej: -50000):');
+  if (!monto) return;
+  var montoNum = parseInt(monto.replace(/[^0-9-]/g,''));
+  if (!montoNum) { alert('Ingresá un monto válido'); return; }
+  var today = new Date();
+  var fechaHoy = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  try {
+    await api('POST', 'caja_ajustes', {
+      fecha: fechaHoy,
+      monto: montoNum,
+      descripcion: desc || null,
+      registrado_por: CU.id
+    });
+    toast('✅ Ajuste registrado: ' + (montoNum>=0?'+':'') + fmtGs(montoNum));
+    loadGastos();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarAjusteCaja(ajusteId) {
+  if (!confirm('¿Eliminar este ajuste?')) return;
+  try {
+    await api('DELETE', 'caja_ajustes', null, '?id=eq.' + ajusteId);
+    toast('Ajuste eliminado');
+    loadGastos();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 async function registrarDeposito() {
   var monto = prompt('Monto del depósito al banco (Gs.):');
   if (!monto) return;
