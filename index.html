@@ -4335,7 +4335,7 @@ async function loadAdmin() {
       totalCrea += ganCrea;
 
       if (profBreakdown[t.profesional_id]) {
-        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0, minPrice: valorTotal, maxPrice: valorTotal, pagoProfConfigurado: pagoProfSinPaciente, minPagoProf: pagoProf, maxPagoProf: pagoProf, porPaciente: {} };
+        if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0, minPrice: valorTotal, maxPrice: valorTotal, pagoProfConfigurado: pagoProfSinPaciente, minPagoProf: pagoProf, maxPagoProf: pagoProf, porPaciente: {}, turnosDetalle: [] };
         profBreakdown[t.profesional_id].tipos[tipo].cant++;
         if (t.estado === 'cancelado_hora') profBreakdown[t.profesional_id].tipos[tipo].cancHora++;
         profBreakdown[t.profesional_id].tipos[tipo].totalGen += valorTotal;
@@ -4355,6 +4355,9 @@ async function loadAdmin() {
           };
         }
         profBreakdown[t.profesional_id].tipos[tipo].porPaciente[claveDesglose].cant++;
+        // Detalle turno por turno (fecha, paciente, estado) para poder cotejar el conteo a mano
+        var nombreDetalle = pacientesMap[t.paciente_id] ? (pacientesMap[t.paciente_id].nombre + ' ' + pacientesMap[t.paciente_id].apellido) : (t.paciente_nombre || 'Turno libre');
+        profBreakdown[t.profesional_id].tipos[tipo].turnosDetalle.push({ fecha: t.fecha, paciente: nombreDetalle, estado: t.estado });
         profBreakdown[t.profesional_id].totalGen += valorTotal;
         profBreakdown[t.profesional_id].totalProf += pagoProf;
         profBreakdown[t.profesional_id].totalCrea += ganCrea;
@@ -4411,8 +4414,10 @@ async function loadAdmin() {
         var hayMezclaReal = t.minPrice !== t.maxPrice;
         var hayMezclaPago = t.minPagoProf !== t.maxPagoProf;
         window._detalleMezcla = window._detalleMezcla || {};
+        window._detalleCantidad = window._detalleCantidad || {};
         var claveMezcla = p.id + '__' + tipo;
         if (hayMezclaReal || hayMezclaPago || hayDiferenciaVsBase) window._detalleMezcla[claveMezcla] = { nombreProf: p.nombre, tipoLabel: TIPO_LABELS[tipo]||tipo, porPaciente: t.porPaciente };
+        window._detalleCantidad[claveMezcla] = { nombreProf: p.nombre, tipoLabel: TIPO_LABELS[tipo]||tipo, turnos: t.turnosDetalle };
         var avisoPrecio = '';
         if (hayMezclaReal) {
           avisoPrecio = '<div data-clave="' + claveMezcla + '" onclick="verDetalleMezcla(this.dataset.clave)" title="Clic para ver qué paciente tiene la tarifa distinta" style="font-size:9px;color:#E65100;cursor:pointer;text-decoration:underline;">⚠ mezcla: ' + fmtGs(t.minPrice) + ' – ' + fmtGs(t.maxPrice) + '</div>';
@@ -4424,7 +4429,7 @@ async function loadAdmin() {
           '<td style="padding:8px 10px;border-bottom:1px solid var(--border);">' +
           '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:6px;"></span>' +
           (TIPO_LABELS[tipo]||tipo) + '</td>' +
-          '<td style="padding:8px 10px;text-align:center;font-weight:600;border-bottom:1px solid var(--border);">' + t.cant + 
+          '<td data-clave="' + claveMezcla + '" onclick="verDetalleCantidad(this.dataset.clave)" title="Clic para ver la lista de turnos contados, fecha por fecha" style="padding:8px 10px;text-align:center;font-weight:600;border-bottom:1px solid var(--border);cursor:pointer;text-decoration:underline dotted;">' + t.cant + 
           (t.cancHora > 0 ? '<span style="font-size:10px;background:#FF8C0020;color:#FF8C00;border:1px solid #FF8C00;border-radius:4px;padding:1px 5px;margin-left:4px;">🟠 ' + t.cancHora + '</span>' : '') +
           '</td>' +
           '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:11px;">' + fmtGs(unitGen) + ' / u.</td>' +
@@ -4782,6 +4787,31 @@ function abrirMisTarifas() {
     }
   };
   configProfTarifas(fakeEl);
+}
+
+function verDetalleCantidad(clave) {
+  var d = window._detalleCantidad && window._detalleCantidad[clave];
+  if (!d) return;
+  document.getElementById('modal-detalle-mezcla-title').textContent = d.nombreProf + ' — ' + d.tipoLabel + ' (' + d.turnos.length + ')';
+  var turnosOrdenados = d.turnos.slice().sort(function(a,b) { return (a.fecha||'').localeCompare(b.fecha||''); });
+  var estadoLabelDet = { confirmado: '✅ Asistió', cancelado_hora: '🟠 Canceló s/hora' };
+  var html = '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Estos son los ' + d.turnos.length + ' turnos que se están contando en "' + d.tipoLabel + '" para cotejar contra tu registro aparte:</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+    '<thead><tr style="background:var(--bg);">' +
+    '<th style="padding:6px 8px;text-align:left;">Fecha</th>' +
+    '<th style="padding:6px 8px;text-align:left;">Paciente</th>' +
+    '<th style="padding:6px 8px;text-align:left;">Estado</th>' +
+    '</tr></thead><tbody>';
+  turnosOrdenados.forEach(function(t) {
+    html += '<tr style="border-bottom:1px solid var(--border);">' +
+      '<td style="padding:6px 8px;">' + (t.fecha||'—') + '</td>' +
+      '<td style="padding:6px 8px;">' + t.paciente + '</td>' +
+      '<td style="padding:6px 8px;">' + (estadoLabelDet[t.estado] || t.estado) + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('modal-detalle-mezcla-body').innerHTML = html;
+  openModal('modal-detalle-mezcla');
 }
 
 function verDetalleMezcla(clave) {
