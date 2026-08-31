@@ -746,6 +746,7 @@ input[type="time"] { -webkit-appearance: none; }
       </label>
     </div>
     <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="emp-btn-eliminar" onclick="eliminarEmpleado()" style="display:none;">🗑 Eliminar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-empleado')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar</button>
     </div>
@@ -7536,14 +7537,29 @@ async function abrirModalEmpleado(empId) {
     document.getElementById('emp-cargo').value = e.cargo;
     document.getElementById('emp-salario').value = e.salario_base;
     document.getElementById('emp-ips').checked = e.tiene_ips;
+    document.getElementById('emp-btn-eliminar').style.display = '';
   } else {
     document.getElementById('emp-id').value = '';
     document.getElementById('emp-nombre').value = '';
     document.getElementById('emp-cargo').value = '';
     document.getElementById('emp-salario').value = '';
     document.getElementById('emp-ips').checked = false;
+    document.getElementById('emp-btn-eliminar').style.display = 'none';
   }
   openModal('modal-empleado');
+}
+
+async function eliminarEmpleado() {
+  var id = document.getElementById('emp-id').value;
+  if (!id) return;
+  var nombre = document.getElementById('emp-nombre').value;
+  if (!confirm('¿Eliminar a ' + nombre + ' del sistema? Esto no se puede deshacer. Si ya tiene sueldos pagados registrados, mejor marcalo como inactivo en vez de eliminarlo.')) return;
+  try {
+    await api('DELETE', 'empleados', null, '?id=eq.' + id);
+    closeModal('modal-empleado');
+    toast('Empleado eliminado');
+    loadSueldos();
+  } catch(e) { alert('Error: ' + e.message + '\n\nSi el error menciona una restricción de clave foránea (foreign key), es porque este empleado ya tiene pagos registrados — no se puede eliminar sin borrar antes esos pagos.'); }
 }
 
 async function guardarEmpleado() {
