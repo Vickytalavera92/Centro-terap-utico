@@ -7683,8 +7683,8 @@ async function loadGuarderia() {
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesGuarderia(1)">→</button>' +
       '</div>' +
       '<div style="display:flex;gap:8px;">' +
-        (CU.rol === 'directora' ? '<button onclick="abrirModalNino()" class="btn btn-secondary btn-sm">+ Agregar niño</button>' : '') +
-        (CU.rol === 'directora' ? '<button onclick="abrirModalNinoPorDia()" class="btn btn-secondary btn-sm">+ Agregar por día</button>' : '') +
+        ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirModalNino()" class="btn btn-secondary btn-sm">+ Agregar niño</button>' : '') +
+        ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button onclick="abrirModalNinoPorDia()" class="btn btn-secondary btn-sm">+ Agregar por día</button>' : '') +
       '</div></div>';
 
     // Summary cards
@@ -7751,7 +7751,7 @@ async function loadGuarderia() {
         '</td>' +
         '<td style="padding:8px;"><div style="display:flex;gap:4px;">' +
         '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" data-cuota="' + cuotaFinal + '" data-modalidad="' + (n.modalidad||'mensual') + '" data-preciodia="' + n.cuota_base + '" onclick="registrarPagoGuarderia(this.dataset.nid,this.dataset.nombre,parseInt(this.dataset.cuota),this.dataset.modalidad,parseInt(this.dataset.preciodia))" class="btn btn-secondary btn-sm">' + (pago ? '✏️' : '💰') + '</button>' +
-        (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm">⚙️</button>' : '') +
+        ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm" title="Editar turno, cuota, descuento, etc.">⚙️</button>' : '') +
         ((CU.rol === 'directora' || CU.rol === 'recepcionista') && n.fecha_baja ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="reactivarNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Reactivar">↩️</button>' : '') +
         ((CU.rol === 'directora' || CU.rol === 'recepcionista') && !n.fecha_baja ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="darDeBajaNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Dar de baja">🚫</button>' : '') +
         (CU.rol === 'directora' ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="eliminarNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Eliminar definitivamente" style="color:#C0392B;">🗑️</button>' : '') +
