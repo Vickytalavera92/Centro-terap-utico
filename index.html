@@ -2,8 +2,18 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>CREA — Sistema de Gestión</title>
+
+<!-- PWA: permite "Agregar a pantalla de inicio" en el celular como si fuera una app -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1B8A7A">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CREA">
+<meta name="mobile-web-app-capable" content="yes">
+
 <style>
 :root {
   --primary: #C0392B; --primary-light: #FDECEA; --primary-dark: #922B21;
@@ -8511,6 +8521,18 @@ document.getElementById('login-pass').addEventListener('keydown', function(e) { 
 
 
 
+</script>
+<script>
+// Registra el service worker para que el celular permita "Instalar" esta app.
+// Si el archivo service-worker.js no existe (por ejemplo, en un entorno de prueba local
+// sin subir todos los archivos), esto falla en silencio sin afectar el resto del sistema.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('service-worker.js').catch(function(err) {
+      console.log('Service worker no registrado (no afecta el funcionamiento normal):', err);
+    });
+  });
+}
 </script>
 </body>
 </html>
