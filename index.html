@@ -6051,11 +6051,14 @@ async function loadHonorariosProfTab(profId) {
     var profTarifas = await api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId);
     var tarifas = await api('GET', 'tarifas', null, '');
     var pagosMes = await api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&order=mes.desc&limit=6').catch(function(){return[];});
+    var pacientesHonor = await api('GET', 'pacientes', null, '?select=id,pago_profesional_custom,tipos_precio_personalizado').catch(function(){return[];});
     
     var tarifaMap = {};
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
     var profTarMap = {};
     profTarifas.forEach(function(pt) { profTarMap[pt.tipo] = pt.pago_profesional; });
+    var pacientesHonorMap = {};
+    pacientesHonor.forEach(function(p) { pacientesHonorMap[p.id] = p; });
     var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
     var pagosMesMap = {};
     pagosMes.forEach(function(pm) { pagosMesMap[pm.mes] = pm; });
@@ -6082,7 +6085,17 @@ async function loadHonorariosProfTab(profId) {
       var turnos = allTurnos[i] || [];
       var total = turnos.reduce(function(sum, t) {
         var tipo = t.tipo || 'sesion';
-        return sum + (profTarMap[tipo] !== undefined ? profTarMap[tipo] : (DEFAULT_PAGO[tipo] || 130000));
+        var pagoProfHonor = profTarMap[tipo] !== undefined ? profTarMap[tipo] : (DEFAULT_PAGO[tipo] || 130000);
+        if (tipo === 'compartida' && profTarMap[tipo] === undefined) pagoProfHonor = 65000;
+        // Precio personalizado por paciente, respetando a qué tipos aplica
+        var cpHonor = pacientesHonorMap[t.paciente_id];
+        if (cpHonor && cpHonor.pago_profesional_custom) {
+          var aplicaHonor = !cpHonor.tipos_precio_personalizado || cpHonor.tipos_precio_personalizado.indexOf(tipo) !== -1;
+          if (aplicaHonor) pagoProfHonor = cpHonor.pago_profesional_custom;
+        }
+        // Devolución excepcional: monto cargado a mano en el turno
+        if (tipo === 'devolucion_excepcional' && t.monto_profesional_custom) pagoProfHonor = t.monto_profesional_custom;
+        return sum + pagoProfHonor;
       }, 0);
       var pm = pagosMesMap[m.mesKey];
       var adelanto = pm ? (pm.adelanto || 0) : 0;
