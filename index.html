@@ -5996,23 +5996,35 @@ async function loadHonorariosProfStat(profId) {
       api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&profesional_id=eq.' + profId + '&fecha=gte.' + fFirst + '&fecha=lte.' + fLast),
       api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId),
       api('GET', 'tarifas', null, ''),
-      api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey).catch(function(){return[];})
+      api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey).catch(function(){return[];}),
+      api('GET', 'pacientes', null, '?select=id,pago_profesional_custom,tipos_precio_personalizado').catch(function(){return[];})
     ]);
     
     var turnos = results[0];
     var profTarifas = results[1];
     var tarifas = results[2];
     var pagosMes = results[3];
+    var pacientesStat = results[4];
     
     var tarifaMap = {};
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
     var profTarMap = {};
     profTarifas.forEach(function(pt) { profTarMap[pt.tipo] = pt.pago_profesional; });
+    var pacientesStatMap = {};
+    pacientesStat.forEach(function(p) { pacientesStatMap[p.id] = p; });
     var DEFAULT_PAGO = { sesion:130000, preferencial:110000, devolucion:150000, captada:220000, premium:145000, nueva:110000, colegio:130000, compartida:65000, evaluacion:130000, entrevista_plus:150000, reunion_padres:130000, devolucion_compartida:75000, refuerzo_escolar:90000, devolucion_excepcional:150000, ados_adir:666667 };
     
     var totalHonorarios = turnos.reduce(function(sum, t) {
       var tipo = t.tipo || 'sesion';
-      return sum + (profTarMap[tipo] !== undefined ? profTarMap[tipo] : (DEFAULT_PAGO[tipo] || 130000));
+      var pagoProfStat = profTarMap[tipo] !== undefined ? profTarMap[tipo] : (DEFAULT_PAGO[tipo] || 130000);
+      if (tipo === 'compartida' && profTarMap[tipo] === undefined) pagoProfStat = 65000;
+      var cpStat = pacientesStatMap[t.paciente_id];
+      if (cpStat && cpStat.pago_profesional_custom) {
+        var aplicaStat = !cpStat.tipos_precio_personalizado || cpStat.tipos_precio_personalizado.indexOf(tipo) !== -1;
+        if (aplicaStat) pagoProfStat = cpStat.pago_profesional_custom;
+      }
+      if (tipo === 'devolucion_excepcional' && t.monto_profesional_custom) pagoProfStat = t.monto_profesional_custom;
+      return sum + pagoProfStat;
     }, 0);
     
     var pagado = pagosMes.length > 0 && pagosMes[0].pagado;
