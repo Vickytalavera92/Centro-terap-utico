@@ -1874,6 +1874,9 @@ async function loadDashboard() {
     confirmadosMes.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
       var valorTotal = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
+      // Compartida/Devolución compartida: dos turnos representan UNA sesión real,
+      // así que cada turno cuenta la mitad del precio a la familia (para no duplicarlo).
+      if (tipo === 'compartida' || tipo === 'devolucion_compartida') valorTotal = Math.round(valorTotal / 2);
       var cp = pacMapDash[t.paciente_id];
       var aplicaPrecioPropioDash = !cp || !cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1;
       if (cp && cp.valor_sesion && aplicaPrecioPropioDash) valorTotal = cp.valor_sesion;
@@ -2206,9 +2209,14 @@ async function verProf(idxOrId) {
               '<button class="btn btn-secondary btn-sm" onclick="cambiarProfSemana(1,\'' + profId + '\')">→</button>' +
             '</div>' +
           '</div>' +
+          '<input id="prof-semana-buscar-pac" oninput="filtrarProfAgendaPorPaciente(\'semana\')" placeholder="🔍 Buscar paciente en esta semana..." style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-bottom:8px;">' +
+          '<div id="prof-semana-buscar-resultado" style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;"></div>' +
           '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;"><div id="prof-semanal-wrap"></div></div>' +
         '</div>' +
-        '<div id="prof-agenda-view-mes" style="display:none;"><div id="prof-mes-wrap"><div class="loading">Cargando...</div></div></div>';
+        '<div id="prof-agenda-view-mes" style="display:none;">' +
+          '<input id="prof-mes-buscar-pac" oninput="filtrarProfAgendaPorPaciente(\'mes\')" placeholder="🔍 Buscar paciente en este mes..." style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-bottom:8px;">' +
+          '<div id="prof-mes-buscar-resultado" style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;"></div>' +
+          '<div id="prof-mes-wrap"><div class="loading">Cargando...</div></div></div>';
     } else {
       html += (ag.length ? ag.map(function(a) {
         var ECOLORS = { pendiente: '#F0A500', confirmado: '#1B8A7A', cancelado: '#C0392B', cancelado_hora: '#E8683A' };
@@ -2922,6 +2930,9 @@ async function loadAgendaMes() {
         var cp = pacMapMes[t.paciente_id];
         var aplicaPrecioPropioMes = !cp || !cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1;
         var unitGen = (cp && cp.valor_sesion && aplicaPrecioPropioMes) ? cp.valor_sesion : (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000);
+        // Compartida/Devolución compartida: dos turnos representan UNA sesión real,
+        // así que cada turno cuenta la mitad del precio a la familia (para no duplicarlo).
+        if (tipo === 'compartida' || tipo === 'devolucion_compartida') unitGen = Math.round(unitGen / 2);
         var unitProf = (cp && cp.pago_profesional_custom && aplicaPrecioPropioMes) ? cp.pago_profesional_custom : 
                        (profTarLocalMap[tipo] !== undefined ? profTarLocalMap[tipo] : (DEFAULT_PAGO_MES[tipo] || 130000));
         tipoData[tipo].cant++;
@@ -3575,7 +3586,13 @@ async function filtrarPacsPorProf() {
 // ==================
 // Tarifas por defecto cuando el tipo no está configurado en la tabla 'tarifas' de Supabase
 var TARIFA_FALLBACK = { sesion:220000, evaluacion:220000, preferencial:220000, devolucion:250000, captada:220000, premium:220000, nueva:220000, colegio:220000, compartida:220000, entrevista_plus:220000, libre:0, reunion_padres:220000, devolucion_compartida:250000, refuerzo_escolar:120000, devolucion_excepcional:250000, ados_adir:1000000 };
-function tarifaPorTipo(tarifaMap, tipo) { return (tarifaMap && tarifaMap[tipo]) || TARIFA_FALLBACK[tipo] || 220000; }
+function tarifaPorTipo(tarifaMap, tipo) {
+  var val = (tarifaMap && tarifaMap[tipo]) || TARIFA_FALLBACK[tipo] || 220000;
+  // Compartida/Devolución compartida: dos turnos representan UNA sesión real,
+  // así que cada turno cuenta la mitad del precio a la familia (para no duplicarlo).
+  if (tipo === 'compartida' || tipo === 'devolucion_compartida') val = Math.round(val / 2);
+  return val;
+}
 
 var TURNO_TIPO_OPTIONS_ALL = [
   { v: 'sesion', l: '🟩 Sesión normal' },
@@ -4120,6 +4137,9 @@ async function calcularGananciaMesSimple(anio, mes) {
   turnos.forEach(function(t) {
     var tipo = t.tipo || 'sesion';
     var valorTotal = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
+    // Compartida/Devolución compartida: dos turnos representan UNA sesión real,
+    // así que cada turno cuenta la mitad del precio a la familia (para no duplicarlo).
+    if (tipo === 'compartida' || tipo === 'devolucion_compartida') valorTotal = Math.round(valorTotal / 2);
     var pagoProf = (profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo] !== undefined) ? profTarifaMap[t.profesional_id][tipo] : (DEFAULT_PAGO[tipo] || 130000);
     if (tipo === 'compartida' && !(profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo] !== undefined)) pagoProf = 65000;
     if (pacientesMap[t.paciente_id]) {
@@ -4307,6 +4327,9 @@ async function loadAdmin() {
     turnos.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
       var valorTotal = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
+      // Compartida/Devolución compartida: dos turnos representan UNA sesión real,
+      // así que cada turno cuenta la mitad del precio a la familia (para no duplicarlo).
+      if (tipo === 'compartida' || tipo === 'devolucion_compartida') valorTotal = Math.round(valorTotal / 2);
       var pagoProfDefault = DEFAULT_PAGO[tipo] || 130000;
       var pagoProf = profTarifaMap[t.profesional_id] && profTarifaMap[t.profesional_id][tipo] ? profTarifaMap[t.profesional_id][tipo] : pagoProfDefault;
       
@@ -4418,6 +4441,9 @@ async function loadAdmin() {
         // Si hay precios mixtos (ej: 1 pac preferencial en grupo sesión) → mostrar la tarifa base configurada
         // Precio unitario = tarifa base del tipo (referencia). El total real está en "Total pac."
         var unitGen = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
+        // Compartida/Devolución compartida: dos turnos representan UNA sesión real,
+        // así que cada turno cuenta la mitad del precio a la familia (para no duplicarlo).
+        if (tipo === 'compartida' || tipo === 'devolucion_compartida') unitGen = Math.round(unitGen / 2);
         var unitProf = t.pagoProfConfigurado;
         var esperadoSinMezcla = unitGen * t.cant;
         var hayDiferenciaVsBase = t.totalGen !== esperadoSinMezcla;
@@ -5739,6 +5765,9 @@ async function loadResumen() {
       var cp = pacMap[t.paciente_id];
       var aplicaPrecioPropioRes = !cp || !cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1;
       var valorTotal = (cp && cp.valor_sesion && aplicaPrecioPropioRes) ? cp.valor_sesion : (tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000);
+      // Compartida/Devolución compartida: dos turnos representan UNA sesión real,
+      // así que cada turno cuenta la mitad del precio a la familia (para no duplicarlo).
+      if (tipo === 'compartida' || tipo === 'devolucion_compartida') valorTotal = Math.round(valorTotal / 2);
       var ptMap = profTarMap[t.profesional_id] || {};
       var pago = ptMap[tipo] !== undefined ? ptMap[tipo] : (DEFAULT_PAGO[tipo] || 130000);
       if (cp && cp.pago_profesional_custom && aplicaPrecioPropioRes) pago = cp.pago_profesional_custom;
@@ -5997,7 +6026,8 @@ async function loadHonorariosProfStat(profId) {
       api('GET', 'profesional_tarifas', null, '?profesional_id=eq.' + profId),
       api('GET', 'tarifas', null, ''),
       api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&mes=eq.' + mesKey).catch(function(){return[];}),
-      api('GET', 'pacientes', null, '?select=id,pago_profesional_custom,tipos_precio_personalizado').catch(function(){return[];})
+      api('GET', 'pacientes', null, '?select=id,pago_profesional_custom,tipos_precio_personalizado').catch(function(){return[];}),
+      api('GET', 'usuarios', null, '?id=eq.' + profId + '&limit=1&select=descuento_fijo').catch(function(){return[];})
     ]);
     
     var turnos = results[0];
@@ -6005,6 +6035,7 @@ async function loadHonorariosProfStat(profId) {
     var tarifas = results[2];
     var pagosMes = results[3];
     var pacientesStat = results[4];
+    var descuentoFijoStat = (results[5] && results[5][0] && results[5][0].descuento_fijo) || 0;
     
     var tarifaMap = {};
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
@@ -6029,7 +6060,7 @@ async function loadHonorariosProfStat(profId) {
     
     var pagado = pagosMes.length > 0 && pagosMes[0].pagado;
     var adelanto = pagosMes.length > 0 ? (pagosMes[0].adelanto || 0) : 0;
-    var totalFinal = totalHonorarios - adelanto;
+    var totalFinal = totalHonorarios - adelanto - descuentoFijoStat;
     
     var card = document.getElementById('prof-honor-card');
     if (card) {
@@ -6064,6 +6095,8 @@ async function loadHonorariosProfTab(profId) {
     var tarifas = await api('GET', 'tarifas', null, '');
     var pagosMes = await api('GET', 'pagos_mes', null, '?profesional_id=eq.' + profId + '&order=mes.desc&limit=6').catch(function(){return[];});
     var pacientesHonor = await api('GET', 'pacientes', null, '?select=id,pago_profesional_custom,tipos_precio_personalizado').catch(function(){return[];});
+    var profRowHonor = await api('GET', 'usuarios', null, '?id=eq.' + profId + '&limit=1&select=descuento_fijo').catch(function(){return[];});
+    var descuentoFijoHonor = (profRowHonor && profRowHonor[0] && profRowHonor[0].descuento_fijo) || 0;
     
     var tarifaMap = {};
     tarifas.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
@@ -6089,6 +6122,7 @@ async function loadHonorariosProfTab(profId) {
       '<th style="padding:10px 12px;text-align:center;font-size:12px;color:var(--text-secondary);">Sesiones</th>' +
       '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Honorarios</th>' +
       '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Adelanto</th>' +
+      (descuentoFijoHonor ? '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Descuento fijo</th>' : '') +
       '<th style="padding:10px 12px;text-align:right;font-size:12px;color:var(--text-secondary);">Total a pagar</th>' +
       '<th style="padding:10px 12px;text-align:center;font-size:12px;color:var(--text-secondary);">Estado</th>' +
       '</tr></thead><tbody>';
@@ -6112,7 +6146,7 @@ async function loadHonorariosProfTab(profId) {
       var pm = pagosMesMap[m.mesKey];
       var adelanto = pm ? (pm.adelanto || 0) : 0;
       var pagado = pm ? pm.pagado : false;
-      var totalFinal = total - adelanto;
+      var totalFinal = total - adelanto - descuentoFijoHonor;
       var obs = pm ? (pm.observacion || '') : '';
       
       html += '<tr style="border-bottom:1px solid var(--border);">' +
@@ -6120,6 +6154,7 @@ async function loadHonorariosProfTab(profId) {
         '<td style="padding:10px 12px;text-align:center;font-size:13px;">' + turnos.length + '</td>' +
         '<td style="padding:10px 12px;text-align:right;font-size:13px;">' + fmtGs(total) + '</td>' +
         '<td style="padding:10px 12px;text-align:right;font-size:13px;color:#C0392B;">' + (adelanto > 0 ? '- ' + fmtGs(adelanto) : '—') + '</td>' +
+        (descuentoFijoHonor ? '<td style="padding:10px 12px;text-align:right;font-size:13px;color:#C0392B;">- ' + fmtGs(descuentoFijoHonor) + '</td>' : '') +
         '<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;color:' + (pagado?'#1B8A7A':'#C0392B') + ';">' + fmtGs(totalFinal) + '</td>' +
         '<td style="padding:10px 12px;text-align:center;">' + (pagado ? '<span class="badge b-green">✅ Pagado</span>' : '<span class="badge b-amber">⏳ Pendiente</span>') + '</td>' +
         '</tr>';
@@ -6876,7 +6911,7 @@ var _profSemanaOffset = 0;
 window._turnoModalProfContext = null; // profId cuando el modal de turno se abrió desde el perfil; null si es desde Agenda principal
 window._profSemanalTurnos = {};
 
-function switchProfAgendaView(view, profId) {
+function switchProfAgendaView(view, profId, preservarFecha) {
   var elDia = document.getElementById('prof-agenda-view-dia');
   var elSem = document.getElementById('prof-agenda-view-semana');
   var elMes = document.getElementById('prof-agenda-view-mes');
@@ -6890,9 +6925,11 @@ function switchProfAgendaView(view, profId) {
   if (bd) bd.className = view === 'dia' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
   if (bs) bs.className = view === 'semana' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
   if (bm) bm.className = view === 'mes' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
-  if (view === 'dia') { _profDiaOffset = 0; loadProfAgendaDia(profId); }
-  if (view === 'semana') { _profSemanaOffset = 0; loadProfAgendaSemana(profId); }
-  if (view === 'mes') { _profMesOffset = 0; loadProfAgendaMes(profId); }
+  // preservarFecha: cuando se llega acá por un clic en un día puntual (desde Mes o Semana),
+  // no hay que resetear la fecha a "hoy" — hay que quedarse en el día que se tocó.
+  if (view === 'dia') { if (!preservarFecha) _profDiaOffset = 0; loadProfAgendaDia(profId); }
+  if (view === 'semana') { if (!preservarFecha) _profSemanaOffset = 0; loadProfAgendaSemana(profId); }
+  if (view === 'mes') { if (!preservarFecha) _profMesOffset = 0; loadProfAgendaMes(profId); }
 }
 
 // --- VISTA DÍA ---
@@ -6998,6 +7035,7 @@ async function loadProfAgendaSemana(profId) {
   wrap.innerHTML = '<div class="loading">Cargando...</div>';
   try {
     var turnos = await api('GET', 'agenda', null, '?fecha=gte.' + fechaIni + '&fecha=lte.' + fechaFin + '&profesional_id=eq.' + profId + '&order=hora.asc');
+    window._profSemanaTurnosAll = turnos;
     var diasLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     var horasMap = {};
     for (var hBase = 8; hBase <= 19; hBase++) { horasMap[String(hBase).padStart(2,'0')] = hBase + ':00'; }
@@ -7018,7 +7056,7 @@ async function loadProfAgendaSemana(profId) {
     dias.forEach(function(d, i) {
       var isToday = dateStr(d) === today();
       var isDiffMonth = d.getMonth() !== viewMonth;
-      table += '<th style="padding:8px;background:' + (isToday?'var(--teal-light)':isDiffMonth?'#F0F0F0':'var(--bg)') + ';border:1px solid var(--border);font-size:11px;text-align:center;' + (isDiffMonth?'color:var(--text-tertiary);':'') + '">' +
+      table += '<th data-date="' + dateStr(d) + '" onclick="irAProfDia(this.dataset.date,\'' + profId + '\')" title="Ver este día" style="padding:8px;background:' + (isToday?'var(--teal-light)':isDiffMonth?'#F0F0F0':'var(--bg)') + ';border:1px solid var(--border);font-size:11px;text-align:center;cursor:pointer;' + (isDiffMonth?'color:var(--text-tertiary);':'') + '">' +
         diasLabels[i] + ' ' + d.getDate() + '</th>';
     });
     table += '</tr></thead><tbody>';
@@ -7060,7 +7098,56 @@ async function loadProfAgendaSemana(profId) {
     });
     table += '</tbody></table>';
     wrap.innerHTML = table;
+    filtrarProfAgendaPorPaciente('semana');
   } catch(e) { wrap.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+function filtrarProfAgendaPorPaciente(view) {
+  var inputId = view === 'mes' ? 'prof-mes-buscar-pac' : 'prof-semana-buscar-pac';
+  var resultadoId = view === 'mes' ? 'prof-mes-buscar-resultado' : 'prof-semana-buscar-resultado';
+  var input = document.getElementById(inputId);
+  var resultadoEl = document.getElementById(resultadoId);
+  if (!input || !resultadoEl) return;
+  var texto = input.value.trim().toLowerCase();
+  document.querySelectorAll('.cal-day-match').forEach(function(el) { el.classList.remove('cal-day-match'); });
+  document.querySelectorAll('.prof-turno-match').forEach(function(el) { el.style.outline = ''; el.classList.remove('prof-turno-match'); });
+  if (!texto) { resultadoEl.innerHTML = ''; return; }
+
+  var turnos = (view === 'mes' ? window._profMesTurnosAll : window._profSemanaTurnosAll) || [];
+  var encontrados = turnos.filter(function(t) { return (t.paciente_nombre || '').toLowerCase().indexOf(texto) !== -1; });
+  if (!encontrados.length) {
+    resultadoEl.innerHTML = '<span style="color:#C0392B;">Sin turnos que coincidan con "' + input.value + '".</span>';
+    return;
+  }
+  encontrados.sort(function(a,b) { return (a.fecha||'').localeCompare(b.fecha||'') || (a.hora||'').localeCompare(b.hora||''); });
+
+  if (view === 'mes') {
+    var fechas = encontrados.map(function(t) { var p = t.fecha.split('-'); return p[2] + '/' + p[1]; });
+    encontrados.forEach(function(t) {
+      var cell = document.querySelector('#prof-mes-wrap [data-date="' + t.fecha + '"]');
+      if (cell) cell.classList.add('cal-day-match');
+    });
+    resultadoEl.innerHTML = '<span style="color:#1B8A7A;font-weight:600;">✅ ' + encontrados.length + ' turno' + (encontrados.length===1?'':'s') + ':</span> ' + fechas.join(', ');
+  } else {
+    var detalle = encontrados.map(function(t) {
+      var p = t.fecha.split('-');
+      return p[2] + '/' + p[1] + (t.hora ? ' ' + t.hora.slice(0,5) : '');
+    });
+    encontrados.forEach(function(t) {
+      var el = document.querySelector('#prof-semanal-wrap [onclick*="editarTurnoProfSemanal(\'' + t.id + '\'"]');
+      if (el) { el.style.outline = '3px solid #1B8A7A'; el.classList.add('prof-turno-match'); }
+    });
+    resultadoEl.innerHTML = '<span style="color:#1B8A7A;font-weight:600;">✅ ' + encontrados.length + ' turno' + (encontrados.length===1?'':'s') + ' esta semana:</span> ' + detalle.join(', ');
+  }
+}
+
+function irAProfDia(dateStr, profId) {
+  var parts = dateStr.split('-');
+  var target = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  var now = new Date();
+  var todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  _profDiaOffset = Math.round((target - todayLocal) / (1000*60*60*24));
+  switchProfAgendaView('dia', profId, true);
 }
 
 function editarTurnoProfSemanal(id, profId) {
@@ -7106,6 +7193,7 @@ async function loadProfAgendaMes(profId) {
     var tarifasBase = results[1];
     var tarifaMap = {};
     tarifasBase.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    window._profMesTurnosAll = turnos;
     
     var TIPO_COLORS_PM = { sesion:'#4CAF50', preferencial:'#FFC107', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548', entrevista_plus:'#FFD700', reunion_padres:'#3F51B5', devolucion_compartida:'#AD1457', refuerzo_escolar:'#FF7043', devolucion_excepcional:'#FF5722', ados_adir:'#009688' };
     var ESTADO_COLORS_PM = { pendiente:'#F0A500', confirmado:'#1B8A7A', cancelado:'#C0392B', cancelado_hora:'#FF8C00' };
@@ -7218,9 +7306,10 @@ async function loadProfAgendaMes(profId) {
         var now2 = new Date();
         var todayLocal = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate());
         _profDiaOffset = Math.round((target - todayLocal) / (1000*60*60*24));
-        switchProfAgendaView('dia', profId);
+        switchProfAgendaView('dia', profId, true);
       });
     });
+    filtrarProfAgendaPorPaciente('mes');
 
   } catch(e) { wrap.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
 }
