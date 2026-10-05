@@ -1314,6 +1314,48 @@ input[type="time"] { -webkit-appearance: none; }
   </div>
 </div>
 
+<!-- MODAL CARGO GUARDERIA (matrícula, materiales, otros) -->
+<div class="modal-overlay" id="modal-cargo-guarderia">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header">
+      <h3 id="cargo-modal-titulo">Cargo de guardería</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-cargo-guarderia')">✕</button>
+    </div>
+    <input type="hidden" id="cargo-id">
+    <input type="hidden" id="cargo-nino-id">
+    <div style="font-size:13px;margin-bottom:10px;">Niño: <strong id="cargo-nino-nombre"></strong></div>
+    <div class="form-group"><label>Concepto</label>
+      <select id="cargo-concepto" onchange="toggleCargoOtro()">
+        <option value="Matrícula">Matrícula</option>
+        <option value="Materiales">Materiales</option>
+        <option value="__otro">Otro...</option>
+      </select>
+    </div>
+    <div class="form-group" id="cargo-otro-wrap" style="display:none;"><label>¿Qué concepto?</label><input id="cargo-otro" placeholder="Ej: Remera, excursión..."></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Monto (Gs.)</label><input type="number" id="cargo-monto" placeholder="Escribí el monto"></div>
+      <div class="form-group"><label>Fecha</label><input type="date" id="cargo-fecha"></div>
+    </div>
+    <div class="form-group"><label>Observación (opcional)</label><input id="cargo-obs" placeholder="Ej: 50% por inscripción tardía"></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="cargo-pagado" onchange="toggleCargoPagado()" style="width:auto;">
+      <label style="margin:0;">Ya se cobró</label>
+    </div>
+    <div class="form-group" id="cargo-metodo-wrap" style="display:none;"><label>Método de pago</label>
+      <select id="cargo-metodo">
+        <option value="efectivo">💵 Efectivo</option>
+        <option value="transferencia">🏦 Transferencia</option>
+        <option value="pos">💳 POS / Tarjeta</option>
+        <option value="qr">📱 QR</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cargo-guarderia')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCargo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL VENTA DE REMERA -->
 <div class="modal-overlay" id="modal-remera">
   <div class="modal" style="width:420px;">
@@ -4192,6 +4234,11 @@ async function calcularGananciaMesSimple(anio, mes) {
     var ninoPg = ninosData.find(function(n) { return n.id === pg.nino_id; });
     if (ninoPg && ninoPg.modalidad === 'por_dia') esperadoGuarderia += (pg.monto || 0);
   });
+  // Cargos únicos de guardería (matrícula, materiales, otros) del mes
+  try {
+    var cargosX = await api('GET', 'guarderia_cargos', null, '?mes=eq.' + mesKeyX);
+    cargosX.forEach(function(cg) { esperadoGuarderia += (cg.monto || 0); });
+  } catch(eCargosX) {}
 
   var esperadoColonia = 0;
   var coloniasDelMesX = coloniasData.filter(function(c) {
@@ -4593,6 +4640,15 @@ async function loadAdmin() {
           if (n.modalidad === 'por_dia') return;
           esperadoGuarderia += (n.cuota_base - (n.descuento_monto || 0));
         });
+
+        // Cargos únicos de guardería (matrícula, materiales, otros) del mes: cuentan como ingreso de guardería
+        try {
+          var cargosDelMesBal = await api('GET', 'guarderia_cargos', null, '?mes=eq.' + mesKey);
+          cargosDelMesBal.forEach(function(cg) {
+            esperadoGuarderia += (cg.monto || 0);
+            if (cg.pagado) ingresosGuarderia += (cg.monto || 0);
+          });
+        } catch(eCargosBal) {}
 
         // Pagos de colonia con mes_pago ya registrado (flujo nuevo)
         var inscripcionesDelMes = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&mes_pago=eq.' + mesKey);
@@ -5392,7 +5448,7 @@ async function loadGastos() {
     var variables = gastos.filter(function(g) { return g.tipo === 'variable'; });
 
     // CAJA CHICA SUMMARY - visible for directora and recepcionista
-    var cobrosEfectivoTerapias = 0, cobrosEfectivoGuarderia = 0, cobrosEfectivoColonia = 0, cobrosEfectivoRemeras = 0;
+    var cobrosEfectivoTerapias = 0, cobrosEfectivoGuarderia = 0, cobrosEfectivoColonia = 0, cobrosEfectivoRemeras = 0, cobrosEfectivoCargos = 0;
     var detalleEfectivo = [];
     try {
       var cobrosEf = await api('GET', 'cobros', null, '?mes=eq.' + mesKey + '&metodo=eq.efectivo');
@@ -5432,8 +5488,20 @@ async function loadGastos() {
         detalleEfectivo.push({ fecha: r.fecha_pago || '', origen: '🎽 Remera', descripcion: r.comprador_nombre || 'Comprador', monto: r.monto_total||0 });
       });
     } catch(eefR) {}
+    try {
+      var cargEf = await api('GET', 'guarderia_cargos', null, '?mes_pago=eq.' + mesKey + '&pagado=eq.true&metodo_pago=eq.efectivo');
+      cobrosEfectivoCargos = cargEf.reduce(function(s,c) { return s + (c.monto||0); }, 0);
+      if (cargEf.length) {
+        var ninoIdsCar = cargEf.map(function(c) { return c.nino_id; }).filter(Boolean);
+        var ninosCar = ninoIdsCar.length ? await api('GET', 'guarderia_ninos', null, '?id=in.(' + ninoIdsCar.join(',') + ')&select=id,nombre').catch(function(){return [];}) : [];
+        var ninosCarMap = {}; ninosCar.forEach(function(n) { ninosCarMap[n.id] = n.nombre; });
+        cargEf.forEach(function(c) {
+          detalleEfectivo.push({ fecha: c.fecha_pago || '', origen: '🎒 ' + (c.concepto || 'Cargo'), descripcion: ninosCarMap[c.nino_id] || 'Niño', monto: c.monto||0 });
+        });
+      }
+    } catch(eefCar) {}
     detalleEfectivo.sort(function(a,b) { return (a.fecha||'').localeCompare(b.fecha||''); });
-    var cobrosEfectivo = cobrosEfectivoTerapias + cobrosEfectivoGuarderia + cobrosEfectivoColonia + cobrosEfectivoRemeras;
+    var cobrosEfectivo = cobrosEfectivoTerapias + cobrosEfectivoGuarderia + cobrosEfectivoColonia + cobrosEfectivoRemeras + cobrosEfectivoCargos;
     var gastosEfectivo = gastos.filter(function(g) { return (g.metodo_pago||'efectivo') === 'efectivo'; })
       .reduce(function(s,g) { return s + (g.monto||0); }, 0);
     var totalDepositos = depositos.reduce(function(s,d) { return s + (d.monto||0); }, 0);
@@ -5448,13 +5516,15 @@ async function loadGastos() {
       var totGuardEf = await api('GET', 'guarderia_pagos', null, '?metodo_pago=eq.efectivo&select=monto').catch(function(){return [];});
       var totColEf = await api('GET', 'colonia_inscripciones', null, '?pagado=eq.true&metodo_pago=eq.efectivo&select=monto').catch(function(){return [];});
       var totRemEf = await api('GET', 'remeras_ventas', null, '?pagado=eq.true&metodo_pago=eq.efectivo&select=monto_total').catch(function(){return [];});
+      var totCargEf = await api('GET', 'guarderia_cargos', null, '?pagado=eq.true&metodo_pago=eq.efectivo&select=monto').catch(function(){return [];});
       var totGastosEf = await api('GET', 'gastos', null, '?select=monto,metodo_pago').catch(function(){return [];});
       var totDepositosAll = await api('GET', 'depositos', null, '?select=monto').catch(function(){return [];});
       ajustes = await api('GET', 'caja_ajustes', null, '?order=fecha.desc').catch(function(){return [];});
       var totalCobradoHist = totCobEf.reduce(function(s,c){return s+(c.monto||0);},0) +
         totGuardEf.reduce(function(s,g){return s+(g.monto||0);},0) +
         totColEf.reduce(function(s,c){return s+(c.monto||0);},0) +
-        totRemEf.reduce(function(s,r){return s+(r.monto_total||0);},0);
+        totRemEf.reduce(function(s,r){return s+(r.monto_total||0);},0) +
+        totCargEf.reduce(function(s,c){return s+(c.monto||0);},0);
       var totalGastadoHist = totGastosEf.filter(function(g){return (g.metodo_pago||'efectivo')==='efectivo';}).reduce(function(s,g){return s+(g.monto||0);},0);
       var totalDepositadoHist = totDepositosAll.reduce(function(s,d){return s+(d.monto||0);},0);
       var totalAjustes = ajustes.reduce(function(s,a){return s+(a.monto||0);},0);
@@ -5483,7 +5553,7 @@ async function loadGastos() {
       '</div>' +
       '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;">Efectivo cobrado este mes, de todas las fuentes: ' +
       '<strong>Terapias</strong> ' + fmtGs(cobrosEfectivoTerapias) + ' · <strong>Guardería</strong> ' + fmtGs(cobrosEfectivoGuarderia) +
-      ' · <strong>Colonia</strong> ' + fmtGs(cobrosEfectivoColonia) + ' · <strong>Remeras</strong> ' + fmtGs(cobrosEfectivoRemeras) + '</div>' +
+      ' · <strong>Colonia</strong> ' + fmtGs(cobrosEfectivoColonia) + ' · <strong>Remeras</strong> ' + fmtGs(cobrosEfectivoRemeras) + ' · <strong>Matrícula/materiales</strong> ' + fmtGs(cobrosEfectivoCargos) + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px;">' +
       '<div style="padding:10px;background:#FFF8E1;border-radius:8px;text-align:center;">' +
         '<div style="font-size:10px;color:var(--text-secondary);margin-bottom:3px;">💵 Cobrado efectivo</div>' +
@@ -7796,6 +7866,8 @@ async function loadGuarderia() {
     });
     var pagos = results[1];
     var colonias = results[2];
+    var cargos = [];
+    try { cargos = await api('GET', 'guarderia_cargos', null, '?order=fecha.desc'); } catch(eCar) {}
     var pagosMap = {};
     pagos.forEach(function(p) { pagosMap[p.nino_id] = p; });
 
@@ -7868,6 +7940,11 @@ async function loadGuarderia() {
         '<div style="font-weight:500;">' + n.nombre + (n.fecha_baja ? ' <span style="font-size:10px;color:#C0392B;">🚫 Baja: ' + n.fecha_baja + '</span>' : '') + '</div>' +
         (responsableNombre ? '<div style="font-size:11px;color:var(--text-secondary);">' + responsableNombre + '</div>' : '') +
         (canSeeMontos && rucNino ? '<div style="font-size:10px;color:var(--text-tertiary);">RUC: ' + rucNino + '</div>' : '') +
+        (function() {
+          var pend = cargos.filter(function(c) { return c.nino_id === n.id && !c.pagado; });
+          if (!pend.length) return '';
+          return '<div style="font-size:10px;color:#E65100;margin-top:2px;">🎒 Pendiente: ' + pend.map(function(c) { return c.concepto + (canSeeMontos ? ' ' + fmtGs(c.monto||0) : ''); }).join(' · ') + '</div>';
+        })() +
         '</td>' +
         '<td style="padding:8px;font-size:12px;">' + (esPorDia ? '📅 Por día' : (TURNOS_LABELS[n.turno]||n.turno)) + '</td>' +
         (canSeeMontos ? 
@@ -7888,6 +7965,7 @@ async function loadGuarderia() {
         '</td>' +
         '<td style="padding:8px;"><div style="display:flex;gap:4px;">' +
         '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" data-cuota="' + cuotaFinal + '" data-modalidad="' + (n.modalidad||'mensual') + '" data-preciodia="' + n.cuota_base + '" onclick="registrarPagoGuarderia(this.dataset.nid,this.dataset.nombre,parseInt(this.dataset.cuota),this.dataset.modalidad,parseInt(this.dataset.preciodia))" class="btn btn-secondary btn-sm">' + (pago ? '✏️' : '💰') + '</button>' +
+        ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="abrirModalCargo(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Cargar matrícula, materiales u otro cargo">🎒</button>' : '') +
         ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button data-nid="' + n.id + '" onclick="abrirModalNino(this.dataset.nid)" class="btn btn-ghost btn-sm" title="Editar turno, cuota, descuento, etc.">⚙️</button>' : '') +
         ((CU.rol === 'directora' || CU.rol === 'recepcionista') && n.fecha_baja ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="reactivarNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Reactivar">↩️</button>' : '') +
         ((CU.rol === 'directora' || CU.rol === 'recepcionista') && !n.fecha_baja ? '<button data-nid="' + n.id + '" data-nombre="' + n.nombre.replace(/"/g,'') + '" onclick="darDeBajaNino(this.dataset.nid,this.dataset.nombre)" class="btn btn-ghost btn-sm" title="Dar de baja">🚫</button>' : '') +
@@ -7896,6 +7974,41 @@ async function loadGuarderia() {
     });
 
     html += '</tbody></table></div></div>';
+
+    // Matrícula y materiales (cargos únicos por niño)
+    var ninosPorId = {};
+    results[0].forEach(function(n) { ninosPorId[n.id] = n; });
+    var cargosVista = cargos.filter(function(c) { return c.mes === mesKey || (!c.pagado && (c.mes || '') < mesKey); });
+    var totalCargosEsp = cargosVista.reduce(function(s,c) { return s+(c.monto||0); }, 0);
+    var totalCargosCob = cargosVista.filter(function(c) { return c.pagado; }).reduce(function(s,c) { return s+(c.monto||0); }, 0);
+    html += '<div class="card" style="margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
+      '<div class="section-title" style="margin-bottom:0;">🎒 Matrícula y materiales (' + cargosVista.length + ')</div>' +
+      '</div>';
+    if (cargosVista.length) {
+      if (canSeeMontos) {
+        html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;"><span style="color:#1B8A7A;font-weight:600;">' + fmtGs(totalCargosCob) + ' cobrado</span> de ' + fmtGs(totalCargosEsp) + '</div>';
+      }
+      html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table style="width:100%;border-collapse:collapse;min-width:520px;font-size:13px;">' +
+        '<thead><tr style="background:var(--bg);"><th style="padding:6px 8px;text-align:left;">Niño</th><th style="padding:6px 8px;text-align:left;">Concepto</th><th style="padding:6px 8px;text-align:right;">Monto</th><th style="padding:6px 8px;text-align:center;">Estado</th><th></th></tr></thead><tbody>';
+      cargosVista.forEach(function(c) {
+        var nn = ninosPorId[c.nino_id];
+        var metodosLabelC = {efectivo:'💵',pos:'💳',transferencia:'🏦',qr:'📱'};
+        html += '<tr style="border-bottom:1px solid var(--border);">' +
+          '<td style="padding:6px 8px;">' + (nn ? nn.nombre : 'Niño') + '</td>' +
+          '<td style="padding:6px 8px;">' + c.concepto + (c.observacion ? '<div style="font-size:11px;color:var(--text-secondary);">' + c.observacion + '</div>' : '') + '</td>' +
+          '<td style="padding:6px 8px;text-align:right;font-weight:600;">' + (canSeeMontos ? fmtGs(c.monto||0) : '—') + '</td>' +
+          '<td style="padding:6px 8px;text-align:center;">' + (c.pagado ? '<span style="color:#1B8A7A;font-size:11px;">✅ Pagado ' + (metodosLabelC[c.metodo_pago]||'') + '</span>' : '<span style="color:#E65100;font-size:11px;">⏳ Pendiente</span>') + '</td>' +
+          '<td style="padding:6px 8px;"><div style="display:flex;gap:4px;justify-content:flex-end;">' +
+          '<button data-cid="' + c.id + '" data-pagado="' + !c.pagado + '" onclick="marcarPagoCargo(this.dataset.cid,this.dataset.pagado===\'true\')" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;">' + (c.pagado ? 'Deshacer' : '✅ Cobrar') + '</button>' +
+          ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button data-cid="' + c.id + '" data-nid="' + c.nino_id + '" data-nombre="' + (nn ? nn.nombre.replace(/"/g,'') : '') + '" onclick="abrirModalCargo(this.dataset.nid,this.dataset.nombre,this.dataset.cid)" class="btn btn-ghost btn-sm" style="padding:3px 6px;font-size:11px;">✏️</button>' : '') +
+          ((CU.rol === 'directora' || CU.rol === 'recepcionista') ? '<button data-cid="' + c.id + '" onclick="eliminarCargo(this.dataset.cid)" class="btn btn-ghost btn-sm" style="padding:3px 6px;font-size:11px;color:#C0392B;">🗑</button>' : '') +
+          '</div></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div style="color:var(--text-secondary);font-size:13px;">Sin cargos este mes. Usá el botón 🎒 en la fila de cada niño para cargar matrícula o materiales.</div>';
+    }
+    html += '</div>';
 
     // Colonias section
     if (colonias.length) {
@@ -8180,6 +8293,117 @@ function actualizarDescuentoNino() {
     var cuota = parseInt(document.getElementById('nino-cuota').value) || 0;
     document.getElementById('nino-desc-monto').value = Math.round(cuota * 0.15);
   }
+}
+
+// ==================
+// CARGOS DE GUARDERÍA (matrícula, materiales, otros)
+// ==================
+function toggleCargoOtro() {
+  document.getElementById('cargo-otro-wrap').style.display = document.getElementById('cargo-concepto').value === '__otro' ? '' : 'none';
+}
+function toggleCargoPagado() {
+  document.getElementById('cargo-metodo-wrap').style.display = document.getElementById('cargo-pagado').checked ? '' : 'none';
+}
+
+async function abrirModalCargo(ninoId, nombre, cargoId) {
+  document.getElementById('cargo-id').value = '';
+  document.getElementById('cargo-nino-id').value = ninoId;
+  document.getElementById('cargo-nino-nombre').textContent = nombre || '';
+  document.getElementById('cargo-concepto').value = 'Matrícula';
+  document.getElementById('cargo-otro').value = '';
+  document.getElementById('cargo-monto').value = '';
+  document.getElementById('cargo-fecha').value = today();
+  document.getElementById('cargo-obs').value = '';
+  document.getElementById('cargo-pagado').checked = false;
+  document.getElementById('cargo-metodo').value = 'efectivo';
+  document.getElementById('cargo-modal-titulo').textContent = 'Nuevo cargo de guardería';
+  if (cargoId) {
+    try {
+      var rows = await api('GET', 'guarderia_cargos', null, '?id=eq.' + cargoId + '&limit=1');
+      var c = rows[0];
+      if (c) {
+        document.getElementById('cargo-id').value = c.id;
+        if (c.concepto === 'Matrícula' || c.concepto === 'Materiales') {
+          document.getElementById('cargo-concepto').value = c.concepto;
+        } else {
+          document.getElementById('cargo-concepto').value = '__otro';
+          document.getElementById('cargo-otro').value = c.concepto || '';
+        }
+        document.getElementById('cargo-monto').value = c.monto || '';
+        document.getElementById('cargo-fecha').value = c.fecha || today();
+        document.getElementById('cargo-obs').value = c.observacion || '';
+        document.getElementById('cargo-pagado').checked = !!c.pagado;
+        document.getElementById('cargo-metodo').value = c.metodo_pago || 'efectivo';
+        document.getElementById('cargo-modal-titulo').textContent = 'Editar cargo de guardería';
+      }
+    } catch(e) {}
+  }
+  toggleCargoOtro();
+  toggleCargoPagado();
+  openModal('modal-cargo-guarderia');
+}
+
+async function guardarCargo() {
+  var id = document.getElementById('cargo-id').value;
+  var ninoId = document.getElementById('cargo-nino-id').value;
+  var concSel = document.getElementById('cargo-concepto').value;
+  var concepto = concSel === '__otro' ? document.getElementById('cargo-otro').value.trim() : concSel;
+  if (!concepto) { alert('Escribí el concepto del cargo'); return; }
+  var monto = parseInt(document.getElementById('cargo-monto').value) || 0;
+  if (!monto) { alert('Ingresá el monto'); return; }
+  var fecha = document.getElementById('cargo-fecha').value || today();
+  var pagado = document.getElementById('cargo-pagado').checked;
+  var data = {
+    nino_id: ninoId,
+    concepto: concepto,
+    monto: monto,
+    fecha: fecha,
+    mes: fecha.slice(0,4) + '_' + fecha.slice(5,7),
+    observacion: document.getElementById('cargo-obs').value.trim() || null,
+    pagado: pagado,
+    metodo_pago: document.getElementById('cargo-metodo').value || 'efectivo'
+  };
+  if (pagado) {
+    var ahora = new Date();
+    data.fecha_pago = today();
+    data.mes_pago = ahora.getFullYear() + '_' + String(ahora.getMonth()+1).padStart(2,'0');
+  } else {
+    data.fecha_pago = null;
+    data.mes_pago = null;
+  }
+  try {
+    if (id) { await api('PATCH', 'guarderia_cargos', data, '?id=eq.' + id); }
+    else { await api('POST', 'guarderia_cargos', data); }
+    closeModal('modal-cargo-guarderia');
+    toast('✅ Cargo guardado');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function marcarPagoCargo(cargoId, pagado) {
+  try {
+    var data = { pagado: pagado };
+    if (pagado) {
+      var ahora = new Date();
+      data.fecha_pago = today();
+      data.mes_pago = ahora.getFullYear() + '_' + String(ahora.getMonth()+1).padStart(2,'0');
+    } else {
+      data.fecha_pago = null;
+      data.mes_pago = null;
+    }
+    await api('PATCH', 'guarderia_cargos', data, '?id=eq.' + cargoId);
+    toast(pagado ? '✅ Marcado como cobrado' : 'Marcado como pendiente');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarCargo(cargoId) {
+  if (!confirm('¿Eliminar este cargo? No se puede deshacer.')) return;
+  try {
+    await api('DELETE', 'guarderia_cargos', null, '?id=eq.' + cargoId);
+    toast('Cargo eliminado');
+    loadGuarderia();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 async function darDeBajaNino(ninoId, nombre) {
