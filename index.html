@@ -331,6 +331,7 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="nav-item" id="nav-sueldos" onclick="goTo('sueldos')" style="display:none;">👥 Sueldos</div>
       <div class="nav-item" id="nav-guarderia" onclick="goTo('guarderia')" style="display:none;">🧒 Guardería</div>
       <div class="nav-item" id="nav-instrumentos" onclick="goTo('instrumentos')" style="display:none;">🗂 Instrumentos</div>
+      <div class="nav-item" id="nav-recursos" onclick="goTo('recursos')" style="display:none;">🧩 Recursos</div>
       <div class="nav-item" id="nav-perfil" onclick="goTo('perfil')">👤 Mi perfil</div>
       <div class="nav-item mobile-only" onclick="logout()" style="color:var(--red);display:none;" id="nav-logout">🚪 Salir</div>
     </div>
@@ -404,6 +405,9 @@ input[type="time"] { -webkit-appearance: none; }
     <!-- INSTRUMENTOS -->
     <div class="page" id="page-instrumentos">
       <div id="instrumentos-content"></div>
+    </div>
+    <div class="page" id="page-recursos">
+      <div id="recursos-content"></div>
     </div>
 
     <!-- GASTOS -->
@@ -1146,6 +1150,32 @@ input[type="time"] { -webkit-appearance: none; }
 </div>
 
 <!-- MODAL INSTRUMENTO -->
+<div class="modal-overlay" id="modal-recurso">
+  <div class="modal" style="width:500px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h3 id="modal-rec-title">🧩 Nuevo recurso</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-recurso')">✕</button>
+    </div>
+    <input type="hidden" id="rec-id">
+    <div class="form-group"><label>Nombre</label><input id="rec-nombre" placeholder="Ej: Agenda visual de rutina matutina"><div id="rec-nombre-hint" style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Si lo dejás vacío se usa el nombre del archivo.</div></div>
+    <div class="form-group"><label>Categoría</label>
+      <select id="rec-categoria"></select>
+    </div>
+    <div class="form-group"><label>Descripción (opcional)</label><textarea id="rec-desc" placeholder="Para qué se usa, a qué edad, cómo imprimirlo..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-height:60px;font-family:inherit;"></textarea></div>
+    <div class="form-group"><label>📎 Subir archivo(s)</label>
+      <input type="file" id="rec-file" multiple accept="image/*,application/pdf,video/*,audio/*,.doc,.docx,.ppt,.pptx,.xls,.xlsx" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Imágenes, PDF, video, audio o documentos. Podés elegir varios a la vez (se crea un recurso por archivo).</div>
+      <div id="rec-file-current" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div>
+    </div>
+    <div class="form-group"><label>🔗 O link (Drive, YouTube, etc.)</label><input id="rec-link" placeholder="https://..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="rec-delete-btn" onclick="eliminarRecursoDesdeModal()" style="display:none;">🗑 Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-recurso')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarRecurso()" id="rec-save-btn">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-instrumento">
   <div class="modal" style="width:500px;">
     <div class="modal-header">
@@ -1278,6 +1308,53 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-ganancia-acumulada')">Cerrar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL SESIONES POR PACIENTE -->
+<div class="modal-overlay" id="modal-ses-pac">
+  <div class="modal" style="width:760px;max-width:96vw;">
+    <div class="modal-header">
+      <h3 id="ses-pac-titulo">Sesiones por paciente</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-ses-pac')">✕</button>
+    </div>
+    <div id="ses-pac-body"></div>
+  </div>
+</div>
+
+<!-- MODAL CARGA MASIVA HISTÓRICO -->
+<div class="modal-overlay" id="modal-carga-masiva">
+  <div class="modal" style="width:760px;max-width:96vw;">
+    <div class="modal-header">
+      <h3>📥 Cargar meses anteriores desde Excel</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-carga-masiva')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5;">
+      En tu Excel, ordená las columnas así (una fila por mes), seleccioná las celdas, copiá (Ctrl+C) y pegalas acá abajo:<br>
+      <b>Mes · Terapias · Guardería · Colonia · Remeras · Honorarios · Gastos · Sueldos</b><br>
+      El mes puede ser nombre (Enero) o número (1). Si no ponés el mes, se toma en orden desde Enero. Los títulos de columna se ignoran.
+    </div>
+    <div class="form-group" style="max-width:140px;"><label>Año</label><input type="number" id="masiva-anio" oninput="parsearCargaMasiva()"></div>
+    <div class="form-group">
+      <textarea id="masiva-texto" rows="6" placeholder="Pegá acá desde Excel..." style="font-family:monospace;font-size:12px;" oninput="parsearCargaMasiva()"></textarea>
+    </div>
+    <div style="margin-bottom:10px;"><label class="btn btn-secondary btn-sm" style="cursor:pointer;">📄 O subir archivo CSV<input type="file" accept=".csv,.txt,.tsv" style="display:none;" onchange="leerCsvMasiva(this)"></label></div>
+    <div id="masiva-preview" style="overflow-x:auto;margin-bottom:12px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-carga-masiva')">Cancelar</button>
+      <button class="btn btn-primary" id="masiva-btn" onclick="guardarCargaMasiva()" disabled>Guardar todos los meses</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ANÁLISIS ANUAL -->
+<div class="modal-overlay" id="modal-analisis-anual">
+  <div class="modal" style="width:900px;max-width:96vw;">
+    <div class="modal-header">
+      <h3 id="analisis-anual-titulo">Análisis del año</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-analisis-anual')">✕</button>
+    </div>
+    <div id="analisis-anual-body" style="overflow-x:auto;"></div>
   </div>
 </div>
 
@@ -1639,7 +1716,7 @@ async function login() {
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
     // Hide static nav items (don't remove - they stay in DOM)
-    ['nav-instrumentos', 'nav-guarderia', 'nav-sueldos'].forEach(function(id) {
+    ['nav-instrumentos', 'nav-recursos', 'nav-guarderia', 'nav-sueldos'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -1683,6 +1760,7 @@ async function login() {
       addNav('nav-guarderia', '🧒 Guardería', 'guarderia');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
       addNav('nav-instrumentos', '🗂 Instrumentos', 'instrumentos');
+      addNav('nav-recursos', '🧩 Recursos', 'recursos');
     } else if (CU.rol === 'administrador') {
       addNav('nav-admin', '💰 Administración', 'admin');
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
@@ -1700,6 +1778,7 @@ async function login() {
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
     } else if (CU.rol === 'profesional') {
       addNav('nav-instrumentos', '🗂 Instrumentos', 'instrumentos');
+      addNav('nav-recursos', '🧩 Recursos', 'recursos');
       document.getElementById('nav-profesionales').style.display = 'none';
     }
     // 5. Route to first page
@@ -1724,7 +1803,7 @@ function logout() {
     if (el && el.parentNode) el.parentNode.removeChild(el);
   });
   // Hide static nav items
-  ['nav-instrumentos', 'nav-guarderia', 'nav-sueldos'].forEach(function(id) {
+  ['nav-instrumentos', 'nav-recursos', 'nav-guarderia', 'nav-sueldos'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -1746,7 +1825,7 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos', sueldos: 'Sueldos Fijos', guarderia: 'Guardería' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos', recursos: 'Recursos', sueldos: 'Sueldos Fijos', guarderia: 'Guardería' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
@@ -1758,6 +1837,7 @@ function goTo(page) {
   if (page === 'gastos') loadGastos();
   if (page === 'resumen') loadResumen();
   if (page === 'instrumentos') loadInstrumentos();
+  if (page === 'recursos') loadRecursos();
   if (page === 'sueldos') loadSueldos();
   if (page === 'guarderia') loadGuarderia();
 }
@@ -2221,6 +2301,7 @@ async function verProf(idxOrId) {
         (CU.rol !== 'profesional' || CU.id === profId ? '<div class="tab" onclick="switchTab(this,\'tp-legajos\')">Legajos (' + pacs.length + ')</div>' : '') +
         '<div class="tab" onclick="switchTab(this,\'tp-horarios\');loadHorariosFijos(\'' + profId + '\');">📅 Horarios fijos</div>' +
         (showHonorarios ? '<div class="tab" onclick="switchTab(this,\'tp-honorarios\');loadHonorariosProfTab(\'' + profId + '\');">💰 Honorarios</div>' : '') +
+        (CU.rol !== 'profesional' || CU.id === profId ? '<div class="tab" onclick="switchTab(this,\'tp-sespac\');loadSesPacProfTab(\'' + profId + '\');">👥 Sesiones por paciente</div>' : '') +
         '</div>';
     }
     html += '<div id="tp-datos" class="tab-sec' + (CU.rol === 'recepcionista' ? '' : ' active') + '">' +
@@ -2290,6 +2371,7 @@ async function verProf(idxOrId) {
     html += '</div>';
     html += '<div id="tp-horarios" class="tab-sec"><div id="horarios-content"><div class="loading">Cargando horarios...</div></div></div>';
     if (CU.rol === 'directora') html += '<div id="tp-honorarios" class="tab-sec"><div class="loading" id="honorarios-loading">Cargando honorarios...</div></div>';
+    if (CU.rol !== 'recepcionista' && (CU.rol !== 'profesional' || CU.id === profId)) html += '<div id="tp-sespac" class="tab-sec"><div class="loading">Cargando...</div></div>';
     html += '<div id="tp-legajos" class="tab-sec">' +
       '<div style="margin-bottom:12px;">' +
       '<input id="legajo-search" placeholder="🔍 Buscar paciente..." oninput="filtrarLegajos(this.value)" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
@@ -4140,6 +4222,232 @@ async function guardarBalanceHistorico() {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
+// ==================
+// SESIONES POR PACIENTE (admin: con monto / perfil profesional: solo cantidades)
+// ==================
+function _fmtFechaCorta(f) { if (!f) return ''; var p = f.split('-'); return p[2] + '/' + p[1]; }
+window._sesPacCache = window._sesPacCache || {};
+function renderSesionesPorPaciente(targetId, data, conMonto) {
+  var el = document.getElementById(targetId); if (!el) return;
+  var qPrev = document.getElementById(targetId + '-q');
+  var q = qPrev ? qPrev.value.toLowerCase() : '';
+  var filas = Object.keys(data).map(function(k) { return data[k]; });
+  var totalSes = 0, totalAus = 0, totalMonto = 0;
+  filas.forEach(function(f) {
+    f.aus = f.turnos.filter(function(t) { return t.estado === 'cancelado_hora'; }).length;
+    totalSes += f.turnos.length; totalAus += f.aus; totalMonto += (f.monto || 0);
+  });
+  filas.sort(function(a, b) { return b.turnos.length - a.turnos.length || a.nombre.localeCompare(b.nombre); });
+  var vis = filas.filter(function(f) { return !q || f.nombre.toLowerCase().indexOf(q) !== -1; });
+  var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">' +
+    '<input type="text" id="' + targetId + '-q" value="' + q.replace(/"/g, '') + '" placeholder="🔍 Buscar paciente..." style="flex:1;min-width:160px;" oninput="renderSesionesPorPaciente(\'' + targetId + '\', window._sesPacCache[\'' + targetId + '\'], ' + (conMonto ? 'true' : 'false') + ')">' +
+    '<span style="font-size:12px;color:var(--text-secondary);">' + filas.length + ' pacientes · ' + totalSes + ' sesiones' + (totalAus ? ' · 🟠 ' + totalAus + ' ausentes s/ justificar' : '') + '</span></div>';
+  if (!vis.length) { el.innerHTML = h + '<div class="empty-state">No hay sesiones para mostrar.</div>'; restaurarFocoBusqueda(targetId, q); return; }
+  h += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--bg);">' +
+    '<th style="padding:8px;text-align:left;">Paciente</th>' + (conMonto ? '<th style="padding:8px;text-align:left;">Profesional</th>' : '') +
+    '<th style="padding:8px;text-align:center;">Sesiones</th><th style="padding:8px;text-align:center;" title="Ausentes sin justificar (se cobran)">🟠</th>' +
+    (conMonto ? '<th style="padding:8px;text-align:right;">Monto familia</th>' : '') + '</tr></thead><tbody>';
+  var nCols = conMonto ? 5 : 3;
+  vis.forEach(function(f, i) {
+    var profs = []; f.turnos.forEach(function(t) { if (t.prof && profs.indexOf(t.prof) === -1) profs.push(t.prof); });
+    var rid = targetId + '-d' + i;
+    h += '<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="var d=document.getElementById(\'' + rid + '\');d.style.display=d.style.display===\'none\'?\'table-row\':\'none\';">' +
+      '<td style="padding:8px;font-weight:600;">' + f.nombre + ' <span style="font-size:10px;color:var(--text-tertiary);">▾</span></td>' +
+      (conMonto ? '<td style="padding:8px;font-size:12px;color:var(--text-secondary);">' + (profs.join(', ') || '—') + '</td>' : '') +
+      '<td style="padding:8px;text-align:center;font-weight:700;color:#1B8A7A;">' + f.turnos.length + '</td>' +
+      '<td style="padding:8px;text-align:center;color:#E67E22;">' + (f.aus || '') + '</td>' +
+      (conMonto ? '<td style="padding:8px;text-align:right;">' + fmtGs(f.monto) + '</td>' : '') + '</tr>';
+    var ord = f.turnos.slice().sort(function(a, b) { return (a.fecha || '') < (b.fecha || '') ? -1 : 1; });
+    h += '<tr id="' + rid + '" style="display:none;background:var(--bg);"><td colspan="' + nCols + '" style="padding:8px 12px;font-size:12px;">' +
+      ord.map(function(t) {
+        return '<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 8px;border-radius:6px;background:white;border:1px solid ' + (t.estado === 'cancelado_hora' ? '#E67E22' : 'var(--border)') + ';">' +
+          _fmtFechaCorta(t.fecha) + ' · ' + ((typeof TIPO_LABELS !== 'undefined' && TIPO_LABELS[t.tipo]) || t.tipo) + (t.estado === 'cancelado_hora' ? ' 🟠' : '') + '</span>';
+      }).join('') + '</td></tr>';
+  });
+  h += '<tr style="background:#FEF6E0;font-weight:700;"><td style="padding:8px;">TOTAL</td>' + (conMonto ? '<td></td>' : '') + '<td style="padding:8px;text-align:center;">' + totalSes + '</td><td style="padding:8px;text-align:center;color:#E67E22;">' + (totalAus || '') + '</td>' + (conMonto ? '<td style="padding:8px;text-align:right;">' + fmtGs(totalMonto) + '</td>' : '') + '</tr>';
+  h += '</tbody></table></div><div style="font-size:11px;color:var(--text-tertiary);margin-top:8px;">Tocá un paciente para ver las fechas. 🟠 = ausente sin justificar (se cobra).' + (conMonto ? ' En compartidas cada profesional cuenta su turno.' : '') + '</div>';
+  el.innerHTML = h;
+  restaurarFocoBusqueda(targetId, q);
+}
+function restaurarFocoBusqueda(targetId, q) {
+  var qi = document.getElementById(targetId + '-q');
+  if (qi && q) { qi.focus(); qi.setSelectionRange(q.length, q.length); }
+}
+function verSesionesPorPaciente() {
+  var data = window._sesPacAdminData || {};
+  document.getElementById('ses-pac-titulo').textContent = '👥 Sesiones por paciente — ' + (window._sesPacAdminLabel || '');
+  window._sesPacCache['ses-pac-body'] = data;
+  renderSesionesPorPaciente('ses-pac-body', data, true);
+  openModal('modal-ses-pac');
+}
+
+var _spProfMes = null;
+function cambiarMesSesPacProf(delta, profId) {
+  if (!_spProfMes) { var n = new Date(); _spProfMes = { a: n.getFullYear(), m: n.getMonth() + 1 }; }
+  _spProfMes.m += delta;
+  if (_spProfMes.m > 12) { _spProfMes.m = 1; _spProfMes.a++; }
+  if (_spProfMes.m < 1) { _spProfMes.m = 12; _spProfMes.a--; }
+  loadSesPacProfTab(profId);
+}
+async function loadSesPacProfTab(profId) {
+  var el = document.getElementById('tp-sespac'); if (!el) return;
+  if (!_spProfMes) { var n = new Date(); _spProfMes = { a: n.getFullYear(), m: n.getMonth() + 1 }; }
+  var a = _spProfMes.a, m = _spProfMes.m;
+  var nombres = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var first = a + '-' + String(m).padStart(2, '0') + '-01';
+    var ld = new Date(a, m, 0);
+    var last = a + '-' + String(m).padStart(2, '0') + '-' + String(ld.getDate()).padStart(2, '0');
+    var turnos = await api('GET', 'agenda', null, '?estado=in.(confirmado,cancelado_hora)&profesional_id=eq.' + profId + '&fecha=gte.' + first + '&fecha=lte.' + last);
+    var data = {};
+    (turnos || []).forEach(function(t) {
+      var k = t.paciente_id || t.paciente_nombre; if (!k) return;
+      if (!data[k]) data[k] = { nombre: t.paciente_nombre || 'Sin nombre', turnos: [], monto: 0 };
+      data[k].turnos.push({ fecha: t.fecha, tipo: t.tipo || 'sesion', estado: t.estado, prof: '' });
+    });
+    window._sesPacCache['tp-sespac-lista'] = data;
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesSesPacProf(-1,\'' + profId + '\')">←</button>' +
+      '<span style="font-weight:600;">' + nombres[m - 1] + ' ' + a + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarMesSesPacProf(1,\'' + profId + '\')">→</button></div>' +
+      '<div id="tp-sespac-lista"></div>';
+    renderSesionesPorPaciente('tp-sespac-lista', data, false);
+  } catch (e) { el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
+// ==================
+// CARGA MASIVA HISTÓRICA + ANÁLISIS ANUAL
+// ==================
+var _masivaFilas = [];
+function abrirCargaMasiva() {
+  document.getElementById('masiva-anio').value = _adminAnio;
+  document.getElementById('masiva-texto').value = '';
+  _masivaFilas = [];
+  parsearCargaMasiva();
+  openModal('modal-carga-masiva');
+}
+function leerCsvMasiva(inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function() { document.getElementById('masiva-texto').value = r.result; parsearCargaMasiva(); };
+  r.readAsText(f);
+  inp.value = '';
+}
+function _numMasiva(v) {
+  if (v == null) return 0;
+  var t = String(v).replace(/gs\.?/gi,'').replace(/[\s.]/g,'').replace(/,\d{1,2}$/,'').replace(/,/g,'');
+  var neg = /^\(.*\)$/.test(t) || t.indexOf('-') === 0;
+  t = t.replace(/[^0-9]/g,'');
+  var n = parseInt(t) || 0;
+  return neg ? -n : n;
+}
+function _mesMasiva(v) {
+  var t = String(v||'').trim().toLowerCase().replace(/[áéíóú]/g,function(c){return {'á':'a','é':'e','í':'i','ó':'o','ú':'u'}[c];});
+  if (!t) return 0;
+  if (/^\d{1,2}$/.test(t)) { var n = parseInt(t); return (n>=1&&n<=12)?n:0; }
+  var ab = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var i = ab.indexOf(t.substring(0,3));
+  return i >= 0 ? i+1 : 0;
+}
+function parsearCargaMasiva() {
+  var txt = document.getElementById('masiva-texto').value;
+  var prev = document.getElementById('masiva-preview');
+  var btn = document.getElementById('masiva-btn');
+  _masivaFilas = [];
+  var lineas = txt.split(/\r?\n/).filter(function(l){return l.trim();});
+  if (!lineas.length) { prev.innerHTML = ''; btn.disabled = true; return; }
+  var sep = lineas[0].indexOf('\t') >= 0 ? '\t' : (lineas[0].indexOf(';') >= 0 ? ';' : ',');
+  var sec = 0;
+  lineas.forEach(function(l) {
+    var c = l.split(sep).map(function(x){return x.trim();});
+    var mes = _mesMasiva(c[0]);
+    var datos;
+    if (mes) datos = c.slice(1);
+    else if (c.length >= 7 && /\d/.test(c.slice(0,7).join('')) && !/[a-z]{3,}/i.test(c[0])) { sec++; mes = sec; datos = c; }
+    else return; // encabezado u otra fila
+    if (mes) sec = mes;
+    var n = datos.slice(0,7).map(_numMasiva);
+    while (n.length < 7) n.push(0);
+    _masivaFilas.push({ mes: mes, v: n });
+  });
+  var nom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var anio = parseInt(document.getElementById('masiva-anio').value) || _adminAnio;
+  var h = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:var(--bg);"><th style="padding:6px;text-align:left;">Mes</th><th>Terapias</th><th>Guard.</th><th>Colonia</th><th>Remeras</th><th>Honor.</th><th>Gastos</th><th>Sueldos</th><th>Neto</th></tr></thead><tbody>';
+  _masivaFilas.forEach(function(f) {
+    var v = f.v, neto = v[0]+v[1]+v[2]+v[3]-v[4]-v[5]-v[6];
+    h += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;font-weight:600;">' + nom[f.mes-1] + ' ' + anio + '</td>' +
+      v.map(function(x){return '<td style="padding:6px;text-align:right;">' + x.toLocaleString('es-PY') + '</td>';}).join('') +
+      '<td style="padding:6px;text-align:right;font-weight:700;color:' + (neto>=0?'#1B8A7A':'#C0392B') + ';">' + neto.toLocaleString('es-PY') + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  if (!_masivaFilas.length) h = '<div style="color:#C0392B;font-size:12px;">No pude reconocer filas. Revisá que cada fila tenga el mes y los 7 montos.</div>';
+  else h += '<div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">Revisá que coincida con tu Excel. Si un mes ya estaba cargado, se reemplaza.</div>';
+  prev.innerHTML = h;
+  btn.disabled = !_masivaFilas.length;
+}
+async function guardarCargaMasiva() {
+  var anio = parseInt(document.getElementById('masiva-anio').value) || _adminAnio;
+  if (!_masivaFilas.length) return;
+  if (!confirm('¿Guardar ' + _masivaFilas.length + ' mes(es) de ' + anio + '? Si alguno ya estaba cargado, se reemplaza.')) return;
+  var btn = document.getElementById('masiva-btn'); btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    for (var i = 0; i < _masivaFilas.length; i++) {
+      var f = _masivaFilas[i], v = f.v;
+      var key = anio + '_' + String(f.mes).padStart(2,'0');
+      var data = { mes: key, ingresos_terapias: v[0], ingresos_guarderia: v[1], ingresos_colonia: v[2], ingresos_remeras: v[3], honorarios: v[4], gastos: v[5], sueldos: v[6] };
+      var ex = await api('GET', 'balance_historico', null, '?mes=eq.' + key + '&limit=1');
+      if (ex && ex.length) await api('PATCH', 'balance_historico', data, '?mes=eq.' + key);
+      else await api('POST', 'balance_historico', data);
+    }
+    closeModal('modal-carga-masiva');
+    toast('✅ ' + _masivaFilas.length + ' meses guardados');
+    verAnalisisAnual(anio);
+  } catch(e) { alert('Error: ' + e.message + '\n\nSi dice que la tabla no existe, corré el SQL de balance_historico en Supabase.'); }
+  btn.disabled = false; btn.textContent = 'Guardar todos los meses';
+}
+async function verAnalisisAnual(anio) {
+  anio = anio || _adminAnio;
+  var body = document.getElementById('analisis-anual-body');
+  document.getElementById('analisis-anual-titulo').textContent = '📅 Análisis financiero ' + anio;
+  body.innerHTML = '<div class="loading">Calculando el año, puede tardar unos segundos...</div>';
+  openModal('modal-analisis-anual');
+  try {
+    var hoy = new Date();
+    var hasta = (anio === hoy.getFullYear()) ? hoy.getMonth()+1 : (anio < hoy.getFullYear() ? 12 : 0);
+    var res = [];
+    for (var m = 1; m <= hasta; m++) res.push(await calcularGananciaMesSimple(anio, m));
+    var nom = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    var tot = {t:0,g:0,c:0,r:0,h:0,x:0,s:0,n:0};
+    var h = '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;"><button class="btn btn-secondary btn-sm" onclick="verAnalisisAnual(' + (anio-1) + ')">◀ ' + (anio-1) + '</button><button class="btn btn-secondary btn-sm" onclick="verAnalisisAnual(' + (anio+1) + ')">' + (anio+1) + ' ▶</button><button class="btn btn-secondary btn-sm" onclick="closeModal(\'modal-analisis-anual\');abrirCargaMasiva()">📥 Cargar meses desde Excel</button></div>';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:var(--bg);"><th style="padding:6px;text-align:left;">Mes</th><th>Terapias</th><th>Guard.</th><th>Colonia</th><th>Remeras</th><th>Honor.</th><th>Gastos</th><th>Sueldos</th><th>Neto</th></tr></thead><tbody>';
+    var maxAbs = 1;
+    res.forEach(function(r){ maxAbs = Math.max(maxAbs, Math.abs(r.balanceNeto)); });
+    res.forEach(function(r) {
+      var vals = [r.totalGenerado, r.esperadoGuarderia, r.esperadoColonia, r.esperadoRemeras, r.totalProfs, r.gastosTotales, r.sueldosTotales];
+      tot.t+=vals[0]; tot.g+=vals[1]; tot.c+=vals[2]; tot.r+=vals[3]; tot.h+=vals[4]; tot.x+=vals[5]; tot.s+=vals[6]; tot.n+=r.balanceNeto;
+      h += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;font-weight:600;white-space:nowrap;">' + (r.esHistorico?'📥 ':'') + nom[r.mes-1] + '</td>' +
+        vals.map(function(x){return '<td style="padding:6px;text-align:right;">' + Math.round(x||0).toLocaleString('es-PY') + '</td>';}).join('') +
+        '<td style="padding:6px;text-align:right;font-weight:700;color:' + (r.balanceNeto>=0?'#1B8A7A':'#C0392B') + ';">' + Math.round(r.balanceNeto).toLocaleString('es-PY') + '</td></tr>';
+    });
+    var k = res.length || 1;
+    h += '<tr style="background:#FEF6E0;font-weight:700;"><td style="padding:6px;">TOTAL</td>' + [tot.t,tot.g,tot.c,tot.r,tot.h,tot.x,tot.s].map(function(x){return '<td style="padding:6px;text-align:right;">' + Math.round(x).toLocaleString('es-PY') + '</td>';}).join('') + '<td style="padding:6px;text-align:right;color:' + (tot.n>=0?'#1B8A7A':'#C0392B') + ';">' + Math.round(tot.n).toLocaleString('es-PY') + '</td></tr>';
+    h += '<tr style="background:var(--bg);"><td style="padding:6px;">Promedio/mes</td>' + [tot.t,tot.g,tot.c,tot.r,tot.h,tot.x,tot.s,tot.n].map(function(x){return '<td style="padding:6px;text-align:right;">' + Math.round(x/k).toLocaleString('es-PY') + '</td>';}).join('') + '</tr></tbody></table>';
+    // barras de ganancia neta por mes
+    h += '<div style="margin-top:16px;font-size:12px;font-weight:600;margin-bottom:6px;">Ganancia neta por mes</div>';
+    res.forEach(function(r) {
+      var w = Math.round(Math.abs(r.balanceNeto)/maxAbs*100);
+      h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:11px;"><span style="width:28px;">' + nom[r.mes-1] + '</span><div style="flex:1;background:var(--bg);border-radius:4px;height:14px;"><div style="width:' + w + '%;height:14px;border-radius:4px;background:' + (r.balanceNeto>=0?'#1B8A7A':'#C0392B') + ';"></div></div><span style="width:110px;text-align:right;">' + fmtGs(r.balanceNeto) + '</span></div>';
+    });
+    if (res.length) {
+      var mejor = res.reduce(function(a,b){return b.balanceNeto>a.balanceNeto?b:a;}), peor = res.reduce(function(a,b){return b.balanceNeto<a.balanceNeto?b:a;});
+      var margen = (tot.t+tot.g+tot.c+tot.r) ? Math.round(tot.n/(tot.t+tot.g+tot.c+tot.r)*100) : 0;
+      h += '<div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;line-height:1.6;">🏆 Mejor mes: <b>' + nom[mejor.mes-1] + '</b> (' + fmtGs(mejor.balanceNeto) + ') · 📉 Más flojo: <b>' + nom[peor.mes-1] + '</b> (' + fmtGs(peor.balanceNeto) + ') · 📈 Margen sobre ingresos: <b>' + margen + '%</b></div>';
+    } else h += '<div class="empty-state">No hay meses para mostrar en ' + anio + '.</div>';
+    body.innerHTML = h;
+  } catch(e) { body.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
+
 async function calcularGananciaMesSimple(anio, mes) {
   var mesKeyX = anio + '_' + String(mes).padStart(2,'0');
 
@@ -4357,6 +4665,7 @@ async function loadAdmin() {
       '<button class="btn btn-secondary btn-sm" onclick="cambiarMesAdmin(1)">Siguiente →</button>' +
       '</div>' +
       '<div style="display:flex;gap:8px;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="verSesionesPorPaciente()">👥 Sesiones por paciente</button>' +
       '<button class="btn btn-secondary btn-sm" onclick="loadAdminTarifas()">⚙️ Configurar tarifas</button>' +
       (CU.rol === 'directora' ? '<button class="btn btn-secondary btn-sm" onclick="abrirMisTarifas()" title="Configurar tus propias tarifas de pago como profesional">💳 Mis tarifas</button>' : '') +
       '</div>' +
@@ -4382,6 +4691,7 @@ async function loadAdmin() {
       }; 
     });
 
+    var _sesPacAcum = {}; window._sesPacAdminData = _sesPacAcum; window._sesPacAdminLabel = getMesLabel();
     turnos.forEach(function(t) {
       var tipo = t.tipo || 'sesion';
       var valorTotal = tarifaMap[tipo] || TARIFA_FALLBACK[tipo] || 220000;
@@ -4424,6 +4734,15 @@ async function loadAdmin() {
       totalGenerado += valorTotal;
       totalProfs += pagoProf;
       totalCrea += ganCrea;
+      // Resumen de sesiones por paciente (botón "Sesiones por paciente")
+      var kPac = t.paciente_id || t.paciente_nombre;
+      if (kPac) {
+        var pcx = pacientesMap[t.paciente_id];
+        if (!_sesPacAcum[kPac]) _sesPacAcum[kPac] = { nombre: t.paciente_nombre || (pcx ? ((pcx.nombre || '') + ' ' + (pcx.apellido || '')).trim() : '') || 'Sin nombre', turnos: [], monto: 0 };
+        _sesPacAcum[kPac].monto += valorTotal;
+        var profObjX = profBreakdown[t.profesional_id];
+        _sesPacAcum[kPac].turnos.push({ fecha: t.fecha, tipo: tipo, estado: t.estado, prof: profObjX ? profObjX.nombre : '' });
+      }
 
       if (profBreakdown[t.profesional_id]) {
         if (!profBreakdown[t.profesional_id].tipos[tipo]) profBreakdown[t.profesional_id].tipos[tipo] = { cant: 0, cancHora: 0, totalGen: 0, totalProf: 0, minPrice: valorTotal, maxPrice: valorTotal, pagoProfConfigurado: pagoProfSinPaciente, minPagoProf: pagoProf, maxPagoProf: pagoProf, porPaciente: {}, turnosDetalle: [] };
@@ -4796,6 +5115,8 @@ async function loadAdmin() {
         '<button class="btn btn-secondary btn-sm" onclick="verGananciaAcumulada(3)">3 meses</button>' +
         '<button class="btn btn-secondary btn-sm" onclick="verGananciaAcumulada(6)">6 meses</button>' +
         '<button class="btn btn-secondary btn-sm" onclick="verGananciaAcumulada(12)">12 meses</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="verAnalisisAnual(_adminAnio)">📅 Análisis del año</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="abrirCargaMasiva()">📥 Cargar meses anteriores</button>' +
         '</div>' +
         '</div>';
       var metaKey = 'meta_' + _adminAnio + '_' + String(_adminMes).padStart(2,'0');
@@ -6280,6 +6601,239 @@ async function eliminarProf(profId) {
   } catch(e) { alert('Error: ' + e.message); }
 }
 
+
+// ==================
+// MÓDULO RECURSOS (apoyos visuales, pictogramas, material psicoeducativo...)
+// ==================
+var REC_CATEGORIAS = ['Apoyos visuales', 'Pictogramas', 'Rutinas y agendas', 'Regulación emocional', 'Habilidades sociales', 'Comunicación y lenguaje', 'Psicoeducación', 'Juegos y actividades', 'Lectoescritura', 'Material para familias', 'Otros'];
+var REC_ICONS = {'Apoyos visuales':'🖼','Pictogramas':'🔤','Rutinas y agendas':'🗓','Regulación emocional':'💚','Habilidades sociales':'🤝','Comunicación y lenguaje':'💬','Psicoeducación':'📚','Juegos y actividades':'🎲','Lectoescritura':'📖','Material para familias':'👪','Otros':'📋'};
+var _recFiltroCategoria = '';
+var _recSearch = '';
+
+function recEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function recTipoArchivo(nombre) {
+  var ext = ((nombre || '').split('.').pop() || '').toLowerCase();
+  if (['png','jpg','jpeg','gif','webp','svg','heic'].indexOf(ext) !== -1) return 'imagen';
+  if (ext === 'pdf') return 'pdf';
+  if (['mp4','mov','webm','m4v'].indexOf(ext) !== -1) return 'video';
+  if (['mp3','wav','m4a','ogg'].indexOf(ext) !== -1) return 'audio';
+  return 'otro';
+}
+
+async function loadRecursos() {
+  var el = document.getElementById('recursos-content');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    var recursos = await api('GET', 'recursos', null, '?activo=eq.true&order=categoria.asc,nombre.asc');
+    var canEdit = CU.rol === 'directora' || CU.rol === 'profesional';
+    var canDelete = CU.rol === 'directora';
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">' +
+      '<div style="font-size:15px;font-weight:600;">🧩 Recursos <span style="font-size:12px;font-weight:400;color:var(--text-secondary);">(' + recursos.length + ')</span></div>' +
+      (canEdit ? '<button class="btn btn-primary btn-sm" onclick="abrirNuevoRecurso()">+ Agregar recurso</button>' : '') +
+      '</div>';
+    html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">' +
+      '<input id="rec-search-input" placeholder="🔍 Buscar recurso..." value="' + recEsc(_recSearch) + '" oninput="_recSearch=this.value;filtrarRecursos()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1;min-width:160px;">' +
+      '<select id="rec-cat-filter" onchange="_recFiltroCategoria=this.value;filtrarRecursos()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
+      '<option value="">Todas las categorías</option>' +
+      REC_CATEGORIAS.map(function(c) { return '<option value="' + c + '"' + (_recFiltroCategoria===c?' selected':'') + '>' + (REC_ICONS[c]||'📋') + ' ' + c + '</option>'; }).join('') +
+      '</select></div>';
+
+    var grouped = {};
+    recursos.forEach(function(r) {
+      var cat = REC_CATEGORIAS.indexOf(r.categoria) !== -1 ? r.categoria : 'Otros';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(r);
+    });
+
+    html += '<div id="rec-list">';
+    REC_CATEGORIAS.forEach(function(cat) {
+      var items = grouped[cat] || [];
+      if (!items.length) return;
+      html += '<div class="card mb-16" data-cat="' + cat + '">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+        '<span style="font-size:20px;">' + (REC_ICONS[cat]||'📋') + '</span>' +
+        '<div class="section-title" style="margin-bottom:0;">' + cat + '</div>' +
+        '<span style="font-size:11px;color:var(--text-secondary);background:var(--bg);padding:2px 8px;border-radius:10px;">' + items.length + '</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:10px;">';
+      items.forEach(function(r) {
+        var tipo = recTipoArchivo(r.archivo_nombre || r.archivo_url);
+        var destino = r.archivo_url || r.drive_link || '';
+        var vista;
+        if (r.archivo_url && tipo === 'imagen') {
+          vista = '<a href="' + recEsc(destino) + '" target="_blank" style="display:block;"><img src="' + recEsc(r.archivo_url) + '" alt="' + recEsc(r.nombre) + '" loading="lazy" style="width:100%;height:130px;object-fit:contain;background:#fff;border-radius:6px;border:1px solid var(--border);"></a>';
+        } else {
+          var icono = r.archivo_url ? ({pdf:'📄',video:'🎬',audio:'🎧',otro:'📎'}[tipo] || '📎') : '🔗';
+          vista = '<a href="' + recEsc(destino) + '" target="_blank" style="display:flex;align-items:center;justify-content:center;height:130px;font-size:42px;background:var(--bg);border-radius:6px;border:1px solid var(--border);text-decoration:none;">' + icono + '</a>';
+        }
+        html += '<div class="rec-card" data-texto="' + recEsc(((r.nombre||'') + ' ' + (r.descripcion||'')).toLowerCase()) + '" style="border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--surface);display:flex;flex-direction:column;gap:6px;">' +
+          vista +
+          '<div style="font-size:12px;font-weight:600;line-height:1.3;word-break:break-word;">' + recEsc(r.nombre) + '</div>' +
+          (r.descripcion ? '<div style="font-size:11px;color:var(--text-secondary);word-break:break-word;">' + recEsc(r.descripcion) + '</div>' : '') +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;">' +
+          (destino ? '<a href="' + recEsc(destino) + '" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none;font-size:11px;">' + (r.archivo_url ? '⬇️ Abrir' : '🔗 Abrir') + '</a>' : '') +
+          (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="editarRecurso(\'' + r.id + '\')" style="font-size:11px;">✏️</button>' : '') +
+          (canDelete ? '<button onclick="confirmarEliminarRecurso(\'' + r.id + '\')" style="background:none;border:1px solid #C0392B;color:#C0392B;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;">🗑</button>' : '') +
+          '</div></div>';
+      });
+      html += '</div></div>';
+    });
+    if (!recursos.length) {
+      html += '<div class="card"><div class="empty-state">Todavía no hay recursos cargados.<br>' + (canEdit ? 'Tocá "+ Agregar recurso" para subir el primero.' : '') + '</div></div>';
+    }
+    html += '</div><div id="rec-sin-resultados" style="display:none;" class="card"><div class="empty-state">No hay recursos que coincidan con la búsqueda.</div></div>';
+    el.innerHTML = html;
+    filtrarRecursos();
+  } catch(e) {
+    console.error(e);
+    el.innerHTML = '<div class="empty-state">Error: ' + e.message + '<br><small style="color:var(--text-secondary);">Si dice que la tabla no existe, falta crear la tabla "recursos" en Supabase.</small></div>';
+  }
+}
+
+function filtrarRecursos() {
+  var search = (_recSearch || '').toLowerCase().trim();
+  var cat = _recFiltroCategoria;
+  var visiblesTotal = 0;
+  document.querySelectorAll('#rec-list .card').forEach(function(card) {
+    var catOk = !cat || card.getAttribute('data-cat') === cat;
+    var visibles = 0;
+    card.querySelectorAll('.rec-card').forEach(function(rc) {
+      var ok = catOk && (!search || (rc.getAttribute('data-texto') || '').indexOf(search) !== -1);
+      rc.style.display = ok ? '' : 'none';
+      if (ok) visibles++;
+    });
+    card.style.display = visibles ? '' : 'none';
+    visiblesTotal += visibles;
+  });
+  var sinRes = document.getElementById('rec-sin-resultados');
+  if (sinRes) sinRes.style.display = (visiblesTotal === 0 && document.querySelectorAll('#rec-list .card').length) ? '' : 'none';
+}
+
+function recLlenarCategorias(valor) {
+  var sel = document.getElementById('rec-categoria');
+  sel.innerHTML = '<option value="">Seleccionar...</option>' + REC_CATEGORIAS.map(function(c) { return '<option value="' + c + '">' + (REC_ICONS[c]||'📋') + ' ' + c + '</option>'; }).join('');
+  sel.value = valor || '';
+}
+
+function abrirNuevoRecurso() {
+  document.getElementById('modal-rec-title').textContent = '🧩 Nuevo recurso';
+  document.getElementById('rec-id').value = '';
+  document.getElementById('rec-nombre').value = '';
+  recLlenarCategorias(_recFiltroCategoria || '');
+  document.getElementById('rec-desc').value = '';
+  document.getElementById('rec-file').value = '';
+  document.getElementById('rec-link').value = '';
+  document.getElementById('rec-file-current').textContent = '';
+  document.getElementById('rec-delete-btn').style.display = 'none';
+  openModal('modal-recurso');
+}
+
+async function editarRecurso(id) {
+  try {
+    var items = await api('GET', 'recursos', null, '?id=eq.' + id + '&limit=1');
+    var r = items[0];
+    if (!r) return;
+    document.getElementById('modal-rec-title').textContent = '✏️ Editar recurso';
+    document.getElementById('rec-id').value = r.id;
+    document.getElementById('rec-nombre').value = r.nombre || '';
+    recLlenarCategorias(r.categoria || '');
+    document.getElementById('rec-desc').value = r.descripcion || '';
+    document.getElementById('rec-file').value = '';
+    document.getElementById('rec-link').value = r.drive_link || '';
+    document.getElementById('rec-file-current').textContent = r.archivo_nombre ? '📎 Archivo actual: ' + r.archivo_nombre + ' (subí otro solo si querés reemplazarlo)' : '';
+    document.getElementById('rec-delete-btn').style.display = CU.rol === 'directora' ? 'inline-block' : 'none';
+    openModal('modal-recurso');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function subirArchivoRecurso(file) {
+  var limite = 45 * 1024 * 1024;
+  if (file.size > limite) throw new Error('"' + file.name + '" pesa más de 45 MB. Comprimilo o subilo a Drive y pegá el link.');
+  var limpio = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+  var filePath = 'recursos/' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + '_' + limpio;
+  var res = await fetch(SUPA_URL + '/storage/v1/object/archivos/' + filePath, {
+    method: 'POST',
+    headers: { 'apikey': SUPA_KEY },
+    body: file
+  });
+  if (!res.ok) {
+    var detalle = '';
+    try { detalle = (await res.text()).slice(0, 150); } catch(e) {}
+    throw new Error('No se pudo subir "' + file.name + '" (' + res.status + '). ' + detalle);
+  }
+  return { url: SUPA_URL + '/storage/v1/object/public/archivos/' + filePath, nombre: file.name };
+}
+
+async function guardarRecurso() {
+  var id = document.getElementById('rec-id').value;
+  var nombreTxt = document.getElementById('rec-nombre').value.trim();
+  var categoria = document.getElementById('rec-categoria').value;
+  var desc = document.getElementById('rec-desc').value.trim();
+  var link = document.getElementById('rec-link').value.trim();
+  var archivos = Array.prototype.slice.call(document.getElementById('rec-file').files || []);
+
+  if (!categoria) { alert('Seleccioná una categoría'); return; }
+  if (!id && !archivos.length && !link) { alert('Subí un archivo o pegá un link'); return; }
+  if (!archivos.length && !nombreTxt) { alert('Escribí un nombre para el recurso'); return; }
+
+  var btn = document.getElementById('rec-save-btn');
+  btn.textContent = '⏳ Guardando...';
+  btn.disabled = true;
+  var creados = 0;
+  try {
+    var base = { categoria: categoria, descripcion: desc || null, drive_link: link || null, activo: true };
+    if (id) {
+      var data = Object.assign({}, base, { nombre: nombreTxt || (archivos[0] ? archivos[0].name.replace(/\.[^.]+$/, '') : '') });
+      if (archivos.length) {
+        var sub = await subirArchivoRecurso(archivos[0]);
+        data.archivo_url = sub.url; data.archivo_nombre = sub.nombre;
+      }
+      if (!data.nombre) { alert('Escribí un nombre para el recurso'); return; }
+      await api('PATCH', 'recursos', data, '?id=eq.' + id);
+      creados = 1;
+    } else if (archivos.length) {
+      for (var i = 0; i < archivos.length; i++) {
+        var f = archivos[i];
+        var s = await subirArchivoRecurso(f);
+        var nombreFinal = (archivos.length === 1 && nombreTxt) ? nombreTxt : f.name.replace(/\.[^.]+$/, '');
+        await api('POST', 'recursos', Object.assign({}, base, { nombre: nombreFinal, archivo_url: s.url, archivo_nombre: s.nombre, created_by: CU.id }));
+        creados++;
+      }
+    } else {
+      await api('POST', 'recursos', Object.assign({}, base, { nombre: nombreTxt, created_by: CU.id }));
+      creados = 1;
+    }
+    closeModal('modal-recurso');
+    toast('✅ ' + (creados > 1 ? creados + ' recursos guardados' : 'Recurso guardado'));
+    loadRecursos();
+  } catch(e) {
+    var extra = creados ? '\n\nSe alcanzaron a guardar ' + creados + ' archivo(s) antes del error.' : '';
+    alert('Error: ' + e.message + extra);
+    if (creados) loadRecursos();
+  } finally {
+    btn.textContent = '💾 Guardar';
+    btn.disabled = false;
+  }
+}
+
+async function confirmarEliminarRecurso(id) {
+  if (CU.rol !== 'directora') { alert('Solo la directora puede eliminar recursos'); return; }
+  if (!confirm('¿Eliminar este recurso?')) return;
+  try {
+    await api('PATCH', 'recursos', { activo: false }, '?id=eq.' + id);
+    toast('Recurso eliminado');
+    loadRecursos();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarRecursoDesdeModal() {
+  var id = document.getElementById('rec-id').value;
+  if (!id) return;
+  await confirmarEliminarRecurso(id);
+  closeModal('modal-recurso');
+}
 
 // ==================
 // MÓDULO INSTRUMENTOS
