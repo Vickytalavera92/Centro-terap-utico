@@ -698,7 +698,7 @@ input[type="time"] { -webkit-appearance: none; }
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-reprogramar')">✕</button>
     </div>
     <div class="form-group"><label>Nueva fecha</label><input type="date" id="reprog-fecha"></div>
-    <div class="form-group"><label>Nueva hora</label><input type="time" id="reprog-hora" step="300"></div>
+    <div class="form-group"><label>Nueva hora</label><input type="text" inputmode="numeric" class="hora-libre" id="reprog-hora" placeholder="HH:MM" maxlength="5" autocomplete="off"></div>
     <div class="form-group"><label>Motivo (opcional)</label><input id="reprog-motivo" placeholder="Ej: Pedido del paciente..."></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-reprogramar')">Cancelar</button>
@@ -1004,7 +1004,7 @@ input[type="time"] { -webkit-appearance: none; }
         </select>
       </div>
       <div class="form-group"><label>Hora</label>
-        <input type="time" id="hor-hora" step="300">
+        <input type="text" inputmode="numeric" class="hora-libre" id="hor-hora" placeholder="HH:MM" maxlength="5" autocomplete="off">
       </div>
     </div>
     <div class="grid-2">
@@ -1574,7 +1574,7 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="form-group"><label>Paciente</label><select id="edit-turno-pac" onchange="filtrarTipoPorPacienteEdit()"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha</label><input type="date" id="edit-turno-fecha"></div>
-      <div class="form-group"><label>Hora</label><input type="time" id="edit-turno-hora" style="font-size:14px;" step="300"></div>
+      <div class="form-group"><label>Hora</label><input type="text" inputmode="numeric" class="hora-libre" id="edit-turno-hora" style="font-size:14px;" placeholder="HH:MM" maxlength="5" autocomplete="off"></div>
     </div>
     <div class="form-group"><label>Tipo de atención</label>
       <select id="edit-turno-tipo" onchange="toggleMontoExcepcional('edit-turno')">
@@ -1612,7 +1612,7 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="form-group"><label>Paciente</label><select id="turno-pac" onchange="filtrarTipoPorPaciente()"><option value="">Turno libre</option></select></div>
     <div class="grid-2">
       <div class="form-group"><label>Fecha</label><input type="date" id="turno-fecha"></div>
-      <div class="form-group"><label>Hora</label><input type="time" id="turno-hora" style="font-size:14px;" step="300"></div>
+      <div class="form-group"><label>Hora</label><input type="text" inputmode="numeric" class="hora-libre" id="turno-hora" style="font-size:14px;" placeholder="HH:MM" maxlength="5" autocomplete="off"></div>
     </div>
     <div class="form-group"><label>Tipo de atención</label>
       <select id="turno-tipo" onchange="toggleMontoExcepcional('turno')">
@@ -4221,6 +4221,34 @@ async function guardarBalanceHistorico() {
     toast('✅ Balance histórico guardado');
   } catch(e) { alert('Error: ' + e.message); }
 }
+
+// Campos de hora escribibles: se puede tipear 1430, 14:30, 9 o 930 (o sea, no hace falta elegir de una lista)
+function normalizarHoraTexto(v) {
+  var d = String(v || '').replace(/[^0-9]/g, '');
+  if (!d) return '';
+  var h, m;
+  if (d.length <= 2) { h = parseInt(d); m = 0; }
+  else if (d.length === 3) { h = parseInt(d.slice(0,1)); m = parseInt(d.slice(1)); }
+  else { h = parseInt(d.slice(0,2)); m = parseInt(d.slice(2,4)); }
+  if (h > 23 || m > 59) return null;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+document.addEventListener('input', function(e) {
+  var el = e.target;
+  if (!el || !el.classList || !el.classList.contains('hora-libre')) return;
+  if (e.inputType && e.inputType.indexOf('delete') === 0) return;
+  var d = el.value.replace(/[^0-9]/g, '').slice(0,4);
+  if (d.length >= 3) el.value = d.slice(0,2) + ':' + d.slice(2);
+  else el.value = d;
+});
+document.addEventListener('focusout', function(e) {
+  var el = e.target;
+  if (!el || !el.classList || !el.classList.contains('hora-libre')) return;
+  if (!el.value) return;
+  var n = normalizarHoraTexto(el.value);
+  if (n === null) { el.value = ''; toast('⚠️ Hora inválida, escribila como 14:30'); }
+  else el.value = n;
+});
 
 // ==================
 // SESIONES POR PACIENTE (admin: con monto / perfil profesional: solo cantidades)
@@ -9359,7 +9387,7 @@ function openTurnoModal(fecha, hora, existingTurno) {
   var idEl = document.getElementById('turno-id');
   var tituloEl = document.getElementById('turno-modal-titulo');
   if (fechaEl) fechaEl.value = fecha;
-  if (horaEl) horaEl.value = hora + ':00';
+  if (horaEl) horaEl.value = String(hora).slice(0,5);
   if (idEl) idEl.value = existingTurno ? existingTurno.id : '';
   if (tituloEl) tituloEl.textContent = existingTurno ? 'Editar turno' : 'Nuevo turno';
   if (existingTurno) {
