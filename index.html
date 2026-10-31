@@ -409,6 +409,9 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="page" id="page-recursos">
       <div id="recursos-content"></div>
     </div>
+    <div class="page" id="page-conteo">
+      <div id="conteo-content"></div>
+    </div>
 
     <!-- GASTOS -->
     <div class="page" id="page-gastos">
@@ -1711,7 +1714,7 @@ async function login() {
     try { sessionStorage.setItem('crea_e', btoa(email)); sessionStorage.setItem('crea_p', btoa(pass)); } catch(e) {}
     // Clean and rebuild nav for this user
     // 1. Remove all dynamic items
-    ['nav-admin','nav-cobros','nav-gastos','nav-resumen'].forEach(function(id) {
+    ['nav-admin','nav-cobros','nav-gastos','nav-resumen','nav-conteo'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
@@ -1754,6 +1757,7 @@ async function login() {
     }
     if (CU.rol === 'directora') {
       addNav('nav-admin', '💰 Administración', 'admin');
+      addNav('nav-conteo', '📆 Conteo semanal', 'conteo');
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
       addNav('nav-sueldos', '👥 Sueldos', 'sueldos');
@@ -1772,11 +1776,13 @@ async function login() {
         var el = document.getElementById(id); if (el) el.style.display = 'none';
       });
     } else if (CU.rol === 'recepcionista') {
+      addNav('nav-conteo', '📆 Conteo semanal', 'conteo');
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
       addNav('nav-guarderia', '🧒 Guardería', 'guarderia');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
     } else if (CU.rol === 'profesional') {
+      addNav('nav-conteo', '📆 Mi conteo semanal', 'conteo');
       addNav('nav-instrumentos', '🗂 Instrumentos', 'instrumentos');
       addNav('nav-recursos', '🧩 Recursos', 'recursos');
       document.getElementById('nav-profesionales').style.display = 'none';
@@ -1825,7 +1831,7 @@ function goTo(page) {
   document.getElementById('nav-' + page).classList.add('active');
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.getElementById('page-' + page).classList.add('active');
-  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos', recursos: 'Recursos', sueldos: 'Sueldos Fijos', guarderia: 'Guardería' };
+  var titles = { dashboard: 'Dashboard', profesionales: 'Profesionales', pacientes: 'Pacientes', agenda: 'Agenda', perfil: 'Mi perfil', admin: 'Administración', cobros: 'Cobros y Facturas', gastos: 'Gastos', resumen: 'Resumen General', instrumentos: 'Instrumentos', recursos: 'Recursos', conteo: 'Conteo semanal', sueldos: 'Sueldos Fijos', guarderia: 'Guardería' };
   document.getElementById('page-title').textContent = titles[page];
   document.getElementById('topbar-btn').innerHTML = '';
   if (page === 'profesionales') loadProfs();
@@ -1838,6 +1844,7 @@ function goTo(page) {
   if (page === 'resumen') loadResumen();
   if (page === 'instrumentos') loadInstrumentos();
   if (page === 'recursos') loadRecursos();
+  if (page === 'conteo') loadConteoSemanal();
   if (page === 'sueldos') loadSueldos();
   if (page === 'guarderia') loadGuarderia();
 }
@@ -4249,6 +4256,100 @@ document.addEventListener('focusout', function(e) {
   if (n === null) { el.value = ''; toast('⚠️ Hora inválida, escribila como 14:30'); }
   else el.value = n;
 });
+
+// ==================
+// CONTEO SEMANAL (directora: con monto; recepción y profesionales: solo cantidades por tipo)
+// ==================
+var _conteoOff = 0;
+function _lunesDeSemana(off) {
+  var d = new Date(); d.setHours(12, 0, 0, 0);
+  var dow = (d.getDay() + 6) % 7; // lunes = 0
+  d.setDate(d.getDate() - dow + (off || 0) * 7);
+  return d;
+}
+function _ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function cambiarSemanaConteo(dir) { _conteoOff = dir === 0 ? 0 : _conteoOff + dir; loadConteoSemanal(); }
+
+async function loadConteoSemanal() {
+  var el = document.getElementById('conteo-content'); if (!el) return;
+  el.innerHTML = '<div class="loading">Cargando conteo...</div>';
+  try {
+    var verMonto = CU.rol === 'directora';
+    var soloPropio = CU.rol === 'profesional';
+    var lun = _lunesDeSemana(_conteoOff), dom = new Date(lun); dom.setDate(dom.getDate() + 6);
+    var q = '?estado=in.(confirmado,cancelado_hora)&fecha=gte.' + _ymd(lun) + '&fecha=lte.' + _ymd(dom) + (soloPropio ? '&profesional_id=eq.' + CU.id : '');
+    var calls = [api('GET', 'agenda', null, q), api('GET', 'usuarios', null, '?select=id,nombre,rol')];
+    if (verMonto) { calls.push(api('GET', 'tarifas', null, '')); calls.push(api('GET', 'pacientes', null, '?select=id,valor_sesion,tipos_precio_personalizado').catch(function() { return []; })); }
+    var res = await Promise.all(calls);
+    var turnos = res[0] || [], usuarios = res[1] || [];
+    var tarifaMap = {}, pacMap = {};
+    if (verMonto) { (res[2] || []).forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; }); (res[3] || []).forEach(function(p) { pacMap[p.id] = p; }); }
+    var nomUsu = {}; usuarios.forEach(function(u) { nomUsu[u.id] = u.nombre; });
+
+    var porProf = {}, tiposUsados = {}, tot = { n: 0, aus: 0, monto: 0, porTipo: {} };
+    turnos.forEach(function(t) {
+      var tipo = t.tipo || 'sesion';
+      var pid = t.profesional_id || 'sin';
+      if (!porProf[pid]) porProf[pid] = { nombre: nomUsu[pid] || 'Sin profesional', n: 0, aus: 0, monto: 0, porTipo: {}, pacientes: {} };
+      var P = porProf[pid];
+      P.n++; tot.n++;
+      P.porTipo[tipo] = (P.porTipo[tipo] || 0) + 1; tot.porTipo[tipo] = (tot.porTipo[tipo] || 0) + 1; tiposUsados[tipo] = true;
+      if (t.estado === 'cancelado_hora') { P.aus++; tot.aus++; }
+      var kp = t.paciente_id || t.paciente_nombre || 'libre';
+      if (!P.pacientes[kp]) P.pacientes[kp] = { nombre: t.paciente_nombre || 'Sin paciente', n: 0, tipos: {} };
+      P.pacientes[kp].n++; P.pacientes[kp].tipos[tipo] = (P.pacientes[kp].tipos[tipo] || 0) + 1;
+      if (verMonto) {
+        var v = tarifaPorTipo(tarifaMap, tipo);
+        var cp = pacMap[t.paciente_id];
+        if (cp && cp.valor_sesion && (!cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1)) v = cp.valor_sesion;
+        if (tipo === 'devolucion_excepcional' && t.monto_familia_custom) v = t.monto_familia_custom;
+        P.monto += v; tot.monto += v;
+      }
+    });
+    var ordenTipos = Object.keys(TIPO_LABELS).filter(function(k) { return tiposUsados[k]; });
+    Object.keys(tiposUsados).forEach(function(k) { if (ordenTipos.indexOf(k) === -1) ordenTipos.push(k); });
+    var lbl = function(k) { return TIPO_LABELS[k] || k; };
+    var dd = function(d) { return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); };
+
+    var h = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarSemanaConteo(-1)">← Anterior</button>' +
+      '<span style="font-size:15px;font-weight:600;">Semana ' + dd(lun) + ' al ' + dd(dom) + ' · ' + dom.getFullYear() + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarSemanaConteo(1)">Siguiente →</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="cambiarSemanaConteo(0)">Esta semana</button></div>';
+    var ids = Object.keys(porProf).sort(function(a, b) { return porProf[b].n - porProf[a].n; });
+    if (!ids.length) { el.innerHTML = h + '<div class="empty-state">No hay atenciones registradas esta semana.</div>'; return; }
+
+    var th = 'padding:8px;text-align:center;font-size:12px;white-space:nowrap;';
+    h += '<div class="card" style="padding:0;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:var(--bg);">' +
+      '<th style="padding:8px;text-align:left;font-size:12px;">' + (soloPropio ? 'Mi semana' : 'Profesional') + '</th>' +
+      ordenTipos.map(function(k) { return '<th style="' + th + '">' + lbl(k) + '</th>'; }).join('') +
+      '<th style="' + th + '" title="Ausentes sin justificar (se cobran)">🟠 Aus.</th><th style="' + th + 'font-weight:700;">Total</th>' +
+      (verMonto ? '<th style="padding:8px;text-align:right;font-size:12px;">Monto familia</th>' : '') + '</tr></thead><tbody>';
+    ids.forEach(function(pid, i) {
+      var P = porProf[pid], rid = 'conteo-d' + i;
+      h += '<tr style="border-top:1px solid var(--border);cursor:pointer;" onclick="var d=document.getElementById(\'' + rid + '\');d.style.display=d.style.display===\'none\'?\'table-row\':\'none\';">' +
+        '<td style="padding:8px;font-weight:600;">' + P.nombre + ' <span style="font-size:10px;color:var(--text-tertiary);">▾</span></td>' +
+        ordenTipos.map(function(k) { return '<td style="padding:8px;text-align:center;">' + (P.porTipo[k] || '·') + '</td>'; }).join('') +
+        '<td style="padding:8px;text-align:center;color:#E67E22;">' + (P.aus || '') + '</td>' +
+        '<td style="padding:8px;text-align:center;font-weight:700;color:#1B8A7A;">' + P.n + '</td>' +
+        (verMonto ? '<td style="padding:8px;text-align:right;">' + fmtGs(P.monto) + '</td>' : '') + '</tr>';
+      var pacs = Object.keys(P.pacientes).map(function(k) { return P.pacientes[k]; }).sort(function(a, b) { return b.n - a.n || a.nombre.localeCompare(b.nombre); });
+      h += '<tr id="' + rid + '" style="display:none;background:var(--bg);"><td colspan="' + (ordenTipos.length + 3 + (verMonto ? 1 : 0)) + '" style="padding:8px 12px;font-size:12px;">' +
+        pacs.map(function(p) {
+          return '<span style="display:inline-block;margin:2px 6px 2px 0;padding:3px 8px;border-radius:6px;background:white;border:1px solid var(--border);"><b>' + p.nombre + '</b> · ' + p.n +
+            ' (' + Object.keys(p.tipos).map(function(k) { return lbl(k) + (p.tipos[k] > 1 ? ' ×' + p.tipos[k] : ''); }).join(', ') + ')</span>';
+        }).join('') + '</td></tr>';
+    });
+    if (!soloPropio) {
+      h += '<tr style="background:#FEF6E0;font-weight:700;border-top:2px solid var(--border);"><td style="padding:8px;">TOTAL SEMANA</td>' +
+        ordenTipos.map(function(k) { return '<td style="padding:8px;text-align:center;">' + (tot.porTipo[k] || '·') + '</td>'; }).join('') +
+        '<td style="padding:8px;text-align:center;color:#E67E22;">' + (tot.aus || '') + '</td><td style="padding:8px;text-align:center;">' + tot.n + '</td>' +
+        (verMonto ? '<td style="padding:8px;text-align:right;">' + fmtGs(tot.monto) + '</td>' : '') + '</tr>';
+    }
+    h += '</tbody></table></div><div style="font-size:11px;color:var(--text-tertiary);margin-top:8px;">Tocá una fila para ver los pacientes de la semana. 🟠 = ausente sin justificar (se cobra y está incluido en el total). En compartidas cada profesional cuenta su turno.</div>';
+    el.innerHTML = h;
+  } catch (e) { el.innerHTML = '<div class="empty-state">Error: ' + e.message + '</div>'; }
+}
 
 // ==================
 // SESIONES POR PACIENTE (admin: con monto / perfil profesional: solo cantidades)
