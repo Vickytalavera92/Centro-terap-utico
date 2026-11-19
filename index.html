@@ -1757,7 +1757,6 @@ async function login() {
     }
     if (CU.rol === 'directora') {
       addNav('nav-admin', '💰 Administración', 'admin');
-      addNav('nav-conteo', '📆 Conteo semanal', 'conteo');
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
       addNav('nav-sueldos', '👥 Sueldos', 'sueldos');
@@ -1776,13 +1775,11 @@ async function login() {
         var el = document.getElementById(id); if (el) el.style.display = 'none';
       });
     } else if (CU.rol === 'recepcionista') {
-      addNav('nav-conteo', '📆 Conteo semanal', 'conteo');
       addNav('nav-cobros', '🧾 Cobros y Facturas', 'cobros');
       addNav('nav-gastos', '🧮 Gastos', 'gastos');
       addNav('nav-guarderia', '🧒 Guardería', 'guarderia');
       addNav('nav-resumen', '📊 Resumen General', 'resumen');
     } else if (CU.rol === 'profesional') {
-      addNav('nav-conteo', '📆 Mi conteo semanal', 'conteo');
       addNav('nav-instrumentos', '🗂 Instrumentos', 'instrumentos');
       addNav('nav-recursos', '🧩 Recursos', 'recursos');
       document.getElementById('nav-profesionales').style.display = 'none';
@@ -2922,7 +2919,7 @@ async function loadAgendaMes() {
       api('GET', 'agenda', null, agQ),
       isDir ? api('GET', 'usuarios', null, '?rol=eq.profesional&activo=eq.true&order=nombre.asc') : Promise.resolve([]),
       api('GET', 'tarifas', null, '').catch(function(){return [];}),
-      api('GET', 'pacientes', null, '?select=id,valor_sesion,pago_profesional_custom').catch(function(){return[];})
+      api('GET', 'pacientes', null, '?select=id,valor_sesion,pago_profesional_custom,tipos_precio_personalizado').catch(function(){return[];})
     ]);
     var turnos = results[0];
     var profs = results[1];
@@ -2995,6 +2992,7 @@ async function loadAgendaMes() {
     }
     
     var todayStr = today();
+    var semAcum = [], semIni = 1;
     for (var day = 1; day <= daysInMonth; day++) {
       var dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
       var dayTurnos = turnosByDate[dateStr] || [];
@@ -3013,14 +3011,17 @@ async function loadAgendaMes() {
       });
       
       html += '</div>';
-    }
-    // Fill remaining cells with next month days
-    var totalCells = firstDow + daysInMonth;
-    var remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-    for (var nr = 1; nr <= remainingCells; nr++) {
-      html += '<div style="min-height:80px;background:var(--bg);border-radius:4px;padding:4px;opacity:0.4;">' +
-        '<div style="font-size:11px;color:var(--text-tertiary);">' + nr + '</div>' +
-        '</div>';
+      semAcum = semAcum.concat(dayTurnos);
+      if (((firstDow + day - 1) % 7 === 6) || day === daysInMonth) {
+        if (day === daysInMonth) {
+          var restoA = (firstDow + daysInMonth) % 7 === 0 ? 0 : 7 - ((firstDow + daysInMonth) % 7);
+          for (var nr = 1; nr <= restoA; nr++) {
+            html += '<div style="min-height:80px;background:var(--bg);border-radius:4px;padding:4px;opacity:0.4;"><div style="font-size:11px;color:var(--text-tertiary);">' + nr + '</div></div>';
+          }
+        }
+        html += semanaResumenHtml(semAcum, semIni, day, CU.rol === 'directora', tarifaMap, pacMapMes);
+        semAcum = []; semIni = day + 1;
+      }
     }
     
     html += '</div>';
@@ -4256,6 +4257,43 @@ document.addEventListener('focusout', function(e) {
   if (n === null) { el.value = ''; toast('⚠️ Hora inválida, escribila como 14:30'); }
   else el.value = n;
 });
+
+// ==================
+// RESUMEN AL FINAL DE CADA SEMANA EN LA VISTA MENSUAL
+// (cuenta solo los días de esa semana que caen dentro del mes)
+// ==================
+function semanaResumenHtml(arr, diaIni, diaFin, verMonto, tarifaMap, pacMap) {
+  var c = { normal: 0, canc: 0, colegio: 0, dev: 0, pref: 0, comp: 0, otros: {}, pend: 0 }, total = 0, monto = 0;
+  arr.forEach(function(t) {
+    if (t.estado === 'pendiente') { c.pend++; return; }
+    if (t.estado !== 'confirmado' && t.estado !== 'cancelado_hora') return; // cancelados con aviso no cuentan
+    var tipo = t.tipo || 'sesion';
+    total++;
+    if (verMonto) {
+      var v = (typeof tarifaPorTipo === 'function') ? tarifaPorTipo(tarifaMap || {}, tipo) : 0;
+      var cp = pacMap && pacMap[t.paciente_id];
+      if (cp && cp.valor_sesion && (!cp.tipos_precio_personalizado || cp.tipos_precio_personalizado.indexOf(tipo) !== -1)) v = cp.valor_sesion;
+      if (tipo === 'devolucion_excepcional' && t.monto_familia_custom) v = t.monto_familia_custom;
+      monto += v;
+    }
+    if (t.estado === 'cancelado_hora') { c.canc++; return; }
+    if (tipo === 'sesion' || tipo === 'nueva' || tipo === 'premium') c.normal++;
+    else if (tipo === 'colegio') c.colegio++;
+    else if (tipo === 'devolucion' || tipo === 'devolucion_compartida' || tipo === 'devolucion_excepcional') c.dev++;
+    else if (tipo === 'preferencial') c.pref++;
+    else if (tipo === 'compartida') c.comp++;
+    else c.otros[tipo] = (c.otros[tipo] || 0) + 1;
+  });
+  var chip = function(txt, n, color) { return n ? '<span style="white-space:nowrap;color:' + color + ';">' + txt + ' <strong>' + n + '</strong></span>' : ''; };
+  var otrosTxt = Object.keys(c.otros).map(function(k) { return chip(((typeof TIPO_LABELS !== 'undefined' && TIPO_LABELS[k]) || k), c.otros[k], '#546E7A'); }).join('');
+  var rango = diaIni === diaFin ? 'día ' + diaIni : 'del ' + diaIni + ' al ' + diaFin;
+  return '<div style="grid-column:1 / -1;background:#E8F6F4;border-radius:6px;padding:6px 10px;margin:2px 0 8px;font-size:12px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;">' +
+    '<span style="font-weight:700;color:#1B8A7A;">📊 Semana ' + rango + ':</span>' +
+    (total ? chip('✅ Normales', c.normal, '#1B8A7A') + chip('🟠 Canc. sobre la hora', c.canc, '#E67E22') + chip('🏫 Colegio', c.colegio, '#00838F') +
+      chip('🔄 Devoluciones', c.dev, '#7B1FA2') + chip('⭐ Preferenciales', c.pref, '#8D6E00') + chip('🤝 Compartidas', c.comp, '#C2185B') + otrosTxt : '<span style="color:var(--text-tertiary);">sin atenciones</span>') +
+    (c.pend ? '<span style="color:#F0A500;white-space:nowrap;">⏳ Pendientes <strong>' + c.pend + '</strong></span>' : '') +
+    '<span style="margin-left:auto;white-space:nowrap;">Total <strong>' + total + '</strong>' + (verMonto ? ' · <strong>' + fmtGs(monto) + '</strong>' : '') + '</span></div>';
+}
 
 // ==================
 // CONTEO SEMANAL (directora: con monto; recepción y profesionales: solo cantidades por tipo)
@@ -7953,12 +7991,15 @@ async function loadProfAgendaMes(profId) {
     
     var results = await Promise.all([
       api('GET', 'agenda', null, '?profesional_id=eq.' + profId + '&fecha=gte.' + fFirst + '&fecha=lte.' + fLast + '&order=fecha.asc,hora.asc'),
-      api('GET', 'tarifas', null, '').catch(function(){return[];})
+      api('GET', 'tarifas', null, '').catch(function(){return[];}),
+      CU.rol === 'directora' ? api('GET', 'pacientes', null, '?select=id,valor_sesion,tipos_precio_personalizado').catch(function(){return[];}) : Promise.resolve([])
     ]);
     var turnos = results[0];
     var tarifasBase = results[1];
     var tarifaMap = {};
     tarifasBase.forEach(function(t) { tarifaMap[t.tipo] = t.valor_total; });
+    var pacMapPM = {};
+    (results[2] || []).forEach(function(p) { if (p.valor_sesion) pacMapPM[p.id] = p; });
     window._profMesTurnosAll = turnos;
     
     var TIPO_COLORS_PM = { sesion:'#4CAF50', preferencial:'#FFC107', devolucion:'#9C27B0', captada:'#2196F3', premium:'#FF9800', nueva:'#78909C', colegio:'#00BCD4', compartida:'#E91E63', libre:'#607D8B', evaluacion:'#795548', entrevista_plus:'#FFD700', reunion_padres:'#3F51B5', devolucion_compartida:'#AD1457', refuerzo_escolar:'#FF7043', devolucion_excepcional:'#FF5722', ados_adir:'#009688' };
@@ -7999,6 +8040,7 @@ async function loadProfAgendaMes(profId) {
     }
     
     // Current month days
+    var semAcumP = [], semIniP = 1;
     for (var day = 1; day <= daysInMonth; day++) {
       var dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
       var dayTurnos = byDate[dateStr] || [];
@@ -8015,14 +8057,17 @@ async function loadProfAgendaMes(profId) {
           (t.hora ? t.hora.slice(0,5) + ' ' : '') + (t.paciente_nombre||'Libre') + '</div>';
       });
       html += '</div>';
-    }
-    
-    // Next month days
-    var totalCells = firstDow + daysInMonth;
-    var remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-    for (var nr = 1; nr <= remaining; nr++) {
-      html += '<div style="min-height:70px;background:var(--bg);border-radius:4px;padding:3px;opacity:0.4;">' +
-        '<div style="font-size:10px;color:var(--text-tertiary);">' + nr + '</div></div>';
+      semAcumP = semAcumP.concat(dayTurnos);
+      if (((firstDow + day - 1) % 7 === 6) || day === daysInMonth) {
+        if (day === daysInMonth) {
+          var restoP = (firstDow + daysInMonth) % 7 === 0 ? 0 : 7 - ((firstDow + daysInMonth) % 7);
+          for (var nr = 1; nr <= restoP; nr++) {
+            html += '<div style="min-height:70px;background:var(--bg);border-radius:4px;padding:3px;opacity:0.4;"><div style="font-size:10px;color:var(--text-tertiary);">' + nr + '</div></div>';
+          }
+        }
+        html += semanaResumenHtml(semAcumP, semIniP, day, CU.rol === 'directora', tarifaMap, pacMapPM);
+        semAcumP = []; semIniP = day + 1;
+      }
     }
     html += '</div>';
     
