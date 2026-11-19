@@ -937,7 +937,7 @@ input[type="time"] { -webkit-appearance: none; }
       <div class="form-group"><label>Precio por día (Gs.)</label><input type="number" id="colonia-precio-dia" placeholder="Ej: 120000"></div>
       <div class="form-group"><label>Precio semanal (Gs.)</label><input type="number" id="colonia-precio-semana" placeholder="Ej: 500000"></div>
     </div>
-    <div style="font-size:11px;color:var(--text-secondary);margin-top:-6px;margin-bottom:8px;">💡 Los hermanos tienen 15% de descuento — se aplica al inscribir cada niño.</div>
+    <div style="font-size:11px;color:var(--text-secondary);margin-top:-6px;margin-bottom:8px;">💡 Al inscribir se aplican solos: <b>3 semanas juntas = 20%</b> (sobre 3 × semanal) · <b>2º hermano = 10%</b> (semanal o 3 semanas, no por día) · <b>tope 25%</b> por niño. El descuento y el monto igual se pueden editar a mano.</div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-colonia')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarColonia()">Guardar</button>
@@ -954,13 +954,16 @@ input[type="time"] { -webkit-appearance: none; }
     <div class="form-group"><label>Nombre del niño</label><input id="inscripto-nombre" placeholder="Nombre completo"></div>
     <div class="grid-2">
       <div class="form-group"><label>Modalidad</label>
-        <select id="inscripto-modalidad" onchange="calcularMontoInscripto()">
+        <select id="inscripto-modalidad" onchange="aplicarReglaDescuentoColonia()">
           <option value="dia">Por día</option>
           <option value="semana">Semanal</option>
+          <option value="paquete">3 semanas juntas (paquete)</option>
         </select>
       </div>
-      <div class="form-group"><label id="inscripto-cantidad-label">Cantidad de días</label><input type="number" id="inscripto-cantidad" value="1" min="1" onchange="calcularMontoInscripto()"></div>
+      <div class="form-group"><label id="inscripto-cantidad-label">Cantidad de días</label><input type="number" id="inscripto-cantidad" value="1" min="1" onchange="aplicarReglaDescuentoColonia()"></div>
     </div>
+    <div class="form-group" style="margin-top:-4px;"><label style="display:flex;align-items:center;gap:8px;font-weight:500;cursor:pointer;"><input type="checkbox" id="inscripto-hermano" onchange="aplicarReglaDescuentoColonia()" style="width:auto;"> Es el 2º hermano (10% de descuento)</label>
+      <div id="inscripto-regla-hint" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div></div>
     <div class="grid-2">
       <div class="form-group"><label>% de descuento (si aplica)</label><input type="number" id="inscripto-descuento-pct" value="0" min="0" max="100" onchange="calcularMontoInscripto()"></div>
       <div class="form-group"><label>Motivo del descuento</label><input id="inscripto-descuento-motivo" placeholder="Ej: Hermano, Caso excepcional"></div>
@@ -9242,6 +9245,9 @@ async function abrirModalInscripto(coloniaId, inscriptoId) {
   document.getElementById('inscripto-cantidad').value = 1;
   document.getElementById('inscripto-descuento-pct').value = 0;
   document.getElementById('inscripto-descuento-motivo').value = '';
+  document.getElementById('inscripto-hermano').checked = false;
+  document.getElementById('inscripto-cantidad').readOnly = false;
+  document.getElementById('inscripto-regla-hint').textContent = '';
   document.getElementById('inscripto-metodo').value = 'efectivo';
   document.getElementById('inscripto-modal-titulo').textContent = 'Inscribir niño';
   if (inscriptoId) {
@@ -9268,7 +9274,29 @@ async function abrirModalInscripto(coloniaId, inscriptoId) {
 
 function actualizarLabelCantidadInscripto() {
   var modalidad = document.getElementById('inscripto-modalidad').value;
-  document.getElementById('inscripto-cantidad-label').textContent = modalidad === 'semana' ? 'Cantidad de semanas' : 'Cantidad de días';
+  document.getElementById('inscripto-cantidad-label').textContent = (modalidad === 'semana' || modalidad === 'paquete') ? 'Cantidad de semanas' : 'Cantidad de días';
+}
+
+// Reglas de la colonia: 3 semanas juntas = 20%; 2º hermano = 10% (solo semanal o 3 semanas, no por día); tope total 25% por niño.
+var COLONIA_DESC_PAQUETE = 20, COLONIA_DESC_HERMANO = 10, COLONIA_DESC_TOPE = 25;
+function aplicarReglaDescuentoColonia() {
+  var modalidad = document.getElementById('inscripto-modalidad').value;
+  var cantEl = document.getElementById('inscripto-cantidad');
+  var hermano = document.getElementById('inscripto-hermano').checked;
+  var hint = document.getElementById('inscripto-regla-hint');
+  if (modalidad === 'paquete') { cantEl.value = 3; cantEl.readOnly = true; } else { cantEl.readOnly = false; }
+  actualizarLabelCantidadInscripto();
+  var pct = 0, motivos = [], nota = '';
+  if (modalidad === 'paquete') { pct += COLONIA_DESC_PAQUETE; motivos.push('3 semanas'); }
+  if (hermano) {
+    if (modalidad === 'dia') { nota = 'Por día no hay descuento de hermano.'; }
+    else { pct += COLONIA_DESC_HERMANO; motivos.push('Hermano'); }
+  }
+  if (pct > COLONIA_DESC_TOPE) { pct = COLONIA_DESC_TOPE; nota = 'Tope: el descuento total no puede pasar de ' + COLONIA_DESC_TOPE + '%.'; }
+  document.getElementById('inscripto-descuento-pct').value = pct;
+  document.getElementById('inscripto-descuento-motivo').value = motivos.join(' + ');
+  if (hint) hint.textContent = nota;
+  calcularMontoInscripto();
 }
 
 function calcularMontoInscripto() {
@@ -9278,7 +9306,8 @@ function calcularMontoInscripto() {
   var modalidad = document.getElementById('inscripto-modalidad').value;
   var cantidad = parseInt(document.getElementById('inscripto-cantidad').value) || 1;
   var pct = parseFloat(document.getElementById('inscripto-descuento-pct').value) || 0;
-  var precioUnit = modalidad === 'semana' ? (c.precio_semana || 0) : (c.precio_dia || c.precio_base || 0);
+  var precioUnit = modalidad === 'dia' ? (c.precio_dia || c.precio_base || 0) : (c.precio_semana || 0);
+  if (modalidad === 'paquete') cantidad = 3;
   var monto = precioUnit * cantidad;
   if (pct > 0) monto = Math.round(monto * (1 - pct / 100));
   document.getElementById('inscripto-monto').value = monto;
@@ -9289,11 +9318,12 @@ async function guardarInscripto() {
   var coloniaId = document.getElementById('inscripto-colonia-id').value;
   var nombre = document.getElementById('inscripto-nombre').value.trim();
   if (!nombre) { alert('Ingresá el nombre del niño'); return; }
+  var modalSel = document.getElementById('inscripto-modalidad').value;
   var data = {
     colonia_id: coloniaId,
     nombre_nino: nombre,
-    modalidad: document.getElementById('inscripto-modalidad').value,
-    cantidad: parseInt(document.getElementById('inscripto-cantidad').value) || 1,
+    modalidad: modalSel === 'paquete' ? 'semana' : modalSel,
+    cantidad: modalSel === 'paquete' ? 3 : (parseInt(document.getElementById('inscripto-cantidad').value) || 1),
     descuento_porcentaje: parseFloat(document.getElementById('inscripto-descuento-pct').value) || 0,
     descuento_motivo: document.getElementById('inscripto-descuento-motivo').value.trim() || null,
     monto: parseInt(document.getElementById('inscripto-monto').value) || 0,
